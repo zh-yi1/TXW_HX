@@ -1,0 +1,9 @@
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+include_path  = [cwd]
+
+group = DefineGroup('Driver/CMSIS', src, depend = [''], CPPPATH = include_path)
+
+Return('group')
