@@ -24,9 +24,11 @@
 
 void lcd_init(void);
 
+void WriteComm(unsigned int i);
+void WriteData(unsigned int i);
 void DispColor(unsigned int color);
 void BlockWrite(unsigned int Xstart, unsigned int Xend, unsigned int Ystart, unsigned int Yend);
-void Dispphoto_Dispaly_flash(int x, int y, int add, int num);
+void Dispphoto_Dispaly_flash(int x, int y, int add);
 
 void spi_buf_send(uint8_t send_size);
 

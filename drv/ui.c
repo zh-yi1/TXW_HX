@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "flash_image_addr.h"
 
 ui_t ui_ctrl;
 
@@ -33,7 +34,7 @@ void ui_init(void)
 	//刷黑屏幕
 	DispColor(BLACK);
 	
-	Dispphoto_Dispaly_flash(0,0,0,64808);
+	Dispphoto_Dispaly_flash(0,0,FLASH_ADDR_CHARGING_BLUE_0001);
 
 	//获取FLASH芯片 ID
 //	ui_ctrl.flash_id = flash_read_id();

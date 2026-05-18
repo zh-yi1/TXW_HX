@@ -174,19 +174,35 @@ void I2C1_Handler()
  */
 void DMA_Handler(void)
 {
+	uint8_t tx_ok = 0, rx_ok = 0;
+
 	if (md_dma_is_enabled_it_done(MD_DMA_CH_0) && md_dma_is_active_flag_done(MD_DMA_CH_0))
 	{
 		md_dma_clear_flag_done(MD_DMA_CH_0);
 		md_spi_disable_tx_dma(SPI0);
-		spi_dma_send_ok = 1;
-		spi_dma_send_clc = 0;
+
+		if (dma_chain_state == DMA_CHAIN_LCD_PUSH)
+		{
+			dma_chain_done = 1;
+			spi_dma_send_clc = 0;
+		}
+		else if (dma_chain_state == DMA_CHAIN_FLASH_READ)
+		{
+			tx_ok = 1;
+		}
 	}
 
 	if (md_dma_is_enabled_it_done(MD_DMA_CH_1) && md_dma_is_active_flag_done(MD_DMA_CH_1))
 	{
 		md_dma_clear_flag_done(MD_DMA_CH_1);
 		md_spi_disable_rx_dma(SPI0);
+
+		if (dma_chain_state == DMA_CHAIN_FLASH_READ)
+			rx_ok = 1;
 	}
+
+	if (dma_chain_state == DMA_CHAIN_FLASH_READ && tx_ok && rx_ok)
+		dma_chain_done = 1;
 
 	return;
 }

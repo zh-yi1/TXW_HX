@@ -299,47 +299,66 @@ void Dispphoto_Dispaly(int x, int y, unsigned char *buf)
 	LCD_CS_HIGH();
 }
 
-void Dispphoto_Dispaly_flash(int x, int y, int add, int num)
+void Dispphoto_Dispaly_flash(int x, int y, int add)
 {
-	unsigned short h, w;
-	uint32_t addr_offset;
-	int remaining;
-	uint16_t chunk_size;
-	uint32_t timeout;
+	int w, h, row_size, total_rows;
+	uint32_t pixel_offset;
+	uint16_t bpp;
+	int bottom_up;
 
+	/* 读 BMP 文件头 + BITMAPINFOHEADER (最多 66 字节含 BI_BITFIELDS 掩码) */
+	flash_read_dma(add, spi_dma_buf, 66);
 
-	/* DMA 读取 8 字节位图头 */
-	flash_read_dma(add, spi_dma_buf, 8);
+	/* BM 签名校验 */
+	if (spi_dma_buf[0] != 'B' || spi_dma_buf[1] != 'M')
+		return;
 
-	w = spi_dma_buf[3];
-	h = spi_dma_buf[5];
+	/* 位图像素数据偏移 (字节 10-13, uint32 LE) */
+	pixel_offset = (uint32_t)spi_dma_buf[10]
+		| ((uint32_t)spi_dma_buf[11] << 8)
+		| ((uint32_t)spi_dma_buf[12] << 16)
+		| ((uint32_t)spi_dma_buf[13] << 24);
 
+	/* 宽度 (字节 18-21, int32 LE) */
+	w = spi_dma_buf[18]
+		| (spi_dma_buf[19] << 8)
+		| (spi_dma_buf[20] << 16)
+		| (spi_dma_buf[21] << 24);
+
+	/* 高度 (字节 22-25, int32 LE) */
+	h = spi_dma_buf[22]
+		| (spi_dma_buf[23] << 8)
+		| (spi_dma_buf[24] << 16)
+		| (spi_dma_buf[25] << 24);
+
+	/* 位深 (字节 28-29, uint16 LE) */
+	bpp = spi_dma_buf[28] | (spi_dma_buf[29] << 8);
+
+	/* 只支持 16-bit RGB */
+	if (bpp != 16 || w <= 0 || w > 240)
+		return;
+
+	/* 正高度 = 自底向上, 负高度 = 自顶向下 */
+	bottom_up = (h > 0);
+	if (h < 0) h = -h;
+	total_rows = h;
+
+	/* 含 4 字节对齐的行大小 */
+	row_size = ((w * 2) + 3) & ~3;
+
+	/* 设置 LCD 显示窗口 */
 	BlockWrite(x, x + w - 1, y, y + h - 1);
 
-	remaining = num - 8;
-	addr_offset = add + 8;
-
-	while (remaining > 0)
+	/* MADCTL 默认 0xA0 (MY=1 自底向上). 标准 BMP 首行是底部, 匹配.
+	   自顶向下 BMP 需翻转 MY 位 */
+	if (!bottom_up)
 	{
-		chunk_size = (remaining > READ_BUFFER_MAX) ? READ_BUFFER_MAX : remaining;
-
-		/* DMA 读 Flash 像素数据 */
-		flash_read_dma(addr_offset, spi_dma_buf, chunk_size);
-
-		/* DMA 推屏到 LCD */
-		spi_dma_send_ok = 0;
-		dma_send_enable(chunk_size);
-
-		/* 等待 LCD 推屏 DMA 完成 */
-		timeout = 100000;
-		while (spi_dma_send_ok == 0 && --timeout)
-			;
-
-		addr_offset += chunk_size;
-		remaining -= chunk_size;
+		WriteComm(0x36);
+		WriteData(0x20);
 	}
 
-	LCD_CS_HIGH();
+	/* 启动异步链: 逐行 Flash读 → 字节交换 → LCD推 */
+	dma_chain_bmp_start(add + pixel_offset, w, total_rows, row_size, !bottom_up);
 }
 
 extern uint16_t spi_dma_buf_len;
