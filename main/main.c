@@ -14,23 +14,7 @@ int main()
 
 	while (1)
 	{
-		dma_chain_proc();
-		// ui_proc();
-
-// 		if(work_time.timer_10ms)
-// 		{
-// 			work_time.timer_10ms = 0;
-// 			dma_send_ok_release();
-// 		}
-
-// 		if (work_time.timer_100ms)
-// 		{
-// 			work_time.timer_100ms = 0;
-
-// //			DispColor(color_test++);
-
-// //			ui_task();
-// 		}
+		ui_proc();
 	}
 }
 

@@ -301,64 +301,91 @@ void Dispphoto_Dispaly(int x, int y, unsigned char *buf)
 
 void Dispphoto_Dispaly_flash(int x, int y, int add)
 {
-	int w, h, row_size, total_rows;
-	uint32_t pixel_offset;
+	int w, h, row_size, row;
+	uint32_t pixel_offset, addr;
 	uint16_t bpp;
-	int bottom_up;
+	uint32_t timeout;
 
-	/* 读 BMP 文件头 + BITMAPINFOHEADER (最多 66 字节含 BI_BITFIELDS 掩码) */
 	flash_read_dma(add, spi_dma_buf, 66);
 
-	/* BM 签名校验 */
 	if (spi_dma_buf[0] != 'B' || spi_dma_buf[1] != 'M')
 		return;
 
-	/* 位图像素数据偏移 (字节 10-13, uint32 LE) */
 	pixel_offset = (uint32_t)spi_dma_buf[10]
 		| ((uint32_t)spi_dma_buf[11] << 8)
 		| ((uint32_t)spi_dma_buf[12] << 16)
 		| ((uint32_t)spi_dma_buf[13] << 24);
 
-	/* 宽度 (字节 18-21, int32 LE) */
 	w = spi_dma_buf[18]
 		| (spi_dma_buf[19] << 8)
 		| (spi_dma_buf[20] << 16)
 		| (spi_dma_buf[21] << 24);
 
-	/* 高度 (字节 22-25, int32 LE) */
 	h = spi_dma_buf[22]
 		| (spi_dma_buf[23] << 8)
 		| (spi_dma_buf[24] << 16)
 		| (spi_dma_buf[25] << 24);
 
-	/* 位深 (字节 28-29, uint16 LE) */
 	bpp = spi_dma_buf[28] | (spi_dma_buf[29] << 8);
 
-	/* 只支持 16-bit RGB */
 	if (bpp != 16 || w <= 0 || w > 240)
 		return;
 
-	/* 正高度 = 自底向上, 负高度 = 自顶向下 */
-	bottom_up = (h > 0);
 	if (h < 0) h = -h;
-	total_rows = h;
 
-	/* 含 4 字节对齐的行大小 */
 	row_size = ((w * 2) + 3) & ~3;
 
-	/* 设置 LCD 显示窗口 */
 	BlockWrite(x, x + w - 1, y, y + h - 1);
 
-	/* MADCTL 默认 0xA0 (MY=1 自底向上). 标准 BMP 首行是底部, 匹配.
-	   自顶向下 BMP 需翻转 MY 位 */
-	if (!bottom_up)
+	addr = add + pixel_offset;
+
+	for (row = 0; row < h; row++)
 	{
-		WriteComm(0x36);
-		WriteData(0x20);
+		flash_read_dma(addr, spi_dma_buf, row_size);
+		buf_swap_bytes(w * 2);
+
+		spi_dma_send_ok = 0;
+		dma_send_enable(w * 2);
+
+		timeout = 100000;
+		while (spi_dma_send_ok == 0 && --timeout);
+
+		addr += row_size;
 	}
 
-	/* 启动异步链: 逐行 Flash读 → 字节交换 → LCD推 */
-	dma_chain_bmp_start(add + pixel_offset, w, total_rows, row_size, !bottom_up);
+	LCD_CS_HIGH();
+}
+
+void DispBlock(int x1, int y1, int x2, int y2)
+{
+	int w, h, total, remaining;
+	uint16_t chunk;
+	uint32_t timeout;
+
+	w = x2 - x1 + 1;
+	h = y2 - y1 + 1;
+	total = w * h;
+	if (total <= 0) return;
+
+	BlockWrite(x1, x2, y1, y2);
+
+	memset(spi_dma_buf, 0, FLASH_READ_BUF_SIZE);
+
+	remaining = total * 2;
+	while (remaining > 0)
+	{
+		chunk = (remaining > FLASH_READ_BUF_SIZE) ? FLASH_READ_BUF_SIZE : (uint16_t)remaining;
+
+		spi_dma_send_ok = 0;
+		dma_send_enable(chunk);
+
+		timeout = 100000;
+		while (spi_dma_send_ok == 0 && --timeout);
+
+		remaining -= chunk;
+	}
+
+	LCD_CS_HIGH();
 }
 
 extern uint16_t spi_dma_buf_len;

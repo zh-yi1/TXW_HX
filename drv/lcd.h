@@ -29,6 +29,7 @@ void WriteData(unsigned int i);
 void DispColor(unsigned int color);
 void BlockWrite(unsigned int Xstart, unsigned int Xend, unsigned int Ystart, unsigned int Yend);
 void Dispphoto_Dispaly_flash(int x, int y, int add);
+void DispBlock(int x1, int y1, int x2, int y2);
 
 void spi_buf_send(uint8_t send_size);
 

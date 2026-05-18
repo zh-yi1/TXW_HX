@@ -6,7 +6,8 @@
       "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508 status)",
       "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508 log --oneline -20)",
       "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508/src status)",
-      "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508/src log --oneline -20)"
+      "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508/src log --oneline -20)",
+      "Bash(python -c ' *)"
     ]
   }
 }

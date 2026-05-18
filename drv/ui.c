@@ -1,8 +1,6 @@
 #include "ui.h"
 #include "flash_image_addr.h"
 
-ui_t ui_ctrl;
-
 static void 			ui_gpio_init					(void);
 static void				ui_iic_data_get					(void);
 static void				ui_disp_page_reflash			(void);
@@ -33,9 +31,13 @@ void ui_init(void)
 	
 	//刷黑屏幕
 	DispColor(BLACK);
-	
-	Dispphoto_Dispaly_flash(0,0,FLASH_ADDR_CHARGING_BLUE_0001);
+	md_delay_1ms(500);
+	// Dispphoto_Dispaly_flash(0,0,FLASH_ADDR_BLUE_NUM_64_0);
+	// start_change_anima(0);
+	// extern void draw_charging_blue_anima();
+	// draw_charging_blue_anima();
 
+	default_page_init();
 	//获取FLASH芯片 ID
 //	ui_ctrl.flash_id = flash_read_id();
 }
@@ -56,6 +58,7 @@ void ui_task(void)
 //处理不同页面内容
 void ui_proc(void)
 {
+#if 0
 	switch(ui_ctrl.disp_page)
 	{
 		case DISP_PAGE_BAT_NUM:
@@ -91,10 +94,13 @@ void ui_proc(void)
 		default:
 			break;
 	}
+		
+#endif
 }
 
 static void ui_iic_data_get(void)
 {
+#if 0
 	/**********************************获取IIC数据******************************************/	
 	//获取页面内容
 	ui_ctrl.iic_data.disp_ctrl_read.byte	= (disp_page_t)iic_send_buf[IIC_DISP_CTRL];
@@ -135,10 +141,12 @@ static void ui_iic_data_get(void)
 	
 	if(ui_ctrl.iic_data.bat_temp_c_read > 80)
 		ui_ctrl.iic_data.bat_temp_c_read = 80;
+#endif
 }
 
 static void ui_disp_page_reflash(void)
 {
+#if 0
 	if(ui_ctrl.disp_page != ui_ctrl.iic_data.disp_ctrl_read.disp_page)
 	{
 		ui_ctrl.disp_page = (disp_page_t)ui_ctrl.iic_data.disp_ctrl_read.disp_page;
@@ -147,10 +155,12 @@ static void ui_disp_page_reflash(void)
 		ui_ctrl.disp_step = DISP_STEP_REFLASH;
 		ui_ctrl.disp_pos = 0;
 	}
+#endif
 }
 
 static void ui_disp_light_proc(void)
 {
+#if 0
 	if(ui_ctrl.power_on < LCD_POWER_ON_DELAY)
 	{
 		ui_ctrl.power_on++;
@@ -198,6 +208,7 @@ static void ui_disp_light_proc(void)
 	}
 	
 	ad16c4t_timer_pwm_set(ui_ctrl.disp_pwm_duty);
+#endif
 }
 
 static void ui_gpio_init(void)
