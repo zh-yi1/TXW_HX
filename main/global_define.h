@@ -12,8 +12,11 @@
 #include "iic.h"
 #include "timer.h"
 
+#include "ui.h"
+#include "bar_progress.h"
 #include "flash_image_addr.h"
 #include "default_page.h"
+#include "hint_page.h"
 
 #endif
 

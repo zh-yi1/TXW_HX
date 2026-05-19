@@ -7,7 +7,10 @@
       "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508 log --oneline -20)",
       "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508/src status)",
       "Bash(git -C e:/project/TKW_HX/ES32F0100_PWR_844_20260508/src log --oneline -20)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(sed -i '/\\(ui_data.bat_power > 10\\) = \\(ui_data.bat_power > 10\\);/d' ui/default_page.c)",
+      "Bash(sed -i 's/int area_x, area_y, area_w, area_h;/int area_x, area_y, area_w;/' ui/default_page.c)",
+      "Bash(sed -i 's/int x, total_w;//' ui/default_page.c)"
     ]
   }
 }
