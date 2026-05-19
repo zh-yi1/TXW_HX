@@ -98,6 +98,10 @@ typedef struct
 	uint8_t  anim_power;		/* 动画当前显示的电量值 1-100 */
 	uint16_t prev_disp_x;		/* 上一轮电量显示 X 坐标 */
 	uint8_t  prev_disp_w;		/* 上一轮电量显示总宽度 */
+	uint8_t  charge_anim_frame;	/* 充电图标动画当前帧 0-24 */
+	uint8_t  prev_bar_effect;	/* 上一轮进度条效果 0=初始 1=充电 2=放电 */
+	uint16_t prev_icon_x;		/* 上一轮充电图标 X 坐标 */
+	uint8_t  bat_power_last;	/* 上一轮电量值，检测变化 */
 } ui_data_t;
 
 extern ui_data_t ui_data;

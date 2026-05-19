@@ -287,6 +287,9 @@ void draw_charging_blue_anima()
 #define BAR_PROGRESS_X 0
 #define BAR_PROGRESS_Y 65
 
+#include "bar_progress.h"
+
+static void default_page_show_bar_effect(void);
 
 void default_page_show_battery(void)
 {
@@ -295,41 +298,123 @@ void default_page_show_battery(void)
 	total_w = anima_power_width(ui_data.bat_power);
 
 	if (ui_data.is_charge)
+	{
 		x = CHARGE_POWER_X;
+		total_w = total_w - PERCENT_W + NUM_48_W;
+	}
 	else
+	{
 		x = (SCREEN_W - total_w) / 2;
+	}
 
 	old_x = ui_data.prev_disp_x;
 	old_w = ui_data.prev_disp_w;
 
-	/* 先画新帧 */
+	/* 位数减少(3→2, 2→1): 先整块擦除旧区域, 再画新帧 */
+	if (old_w > 0 && old_w > total_w)
+		anima_erase_area(old_x, CHARGE_POWER_Y, old_w, NUM_48_H);
+
+	/* 画新帧 */
 	anima_draw_bat_power(x, CHARGE_POWER_Y, ui_data.bat_power, (ui_data.bat_power > 10));
+
+	if (ui_data.is_charge)
+	{
+		int n = (ui_data.bat_power >= 100) ? 3 : (ui_data.bat_power >= 10) ? 2 : 1;
+		int icon_x = x + n * NUM_48_W;
+		uint32_t icon_addr = (ui_data.bat_power > 10)
+		                     ? FLASH_ADDR_CHARGING_BLUE : FLASH_ADDR_CHARGING_ORANGE;
+		Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
+	}
 
 	/* 更新追踪 */
 	ui_data.prev_disp_x = x;
 	ui_data.prev_disp_w = total_w;
 
-	/* 只擦除旧帧未被新帧覆盖的部分 (先画后擦, 无闪烁) */
-	if (old_w == 0)
+	if (old_w == 0 || old_w > total_w)
 		goto draw_bar;
 
-	/* 左边缘: 新帧右移, 擦左边多出来的 */
+	/* 同位数或位数增加: 只擦不重叠的边角 (先画后擦, 无闪烁) */
 	if (old_x < x)
 		anima_erase_area(old_x, CHARGE_POWER_Y, x - old_x, NUM_48_H);
 
-	/* 右边缘: 旧帧更宽, 擦右边多出来的 */
 	if (old_x + old_w > x + total_w)
 		anima_erase_area(x + total_w, CHARGE_POWER_Y,
 		                 (old_x + old_w) - (x + total_w), NUM_48_H);
 
-	/* 位数减少时, 新%只覆盖旧数字下半部(24px), 上半部需单独擦除 */
-	if (old_w > total_w)
-		anima_erase_area(x + total_w - PERCENT_W, CHARGE_POWER_Y,
-		                 PERCENT_W, NUM_48_H - PERCENT_H);
-
 draw_bar:
-	/* 电量进度条 */
-	Dispphoto_Dispaly_flash(BAR_PROGRESS_X, BAR_PROGRESS_Y, progress_bar[ui_data.bat_power - 1]);
+		default_page_show_bar_effect();
+}
+
+#define BAR_EFFECT_UP_Y   (BAR_PROGRESS_Y - CHARGING_ICON_H)
+#define BAR_EFFECT_DN_Y   (BAR_PROGRESS_Y + BAR_PROGRESS_H)
+#define BAR_EFFECT_AREA_H (CHARGING_ICON_H + BAR_PROGRESS_H + BLUR_H)
+
+static void default_page_show_bar_effect(void)
+{
+	int bat = ui_data.bat_power;
+	int fill_x;
+
+	if (ui_data.prev_bar_effect > 0)
+	{
+		int cur_effect = ui_data.is_charge ? 1 : 2;
+		if (ui_data.prev_bar_effect != cur_effect)
+		{
+			anima_erase_area(0, BAR_EFFECT_UP_Y, BAR_PROGRESS_W, BAR_EFFECT_AREA_H);
+			ui_data.prev_icon_x = 0;
+		}
+	}
+	ui_data.prev_bar_effect = ui_data.is_charge ? 1 : 2;
+
+	Dispphoto_Dispaly_flash(BAR_PROGRESS_X, BAR_PROGRESS_Y, progress_bar[bat - 1]);
+
+	fill_x = bat * BAR_PROGRESS_W / 100;
+
+	if (ui_data.is_charge)
+	{
+		int icon_x = fill_x - CHARGING_ICON_W;
+		if (icon_x < 0) icon_x = 0;
+		int is_blue = (bat > 10);
+		int f = ui_data.charge_anim_frame;
+		int px = ui_data.prev_icon_x;
+
+		/* 先画新帧 */
+		if (is_blue)
+		{
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_UP_Y, charging_blue_up[f]);
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_DN_Y, charging_blue_down[f]);
+		}
+		else
+		{
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_UP_Y, charging_orange_up[f]);
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_DN_Y, charging_orange_down[f]);
+		}
+
+		/* 擦除旧图标不重叠部分 (先画后擦, 无闪烁) */
+		if (px > 0)
+		{
+			if (icon_x > px)
+			{
+				anima_erase_area(px, BAR_EFFECT_UP_Y, icon_x - px, CHARGING_ICON_H);
+				anima_erase_area(px, BAR_EFFECT_DN_Y, icon_x - px, CHARGING_ICON_H);
+			}
+			else if (icon_x < px)
+			{
+				anima_erase_area(icon_x + CHARGING_ICON_W, BAR_EFFECT_UP_Y,
+				                 px - icon_x, CHARGING_ICON_H);
+				anima_erase_area(icon_x + CHARGING_ICON_W, BAR_EFFECT_DN_Y,
+				                 px - icon_x, CHARGING_ICON_H);
+			}
+		}
+		ui_data.prev_icon_x = icon_x;
+
+		ui_data.charge_anim_frame = (f + 1) % 25;
+	}
+	else
+	{
+		int idx = bat - 1;
+		Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y, blur_up[idx]);
+		Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y, blur_down[idx]);
+	}
 }
 
 
@@ -356,11 +441,21 @@ void default_page_init()
 
 void default_page_updata(void)
 {
-	bool charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
+	int charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
+	int power_changed  = (ui_data.bat_power_last != ui_data.bat_power);
+
+	/* 充放电切换时重置追踪, 强制全量重绘避免位置偏差 */
+	if (charge_changed)
+		ui_data.prev_disp_w = 0;
 
 	ui_data.is_charge_last = ui_data.is_charge;
+	ui_data.bat_power_last = ui_data.bat_power;
 
-	default_page_show_battery();
+	/* 电量百分比只在数值变化或充放电切换时重绘, 动画每帧更新进度条区域 */
+	if (power_changed || charge_changed)
+		default_page_show_battery();
+	else
+		default_page_show_bar_effect();
 
 	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */
 	if (ui_data.usb_c1_is_use != ui_data.usb_c1_is_use_last
@@ -393,17 +488,16 @@ void default_page_updata(void)
 		ui_data.usb_a_power_last = ui_data.usb_a_power;
 	}
 
-	/* 充放电状态变化时触发电量百分比动画 */
-	if (charge_changed)
-		start_change_anima(ui_data.is_charge);
 }
 
 /* ============================ 测试函数 ============================ */
 
 void default_page_test(void)
 {
+	int frame_cnt = 0;
+
 	/* 设置测试数据 */
-	ui_data.bat_power     = 100;
+	ui_data.bat_power     = 5;
 	ui_data.is_charge     = 0;
 	ui_data.usb_c1_is_use = true;
 	ui_data.usb_c1_power  = 60;
@@ -414,24 +508,55 @@ void default_page_test(void)
 
 	default_page_init();
 
-	// start_change_anima(ui_data.is_charge);
-	/* 模拟充电过程 */
-	while (ui_data.bat_power <= 100)
+	ui_data.is_charge = 1;
+	start_change_anima(ui_data.is_charge);
+
+	/* 模拟充电过程 5→100, 动画持续播放 */
+	while (ui_data.bat_power < 100)
 	{
-		md_delay_1ms(300);
+		md_delay_1ms(20);
+		frame_cnt++;
 
-		if (ui_data.bat_power < 10)
-			ui_data.bat_power -= 1;
-		else
-			ui_data.bat_power -= 5;
-
-		if (ui_data.bat_power > 100)
-			ui_data.bat_power = 100;
+		if (frame_cnt >= 15)
+		{
+			frame_cnt = 0;
+			if (ui_data.bat_power < 10)
+				ui_data.bat_power += 1;
+			else
+				ui_data.bat_power += 10;
+			if (ui_data.bat_power > 100)
+				ui_data.bat_power = 100;
+		}
 
 		default_page_updata();
 	}
 
 	/* 充满, 播放充电结束动画 */
-	// ui_data.is_charge = 0;
-	// start_change_anima(false);
+	ui_data.is_charge = 0;
+	// default_page_updata();
+	Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y, blur_up[ui_data.bat_power-1]);
+	Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y, blur_down[ui_data.bat_power-1]);
+	start_change_anima(ui_data.is_charge);
+
+	frame_cnt = 0;
+
+	/* 模拟掉电过程 100→1, 动画持续播放 */
+	while (ui_data.bat_power > 1)
+	{
+		md_delay_1ms(20);
+		frame_cnt++;
+
+		if (frame_cnt >= 15)
+		{
+			frame_cnt = 0;
+			if (ui_data.bat_power > 10)
+				ui_data.bat_power -= 5;
+			else
+				ui_data.bat_power -= 1;
+			if (ui_data.bat_power < 1)
+				ui_data.bat_power = 1;
+		}
+
+		default_page_updata();
+	}
 }
