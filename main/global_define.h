@@ -9,7 +9,9 @@
 #include "flash.h"
 #include "lcd.h"
 #include "ui.h"
-#include "iic.h"
+#include "sw_i2c.h"
+#include "cw1573.h"
+#include "cw1573_test.h"
 #include "timer.h"
 
 #include "ui.h"

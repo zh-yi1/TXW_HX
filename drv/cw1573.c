@@ -1,0 +1,265 @@
+#include "cw1573.h"
+
+static uint8_t crc8_update(uint8_t crc, uint8_t data)
+{
+	crc ^= data;
+	for (uint8_t i = 0; i < 8; i++)
+	{
+		if (crc & 0x80)
+			crc = (uint8_t)((crc << 1) ^ CW1573_CRC8_POLY);
+		else
+			crc <<= 1;
+	}
+	return crc;
+}
+
+void cw1573_init(uint8_t cell_count)
+{
+	uint8_t cfg;
+	md_gpio_init_t g;
+
+	sw_i2c_init();
+
+	/* INT/SLEEP pin (PA13): output low to prevent Sleep3 entry */
+	md_gpio_init_struct(&g);
+	md_gpio_init(CW1573_INT_PORT, CW1573_INT_PIN, &g);
+	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
+
+	/* Exit any existing sleep state */
+	cfg = CW1573_EXIT_SLEEP;
+	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
+
+	/* INT_SET: enable OV/UV, DOC/COC/SC, TS, VADC, IADC interrupts */
+	cfg = CW1573_OVUV_INT | CW1573_DOCCOCSC_INT | CW1573_TS_INT
+	    | CW1573_VADC_INT | CW1573_IADC_INT;
+	cw1573_write_reg(CW1573_REG_INT_SET, &cfg, 1);
+
+	/* BAL_SET: disable balance by default */
+	cfg = 0x00;
+	cw1573_write_reg(CW1573_REG_BAL_SET, &cfg, 1);
+
+	/* CONFIG0: enable IC, WDT, TS, set cell count */
+	cfg = CW1573_EN_ICN | CW1573_EN_WDT | CW1573_EN_TS;
+	if (cell_count >= 3 && cell_count <= 7)
+		cfg |= cell_count;
+	else
+		cfg |= CW1573_CN_4S;
+	cw1573_write_reg(CW1573_REG_CONFIG0, &cfg, 1);
+
+	/* CONFIG1: enable VADC, IADC, CO, DO */
+	cfg = CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
+	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
+
+	/* CONFIG2: enable DCTL, OT, DOC/COC, SC, hysteresis */
+	cfg = CW1573_EN_DCTL | CW1573_EN_OT | CW1573_EN_DOC_COC | CW1573_EN_SC
+	    | CW1573_CHG_DOV_HYS | CW1573_DSG_COV_HYS;
+	cw1573_write_reg(CW1573_REG_CONFIG2, &cfg, 1);
+
+	/* VOV = 4.20V per cell (3300mV + 180*5mV) */
+	cfg = 0xB4;
+	cw1573_write_reg(CW1573_REG_VOV, &cfg, 1);
+
+	/* VOVR = 4.00V per cell (3300mV + 140*5mV) */
+	cfg = 0x8C;
+	cw1573_write_reg(CW1573_REG_VOVR, &cfg, 1);
+
+	/* VUV = 2.70V per cell (1280mV + 142*10mV) */
+	cfg = 0x8E;
+	cw1573_write_reg(CW1573_REG_VUV, &cfg, 1);
+
+	/* VUVR = 3.00V per cell (1280mV + 172*10mV) */
+	cfg = 0xAC;
+	cw1573_write_reg(CW1573_REG_VUVR, &cfg, 1);
+
+	/* COT/COTR: charge over-temp threshold & recovery hysteresis */
+	{
+		uint8_t cot[2];
+		cot[0] = 0x95;
+		cot[1] = 0x12;
+		cw1573_write_reg(CW1573_REG_COT_H, cot, 2);
+	}
+
+	/* CUT/CUTR: charge under-temp threshold & recovery hysteresis */
+	{
+		uint8_t cut[2];
+		cut[0] = 0x7B;
+		cut[1] = 0x97;
+		cw1573_write_reg(CW1573_REG_CUT_H, cut, 2);
+	}
+
+	/* DOT/DOTR: discharge over-temp threshold & recovery hysteresis */
+	{
+		uint8_t dot[2];
+		dot[0] = 0x5C;
+		dot[1] = 0x8C;
+		cw1573_write_reg(CW1573_REG_DOT_H, dot, 2);
+	}
+
+	/* DUT/DUTR: discharge under-temp threshold & recovery hysteresis */
+	{
+		uint8_t dut[2];
+		dut[0] = 0xC5;
+		dut[1] = 0x8F;
+		cw1573_write_reg(CW1573_REG_DUT_H, dut, 2);
+	}
+
+	/* DOC1: discharge OC level-1 (280ms) */
+	cfg = 0x79;
+	cw1573_write_reg(CW1573_REG_VDOC1, &cfg, 1);
+
+	/* DOC2: discharge OC level-2 (56ms) */
+	cfg = 0x78;
+	cw1573_write_reg(CW1573_REG_VDOC2, &cfg, 1);
+
+	/* COC: charge OC threshold (96ms) */
+	cfg = 0x33;
+	cw1573_write_reg(CW1573_REG_VCOC, &cfg, 1);
+
+	/* IDET: charge/discharge detection thresholds */
+	cfg = 0x33;
+	cw1573_write_reg(CW1573_REG_IADC_DET, &cfg, 1);
+
+	/* SC/TSC/TDOCR/WDT: VSC=-200mV, tSC=160us, tDOCR=64ms, tWDT=256s */
+	cfg = 0x68;
+	cw1573_write_reg(CW1573_REG_VSC_TSC, &cfg, 1);
+
+	/* TOV/TUV: tOV=500ms, tUV=250ms, tBAL=16s */
+	cfg = 0x00;
+	cw1573_write_reg(CW1573_REG_TOV_TUV, &cfg, 1);
+}
+
+uint8_t cw1573_write_reg(uint8_t reg, uint8_t *buf, uint8_t len)
+{
+	uint8_t i;
+	uint8_t crc;
+	uint8_t sla_w = (uint8_t)(CW1573_SLAVE_ADDR << 1);
+
+	if (len == 0 || buf == 0)
+		return 1;
+
+	sw_i2c_start();
+	if (sw_i2c_write_byte(sla_w))
+	{
+		sw_i2c_stop();
+		return 1;
+	}
+	if (sw_i2c_write_byte(reg))
+	{
+		sw_i2c_stop();
+		return 1;
+	}
+
+	crc = 0;
+	crc = crc8_update(crc, sla_w);
+	crc = crc8_update(crc, reg);
+
+	for (i = 0; i < len; i++)
+	{
+		if (sw_i2c_write_byte(buf[i]))
+		{
+			sw_i2c_stop();
+			return 1;
+		}
+		crc = crc8_update(crc, buf[i]);
+		if (sw_i2c_write_byte(crc))
+		{
+			sw_i2c_stop();
+			return 1;
+		}
+	}
+
+	sw_i2c_stop();
+	md_delay_1us(100);
+	return 0;
+}
+
+uint8_t cw1573_read_reg(uint8_t reg, uint8_t *buf, uint8_t len)
+{
+	uint8_t i;
+	uint8_t crc, crc_rcvd;
+	uint8_t sla_w = (uint8_t)(CW1573_SLAVE_ADDR << 1);
+	uint8_t sla_r = sla_w | 1U;
+
+	if (len == 0 || buf == 0)
+		return 1;
+
+	sw_i2c_start();
+	if (sw_i2c_write_byte(sla_w))
+	{
+		sw_i2c_stop();
+		return 1;
+	}
+	if (sw_i2c_write_byte(reg))
+	{
+		sw_i2c_stop();
+		return 1;
+	}
+
+	/* Repeated start */
+	sw_i2c_start();
+	if (sw_i2c_write_byte(sla_r))
+	{
+		sw_i2c_stop();
+		return 1;
+	}
+
+	crc = 0;
+	for (i = 0; i < len; i++)
+	{
+		buf[i] = sw_i2c_read_byte(1);
+		crc = crc8_update(crc, buf[i]);
+		crc_rcvd = sw_i2c_read_byte((i == (len - 1)) ? 0 : 1);
+		if (crc != crc_rcvd)
+		{
+			sw_i2c_stop();
+			return 1;
+		}
+	}
+
+	sw_i2c_stop();
+	md_delay_1us(100);
+	return 0;
+}
+
+uint8_t cw1573_read_all(cw1573_data_t *data)
+{
+	uint8_t vcell_buf[14];
+	uint8_t err = 0;
+
+	if (data == 0)
+		return 1;
+
+	/* Read state flags: 0x00-0x02 */
+	err |= cw1573_read_reg(CW1573_REG_STATE_FLAG0, &data->state_flag0, 1);
+	err |= cw1573_read_reg(CW1573_REG_STATE_FLAG1, &data->state_flag1, 1);
+	err |= cw1573_read_reg(CW1573_REG_STATE_FLAG2, &data->state_flag2, 1);
+
+	/* Read VCELL1-7: 14 bytes burst from 0x20 */
+	err |= cw1573_read_reg(CW1573_REG_CELL1_H, vcell_buf, 14);
+	for (uint8_t i = 0; i < 7; i++)
+		data->vcell[i] = (uint16_t)(((uint16_t)vcell_buf[i * 2] << 8) | vcell_buf[i * 2 + 1]);
+
+	/* Read TS: 0x2E-0x2F */
+	{
+		uint8_t ts[2];
+		err |= cw1573_read_reg(CW1573_REG_TS_H, ts, 2);
+		data->ts_adc = (uint16_t)(((uint16_t)(ts[0] & 0x7F) << 8) | ts[1]);
+	}
+
+	/* Read IADC: 0x30-0x31 */
+	{
+		uint8_t ia[2];
+		err |= cw1573_read_reg(CW1573_REG_IADC_H, ia, 2);
+		data->iadc = (uint16_t)(((uint16_t)ia[0] << 8) | ia[1]);
+	}
+
+	/* Read CC: 0x32-0x35 (4 bytes burst) */
+	{
+		uint8_t cc[4];
+		err |= cw1573_read_reg(CW1573_REG_CC3, cc, 4);
+		data->cc = ((uint32_t)cc[0] << 24) | ((uint32_t)cc[1] << 16)
+		         | ((uint32_t)cc[2] << 8)  |  cc[3];
+	}
+
+	return err;
+}
