@@ -13,6 +13,7 @@
 
 void sw_i2c_init(void);
 void sw_i2c_start(void);
+void sw_i2c_restart(void);
 void sw_i2c_stop(void);
 uint8_t sw_i2c_write_byte(uint8_t data);
 uint8_t sw_i2c_read_byte(uint8_t ack);

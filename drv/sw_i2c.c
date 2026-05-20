@@ -68,6 +68,17 @@ void sw_i2c_start(void)
 	i2c_scl_set(0);
 }
 
+void sw_i2c_restart(void)
+{
+	i2c_sda_set(1);
+	i2c_scl_set(1);
+	I2C_DELAY_HALF();
+	I2C_DELAY_HALF();
+	i2c_sda_set(0);
+	I2C_DELAY_HALF();
+	i2c_scl_set(0);
+}
+
 void sw_i2c_stop(void)
 {
 	i2c_sda_set(0);

@@ -38,8 +38,8 @@ void cw1573_init(uint8_t cell_count)
 	cfg = 0x00;
 	cw1573_write_reg(CW1573_REG_BAL_SET, &cfg, 1);
 
-	/* CONFIG0: enable IC, WDT, TS, set cell count */
-	cfg = CW1573_EN_ICN | CW1573_EN_WDT | CW1573_EN_TS;
+	/* CONFIG0: enable IC, TS, set cell count. WDT disabled (off). */
+	cfg = CW1573_EN_ICN | CW1573_EN_TS;
 	if (cell_count >= 3 && cell_count <= 7)
 		cfg |= cell_count;
 	else
@@ -55,12 +55,12 @@ void cw1573_init(uint8_t cell_count)
 	    | CW1573_CHG_DOV_HYS | CW1573_DSG_COV_HYS;
 	cw1573_write_reg(CW1573_REG_CONFIG2, &cfg, 1);
 
-	/* VOV = 4.20V per cell (3300mV + 180*5mV) */
-	cfg = 0xB4;
+	/* VOV = 4.50V per cell (3300mV + 240*5mV) */
+	cfg = 0xF0;
 	cw1573_write_reg(CW1573_REG_VOV, &cfg, 1);
 
-	/* VOVR = 4.00V per cell (3300mV + 140*5mV) */
-	cfg = 0x8C;
+	/* VOVR = 4.20V per cell (3300mV + 180*5mV) */
+	cfg = 0xB4;
 	cw1573_write_reg(CW1573_REG_VOVR, &cfg, 1);
 
 	/* VUV = 2.70V per cell (1280mV + 142*10mV) */
@@ -103,24 +103,24 @@ void cw1573_init(uint8_t cell_count)
 		cw1573_write_reg(CW1573_REG_DUT_H, dut, 2);
 	}
 
-	/* DOC1: discharge OC level-1 (280ms) */
-	cfg = 0x79;
+	/* DOC1: dischg OC1 30mV/12A (280ms) */
+	cfg = 0x48;
 	cw1573_write_reg(CW1573_REG_VDOC1, &cfg, 1);
 
-	/* DOC2: discharge OC level-2 (56ms) */
-	cfg = 0x78;
+	/* DOC2: dischg OC2 45mV/18A (56ms) */
+	cfg = 0x34;
 	cw1573_write_reg(CW1573_REG_VDOC2, &cfg, 1);
 
-	/* COC: charge OC threshold (96ms) */
-	cfg = 0x33;
+	/* COC: charge OC 15mV/6A (96ms) */
+	cfg = 0x20;
 	cw1573_write_reg(CW1573_REG_VCOC, &cfg, 1);
 
-	/* IDET: charge/discharge detection thresholds */
-	cfg = 0x33;
+	/* IDET: charge/discharge detection ~80mA */
+	cfg = 0x77;
 	cw1573_write_reg(CW1573_REG_IADC_DET, &cfg, 1);
 
-	/* SC/TSC/TDOCR/WDT: VSC=-200mV, tSC=160us, tDOCR=64ms, tWDT=256s */
-	cfg = 0x68;
+	/* SC/TSC/TDOCR/WDT: VSC=-100mV, tSC=160us, tDOCR=64ms, tWDT=256s */
+	cfg = 0x28;
 	cw1573_write_reg(CW1573_REG_VSC_TSC, &cfg, 1);
 
 	/* TOV/TUV: tOV=500ms, tUV=250ms, tBAL=16s */
@@ -196,7 +196,7 @@ uint8_t cw1573_read_reg(uint8_t reg, uint8_t *buf, uint8_t len)
 	}
 
 	/* Repeated start */
-	sw_i2c_start();
+	sw_i2c_restart();
 	if (sw_i2c_write_byte(sla_r))
 	{
 		sw_i2c_stop();
