@@ -263,3 +263,52 @@ uint8_t cw1573_read_all(cw1573_data_t *data)
 
 	return err;
 }
+
+static float cw1573_ln(float x)
+{
+	float r = 0.0f;
+	while (x > 2.0f) { x /= 2.0f; r += 0.693147f; }
+	while (x < 0.5f) { x *= 2.0f; r -= 0.693147f; }
+	x -= 1.0f;
+	r += x * (1.0f - x * (0.5f - x * (0.333333f - x * 0.25f)));
+	return r;
+}
+
+void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
+{
+	if (raw == 0 || p == 0) return;
+
+	/* 电芯电压: Vcell = CELL * 78.125uV / 1000000 */
+	p->pack_v = 0.0f;
+	for (uint8_t i = 0; i < 7; i++)
+	{
+		p->vcell_v[i] = (float)raw->vcell[i] * 78.125f / 1000000.0f;
+		p->pack_v += p->vcell_v[i];
+	}
+
+	/* NTC温度: TS_ADC -> Vntc(mV) -> Rn tc(ohm) -> Beta方程 -> °C */
+	{
+		uint16_t ts = raw->ts_adc & 0x7FFFU;                    /* 去掉bit15符号位 */
+		float vntc = (float)ts * 78.125f / 1000.0f;              /* ADC值 -> mV */
+		if (vntc > 0.0f && vntc < 2545.0f)
+		{
+			/* Rn tc = 10k * Vntc / (VREF - Vntc) , VREF=2545mV */
+			float rntc = 10000.0f * vntc / (2545.0f - vntc);
+			if (rntc > 0.0f)
+			{
+				/* Beta方程: 1/Tk = 1/298.15 + ln(R/10k)/3435 , B=3435, T25=25°C */
+				float tk = 1.0f / (1.0f / 298.15f + cw1573_ln(rntc / 10000.0f) / 3435.0f);
+				p->temp_01c = (int16_t)((tk - 273.15f) * 10.0f);  /* 开尔文 -> 0.1°C */
+			}
+		}
+	}
+
+	/* 电流: I(mA) = IADC(有符号) * 6.25uV / 2.5mR */
+	{
+		int16_t iadc_s = (int16_t)raw->iadc;
+		p->current_ma = (int32_t)((float)iadc_s * 6.25f / 2.5f);
+	}
+
+	/* 电量: mAh = CC * 6.25uV / 2.5mR / 3600 */
+	p->cc_mah = (uint32_t)((float)raw->cc * 6.25f / 2.5f / 3600.0f);
+}

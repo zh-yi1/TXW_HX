@@ -144,9 +144,20 @@ typedef struct
 #define CW1573_INT_PORT         GPIOA
 #define CW1573_INT_PIN          MD_GPIO_PIN_13
 
+/* Processed data (human-readable) */
+typedef struct
+{
+	float    vcell_v[7];
+	float    pack_v;
+	int16_t  temp_01c;
+	int32_t  current_ma;
+	uint32_t cc_mah;
+} cw1573_proc_data_t;
+
 void cw1573_init(uint8_t cell_count);
 uint8_t cw1573_read_reg(uint8_t reg, uint8_t *buf, uint8_t len);
 uint8_t cw1573_write_reg(uint8_t reg, uint8_t *buf, uint8_t len);
 uint8_t cw1573_read_all(cw1573_data_t *data);
+void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *proc);
 
 #endif

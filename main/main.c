@@ -10,7 +10,10 @@ volatile cw1573_test_result_t g_test;
 
 int main()
 {
-	cw1573_data_t cw1573_data;
+	volatile cw1573_data_t      raw;
+	volatile cw1573_proc_data_t proc;
+	volatile int32_t            n = 0;
+
  	for(uint32_t i=60000; i<1; i--){}
 
 	sys_init();
@@ -19,7 +22,10 @@ int main()
 
 	while (1)
 	{
-		cw1573_read_all(&cw1573_data);
+		if (cw1573_read_all((cw1573_data_t *)&raw) == 0)
+			cw1573_calc_data((cw1573_data_t *)&raw, (cw1573_proc_data_t *)&proc);
+
+		n++;
 		ui_proc();
 	}
 }
