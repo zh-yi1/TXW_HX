@@ -2,20 +2,20 @@
 
 // 固定图片位置
 static const pos_and_addr_t default_img_pos[] = {
-	{12, 69, FLASH_ADDR_TYPE_C},
-	{48, 77, FLASH_ADDR_USB_1},
-	{91, 69, FLASH_ADDR_TYPE_C},
-	{123, 77, FLASH_ADDR_USB_2},
-	{174, 69, FLASH_ADDR_USB},
-	{206, 77, FLASH_ADDR_USB_3},
+	{14, 83, FLASH_ADDR_TYPE_C},
+	{46, 83, FLASH_ADDR_USB_1},
+	{95, 83, FLASH_ADDR_TYPE_C},
+	{127, 83, FLASH_ADDR_USB_2},
+	{176, 83, FLASH_ADDR_USB},
+	{208, 83, FLASH_ADDR_USB_3},
 };
 
 /* ============================ 小数字功率显示 ============================ */
 
 static const range_t power_range[] = {
-	{12, 99, 12 + 55, 99 + 31},
-	{91, 99, 91 + 55, 99 + 31},
-	{174, 99, 174 + 55, 99 + 31},
+	{12, 103, 12 + 55, 103 + 31},
+	{92, 103, 92 + 55, 103 + 31},
+	{174, 103, 174 + 55, 103 + 31},
 };
 
 static const uint32_t num_32_addrs[10] = {
