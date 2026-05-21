@@ -17,6 +17,7 @@ int main()
 	sys_init();
 	spi_dma_send_ok = 1;
 	cw1573_init(4);
+	g020_init();
 
 	while (1)
 	{
@@ -26,6 +27,7 @@ int main()
 		}
 
 		key_proc();
+		g020_proc(0, 0);
 		ui_proc();
 	}
 }
