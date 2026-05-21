@@ -1,7 +1,7 @@
 #include "cw1573.h"
 
 volatile cw1573_data_t      cw1573_raw;
-volatile cw1573_proc_data_t cw1573_proc;
+volatile cw1573_proc_data_t cw1573_info;
 
 static uint8_t crc8_update(uint8_t crc, uint8_t data)
 {
@@ -326,5 +326,5 @@ void cw1573_proc(void)
 	last_tick = now;
 
 	if (cw1573_read_all((cw1573_data_t *)&cw1573_raw) == 0)
-		cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_proc);
+		cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
 }

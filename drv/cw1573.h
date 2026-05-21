@@ -163,7 +163,7 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *proc);
 #define CW1573_POLL_MS  500U
 
 extern volatile cw1573_data_t      cw1573_raw;
-extern volatile cw1573_proc_data_t cw1573_proc;
+extern volatile cw1573_proc_data_t cw1573_info;
 
 void cw1573_proc(void);
 
