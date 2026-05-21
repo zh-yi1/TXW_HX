@@ -108,7 +108,8 @@ extern ui_data_t ui_data;
 
 void ui_init(void);
 void ui_proc(void);
-void ui_task(void);
+
+
 
 
 

@@ -1,5 +1,8 @@
 #include "cw1573.h"
 
+volatile cw1573_data_t      cw1573_raw;
+volatile cw1573_proc_data_t cw1573_proc;
+
 static uint8_t crc8_update(uint8_t crc, uint8_t data)
 {
 	crc ^= data;
@@ -311,4 +314,17 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 
 	/* 电量: mAh = CC * 6.25uV / 2.5mR / 3600 */
 	p->cc_mah = (uint32_t)((float)raw->cc * 6.25f / 2.5f / 3600.0f);
+}
+
+void cw1573_proc(void)
+{
+	static uint32_t last_tick;
+	uint32_t now = md_get_tick();
+
+	if (now - last_tick < CW1573_POLL_MS)
+		return;
+	last_tick = now;
+
+	if (cw1573_read_all((cw1573_data_t *)&cw1573_raw) == 0)
+		cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_proc);
 }

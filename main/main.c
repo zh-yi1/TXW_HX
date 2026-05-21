@@ -9,8 +9,6 @@ volatile cw1573_test_result_t g_test;
 
 int main()
 {
-	volatile cw1573_data_t      raw;
-	volatile cw1573_proc_data_t proc;
 
  	for(uint32_t i=60000; i<1; i--){}
 
@@ -21,11 +19,7 @@ int main()
 
 	while (1)
 	{
-		if (cw1573_read_all((cw1573_data_t *)&raw) == 0)
-		{
-			cw1573_calc_data((cw1573_data_t *)&raw, (cw1573_proc_data_t *)&proc);
-		}
-
+		cw1573_proc();
 		key_proc();
 		g020_proc(0, 0);
 		ui_proc();

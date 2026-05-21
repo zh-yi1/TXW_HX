@@ -2,9 +2,6 @@
 #include "flash_image_addr.h"
 
 static void 			ui_gpio_init					(void);
-static void				ui_iic_data_get					(void);
-static void				ui_disp_page_reflash			(void);
-static void				ui_disp_light_proc				(void);
 
 ui_data_t ui_data = {
 	.bat_power = 50,
@@ -61,18 +58,6 @@ void ui_init(void)
 //	ui_ctrl.flash_id = flash_read_id();
 }
 
-void ui_task(void)
-{
-	//获取IIC读取数据
-	ui_iic_data_get();
-	
-	//处理页面切换
-	ui_disp_page_reflash();
-	
-	//处理LCD背光
-	ui_disp_light_proc();
-	
-}
 
 //处理不同页面内容
 void ui_proc(void)
@@ -104,6 +89,9 @@ static void ui_gpio_init(void)
 	TFT_EN_SET();
 //	LCD_BLK_HIGH();
 }
+
+
+
 
 
 

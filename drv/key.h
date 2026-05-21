@@ -14,7 +14,7 @@
 #define KEY_SHORT_TICK      (KEY_SHORT_MS / 10)
 #define KEY_LONG_TICK       (KEY_LONG_MS / 10)
 
-#define KEY_PRESSED()       (md_gpio_get_pin(KEY_PORT, KEY_PIN) == 0)
+#define KEY_PRESSED()       (md_gpio_get_input_data(KEY_PORT, KEY_PIN) == 0)
 
 typedef enum
 {
