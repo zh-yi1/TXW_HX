@@ -17,6 +17,10 @@ ui_data_t ui_data = {
 	.bat_max_cap = 100,
 	.bat_cycle_cnt = 9999,
 	.bat_temperature = 62,
+	.bat_voltage = 0,
+	.bat_current = 0,
+	.bat_cc = 0,
+	.warning = WARNING_NONE,
 };
 
 static void spi_init(void)
@@ -62,7 +66,6 @@ void ui_init(void)
 //处理不同页面内容
 void ui_proc(void)
 {
-
 }
 
 static void ui_gpio_init(void)

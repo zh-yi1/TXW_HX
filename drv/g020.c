@@ -68,6 +68,18 @@ err:
 	return 1;
 }
 
+static void g020_sync_to_ui_data(void)
+{
+	ui_data.bat_temperature = g020_data.temperature;
+	ui_data.warning = (warning_t)g020_data.warning;
+	ui_data.usb_c1_is_use = (g020_data.usb1_status != G020_USB_DISCONNECTED);
+	ui_data.usb_c1_power  = g020_data.usb1_power;
+	ui_data.usb_c2_is_use = (g020_data.usb2_status != G020_USB_DISCONNECTED);
+	ui_data.usb_c2_power  = g020_data.usb2_power;
+	ui_data.usb_a_is_use  = (g020_data.usb3_status != G020_USB_DISCONNECTED);
+	ui_data.usb_a_power   = g020_data.usb3_power;
+}
+
 void g020_proc(uint8_t bat_soc, uint8_t bat_low)
 {
 	static uint32_t last_tick;
@@ -86,4 +98,6 @@ void g020_proc(uint8_t bat_soc, uint8_t bat_low)
 
 	/* Read 0x01-0x09 in one burst */
 	g020_read_reg(G020_REG_USB1_STATUS, (uint8_t *)&g020_data, 9);
+
+	g020_sync_to_ui_data();
 }
