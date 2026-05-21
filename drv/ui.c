@@ -46,14 +46,14 @@ void ui_init(void)
 	lcd_init();
 	
 	//刷黑屏幕
-	// DispColor(BLACK);
+	DispColor(BLACK);
 	// md_delay_1ms(500);
 	// Dispphoto_Dispaly_flash(0,0,FLASH_ADDR_BLUE_NUM_64_0);
 	// start_change_anima(0);
 	// extern void draw_charging_blue_anima();
 	// draw_charging_blue_anima();
 
-	default_page_test();
+	// default_page_test();
 	// default_page_init();
 	// information_page_1_init();
 	// over_temp_hint_page();
@@ -76,58 +76,6 @@ void ui_task(void)
 
 //处理不同页面内容
 void ui_proc(void)
-{
-#if 0
-	switch(ui_ctrl.disp_page)
-	{
-		case DISP_PAGE_BAT_NUM:
-			//电量界面
-			ui_bat_soc();
-			break;
-		
-		case DISP_PAGE_BAT_INFO:
-			//电池信息
-			ui_bat_info();
-			break;
-		
-		case DISP_PAGE_OFF_TIME:
-			//设置熄屏时间
-			ui_screen_off_time();
-			break;
-		
-		case DISP_PAGE_BRIGHTNESS:
-			//设置屏幕亮度
-			ui_screen_brightness();
-			break;
-		
-		case DISP_PAGE_PORT_STATUS:
-			//设置C1口功能
-			ui_c1_port_status();
-			break;
-		
-		case DISP_PAGE_PROTECT:
-			//保护界面
-			ui_protection();
-			break;
-		
-		default:
-			break;
-	}
-		
-#endif
-}
-
-static void ui_iic_data_get(void)
-{
-
-}
-
-static void ui_disp_page_reflash(void)
-{
-
-}
-
-static void ui_disp_light_proc(void)
 {
 
 }

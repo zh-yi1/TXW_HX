@@ -50,24 +50,7 @@ void PendSV_Handler(void)
  * @retval None
  */
 void SysTick_Handler(void)
-{
-	work_time.timer_1ms = 1;
-	
-	work_time.count_10ms++;
-	if(work_time.count_10ms >= 10)
-	{
-		work_time.count_10ms = 0;
-		work_time.timer_10ms = 1;
-		
-		work_time.count_100ms++;
-	}
-	
-	if(work_time.count_100ms >= 10)
-	{
-		work_time.count_100ms = 0;
-		work_time.timer_100ms = 1;
-	}
-	
+{	
 	md_inc_tick();
 	return;
 }

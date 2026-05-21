@@ -1,6 +1,5 @@
 #include "main.h"
 
-FUNC_VAR_WORK_TICK work_time;
 static void sys_init(void);
 
 uint16_t color_test = 0;
@@ -12,7 +11,6 @@ int main()
 {
 	volatile cw1573_data_t      raw;
 	volatile cw1573_proc_data_t proc;
-	volatile int32_t            n = 0;
 
  	for(uint32_t i=60000; i<1; i--){}
 
@@ -23,9 +21,11 @@ int main()
 	while (1)
 	{
 		if (cw1573_read_all((cw1573_data_t *)&raw) == 0)
+		{
 			cw1573_calc_data((cw1573_data_t *)&raw, (cw1573_proc_data_t *)&proc);
+		}
 
-		n++;
+		key_proc();
 		ui_proc();
 	}
 }
@@ -47,10 +47,13 @@ static void sys_init(void)
 	dma_init();
 
 	//TFT初始化
-	//ui_init();
+	ui_init();
+
+	//按键初始化
+	key_init();
 
 	//定时器初始化-PWM
-//	timer_init();
+	// timer_init();
 }
 
 void SystemInit(void){}
