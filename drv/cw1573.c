@@ -47,8 +47,8 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 		cfg |= CW1573_CN_4S;
 	cw1573_write_reg(CW1573_REG_CONFIG0, &cfg, 1);
 
-	/* CONFIG1: enable VADC, IADC, CO, DO */
-	cfg = CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
+	/* CONFIG1: exit sleep, enable VADC, IADC, CO, DO */
+	cfg = CW1573_EXIT_SLEEP | CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
 	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
 
 	/* CONFIG2: enable DCTL, OT, DOC/COC, SC, hysteresis */
@@ -113,7 +113,7 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 	cw1573_write_reg(CW1573_REG_IADC_DET, &cfg, 1);
 
 	/* SC/TSC/TDOCR/WDT: VSC=-100mV, tSC=160us, tDOCR=64ms, tWDT=256s */
-	cfg = 0x28;
+	cfg = 0xC8;
 	cw1573_write_reg(CW1573_REG_VSC_TSC, &cfg, 1);
 
 	/* TOV/TUV: tOV=500ms, tUV=250ms, tBAL=16s */
