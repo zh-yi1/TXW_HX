@@ -3,6 +3,9 @@
 volatile cw1573_data_t      cw1573_raw;
 volatile cw1573_proc_data_t cw1573_info;
 
+static uint8_t cw1573_cell_cnt  = 4;
+static uint8_t cw1573_cfg_done  = 0;
+
 static uint8_t crc8_update(uint8_t crc, uint8_t data)
 {
 	crc ^= data;
@@ -16,16 +19,11 @@ static uint8_t crc8_update(uint8_t crc, uint8_t data)
 	return crc;
 }
 
-void cw1573_init(uint8_t cell_count)
+static uint8_t cw1573_config_regs(uint8_t cell_count)
 {
 	uint8_t cfg;
-	md_gpio_init_t g;
 
-	sw_i2c_init();
-
-	/* INT/SLEEP pin (PA13): output low to prevent Sleep3 entry */
-	md_gpio_init_struct(&g);
-	md_gpio_init(CW1573_INT_PORT, CW1573_INT_PIN, &g);
+	/* Wake up from sleep */
 	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
 
 	/* Exit any existing sleep state */
@@ -76,33 +74,25 @@ void cw1573_init(uint8_t cell_count)
 
 	/* COT/COTR: charge over-temp threshold & recovery hysteresis */
 	{
-		uint8_t cot[2];
-		cot[0] = 0x95;
-		cot[1] = 0x12;
+		uint8_t cot[2] = {0x95, 0x12};
 		cw1573_write_reg(CW1573_REG_COT_H, cot, 2);
 	}
 
 	/* CUT/CUTR: charge under-temp threshold & recovery hysteresis */
 	{
-		uint8_t cut[2];
-		cut[0] = 0x7B;
-		cut[1] = 0x97;
+		uint8_t cut[2] = {0x7B, 0x97};
 		cw1573_write_reg(CW1573_REG_CUT_H, cut, 2);
 	}
 
 	/* DOT/DOTR: discharge over-temp threshold & recovery hysteresis */
 	{
-		uint8_t dot[2];
-		dot[0] = 0x5C;
-		dot[1] = 0x8C;
+		uint8_t dot[2] = {0x5C, 0x8C};
 		cw1573_write_reg(CW1573_REG_DOT_H, dot, 2);
 	}
 
 	/* DUT/DUTR: discharge under-temp threshold & recovery hysteresis */
 	{
-		uint8_t dut[2];
-		dut[0] = 0xC5;
-		dut[1] = 0x8F;
+		uint8_t dut[2] = {0xC5, 0x8F};
 		cw1573_write_reg(CW1573_REG_DUT_H, dut, 2);
 	}
 
@@ -129,6 +119,35 @@ void cw1573_init(uint8_t cell_count)
 	/* TOV/TUV: tOV=500ms, tUV=250ms, tBAL=16s */
 	cfg = 0x00;
 	cw1573_write_reg(CW1573_REG_TOV_TUV, &cfg, 1);
+
+	/* Verify chip is alive: read back state flags */
+	
+	uint8_t sf0 = 0xff, sf1 = 0xff, sf2 = 0xff;
+	cw1573_read_reg(CW1573_REG_STATE_FLAG0, &sf0, 1);
+	cw1573_read_reg(CW1573_REG_STATE_FLAG1, &sf1, 1);
+	cw1573_read_reg(CW1573_REG_STATE_FLAG2, &sf2, 1);
+	if (sf0 == 0xFF && sf1 == 0xFF && sf2 == 0xFF)
+		return 1;
+	
+
+	return 0;
+}
+
+void cw1573_init(uint8_t cell_count)
+{
+	md_gpio_init_t g;
+
+	cw1573_cell_cnt = cell_count;
+
+	sw_i2c_init();
+
+	/* INT/SLEEP pin (PA13): output low to prevent Sleep3 entry */
+	md_gpio_init_struct(&g);
+	md_gpio_init(CW1573_INT_PORT, CW1573_INT_PIN, &g);
+	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
+
+	if (cw1573_config_regs(cell_count) == 0)
+		cw1573_cfg_done = 1;
 }
 
 uint8_t cw1573_write_reg(uint8_t reg, uint8_t *buf, uint8_t len)
@@ -345,7 +364,23 @@ static void cw1573_sync_to_ui_data(void)
 void cw1573_proc(void)
 {
 	static uint32_t last_tick;
+	static uint32_t last_cfg_tick;
 	uint32_t now = md_get_tick();
+
+	/* Retry config if slave not responding */
+	if (!cw1573_cfg_done)
+	{
+		if (now - last_cfg_tick >= CW1573_CFG_RETRY_MS)
+		{
+			last_cfg_tick = now;
+			if (cw1573_config_regs(cw1573_cell_cnt) == 0)
+				cw1573_cfg_done = 1;
+			else
+				return;
+		}
+		else
+			return;
+	}
 
 	if (now - last_tick < CW1573_POLL_MS)
 		return;

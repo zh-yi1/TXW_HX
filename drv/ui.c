@@ -55,7 +55,7 @@ void ui_init(void)
 	// draw_charging_blue_anima();
 
 	// default_page_test();
-	// default_page_init();
+	default_page_init();
 	// information_page_1_init();
 	// over_temp_hint_page();
 	//获取FLASH芯片 ID
@@ -66,6 +66,7 @@ void ui_init(void)
 //处理不同页面内容
 void ui_proc(void)
 {
+	
 }
 
 static void ui_gpio_init(void)

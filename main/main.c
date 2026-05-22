@@ -15,13 +15,13 @@ int main()
 	sys_init();
 	spi_dma_send_ok = 1;
 	cw1573_init(4);
-	g020_init();
-
+	// g020_init();
+	// default_page_test();
 	while (1)
 	{
 		cw1573_proc();
 		key_proc();
-		g020_proc(ui_data.bat_power, (ui_data.bat_power <= 5) ? 1 : 0);
+		// g020_proc(ui_data.bat_power, (ui_data.bat_power <= 5) ? 1 : 0);
 		ui_proc();
 	}
 }
@@ -43,7 +43,7 @@ static void sys_init(void)
 	dma_init();
 
 	//TFT初始化
-	ui_init();
+	 ui_init();
 
 	//按键初始化
 	key_init();

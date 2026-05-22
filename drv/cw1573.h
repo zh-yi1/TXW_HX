@@ -160,7 +160,8 @@ uint8_t cw1573_write_reg(uint8_t reg, uint8_t *buf, uint8_t len);
 uint8_t cw1573_read_all(cw1573_data_t *data);
 void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *proc);
 
-#define CW1573_POLL_MS  500U
+#define CW1573_POLL_MS        500U
+#define CW1573_CFG_RETRY_MS  200U
 
 extern volatile cw1573_data_t      cw1573_raw;
 extern volatile cw1573_proc_data_t cw1573_info;
