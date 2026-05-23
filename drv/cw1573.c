@@ -29,10 +29,10 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
 
 	/* Exit any existing sleep state */
-	cfg = CW1573_EXIT_SLEEP;
-	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
-	if (cw1573_read_reg(CW1573_REG_CONFIG1, rbuf, 1) || rbuf[0] != cfg)
-		res = 0;
+	// cfg = CW1573_EXIT_SLEEP;
+	// cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
+	// if (cw1573_read_reg(CW1573_REG_CONFIG1, rbuf, 1) || rbuf[0] != cfg)
+	// 	res = 0;
 
 	/* INT_SET: enable OV/UV, DOC/COC/SC, TS, VADC, IADC interrupts */
 	cfg = CW1573_OVUV_INT | CW1573_DOCCOCSC_INT | CW1573_TS_INT
@@ -55,6 +55,12 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 		cfg |= CW1573_CN_4S;
 	cw1573_write_reg(CW1573_REG_CONFIG0, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_CONFIG0, rbuf, 1) || rbuf[0] != cfg)
+		res = 0;
+
+	/* CONFIG1: exit sleep, enable VADC, IADC, CO, DO */
+	cfg = CW1573_RST | CW1573_EXIT_SLEEP | CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
+	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
+	if (cw1573_read_reg(CW1573_REG_CONFIG1, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
 	/* CONFIG1: exit sleep, enable VADC, IADC, CO, DO */
@@ -194,7 +200,7 @@ void cw1573_init(uint8_t cell_count)
 	md_gpio_init(CW1573_INT_PORT, CW1573_INT_PIN, &g);
 	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
 
-	if (cw1573_config_regs_ref(cell_count) != 0)
+	if (cw1573_config_regs(cell_count) != 0)
 		cw1573_cfg_done = 1;
 }
 
@@ -421,7 +427,7 @@ void cw1573_proc(void)
 		if (now - last_cfg_tick >= CW1573_CFG_RETRY_MS)
 		{
 			last_cfg_tick = now;
-			if (cw1573_config_regs_ref(cw1573_cell_cnt) != 0)
+			if (cw1573_config_regs(cw1573_cell_cnt) != 0)
 				cw1573_cfg_done = 1;
 			else
 				return;

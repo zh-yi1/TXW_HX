@@ -91,7 +91,7 @@ static void ui_gpio_init(void)
 	FLASH_CS_SET();
 	
 	TFT_EN_SET();
-//	LCD_BLK_HIGH();
+	LCD_BLK_HIGH();
 }
 
 

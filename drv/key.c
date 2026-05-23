@@ -106,6 +106,18 @@ void key_proc(void)
 
 void key_short_press_cb(void)
 {
+	static uint8_t bl_on = 1;
+
+	if (bl_on)
+	{
+		LCD_BLK_LOW();
+		bl_on = 0;
+	}
+	else
+	{
+		LCD_BLK_HIGH();
+		bl_on = 1;
+	}
 }
 
 void key_double_press_cb(void)
