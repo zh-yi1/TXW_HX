@@ -19,6 +19,47 @@ static uint8_t crc8_update(uint8_t crc, uint8_t data)
 	return crc;
 }
 
+static uint8_t cw1573_config_regs_ref(uint8_t cell_count)
+{
+	uint8_t cfg;
+	uint8_t res = 1;
+	uint8_t rbuf[2];
+
+	cfg = 0x94;
+	cw1573_write_reg(0x05, &cfg, 1);
+	if (cw1573_read_reg(0x05, rbuf, 1) || rbuf[0] != cfg)
+		res = 0;
+
+	// cfg = 0x97;
+	cfg = 0x9F;
+	cw1573_write_reg(0x06, &cfg, 1);
+	if (cw1573_read_reg(0x06, rbuf, 1) || rbuf[0] != cfg)
+		res = 0;
+	
+	// cfg = 0x17;
+	cfg = 0x1F;
+	cw1573_write_reg(0x06, &cfg, 1);
+	if (cw1573_read_reg(0x06, rbuf, 1) || rbuf[0] != cfg)
+		res = 0;
+
+	cfg = 0x84;
+	cw1573_write_reg(0x0A, &cfg, 1);
+	if (cw1573_read_reg(0x0A, rbuf, 1) || rbuf[0] != cfg)
+		res = 0;
+
+	cfg = 0x55;
+	cw1573_write_reg(0x14, &cfg, 1);
+	if (cw1573_read_reg(0x14, rbuf, 1) || rbuf[0] != cfg)
+		res = 0;
+	
+	cfg = 0x1A;
+	cw1573_write_reg(0x16, &cfg, 1);
+	if (cw1573_read_reg(0x16, rbuf, 1) || rbuf[0] != cfg)
+		res = 0;
+
+	return res;
+}
+
 static uint8_t cw1573_config_regs(uint8_t cell_count)
 {
 	uint8_t cfg;
@@ -200,7 +241,7 @@ void cw1573_init(uint8_t cell_count)
 	md_gpio_init(CW1573_INT_PORT, CW1573_INT_PIN, &g);
 	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
 
-	if (cw1573_config_regs(cell_count) != 0)
+	if (cw1573_config_regs_ref(cell_count) != 0)
 		cw1573_cfg_done = 1;
 }
 
@@ -427,7 +468,7 @@ void cw1573_proc(void)
 		if (now - last_cfg_tick >= CW1573_CFG_RETRY_MS)
 		{
 			last_cfg_tick = now;
-			if (cw1573_config_regs(cw1573_cell_cnt) != 0)
+			if (cw1573_config_regs_ref(cw1573_cell_cnt) != 0)
 				cw1573_cfg_done = 1;
 			else
 				return;

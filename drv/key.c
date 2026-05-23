@@ -1,8 +1,8 @@
 #include "key.h"
 
-static key_state_t key_state = KEY_STATE_IDLE;
-static uint16_t    key_tick  = 0;
-static uint8_t     key_click_cnt = 0;
+static key_state_t key_state      = KEY_STATE_IDLE;
+static uint32_t    state_entry_ms = 0;
+static uint8_t     key_click_cnt  = 0;
 
 void key_init(void)
 {
@@ -16,67 +16,74 @@ void key_init(void)
 
 void key_proc(void)
 {
-	static uint32_t last_tick = 0;
+	static uint32_t last_ms = 0;
 	uint32_t now = md_get_tick();
 
-	if (now - last_tick < 10)
+	/* 1ms sampling: fast enough for response, slow enough to skip bounce */
+	if (now - last_ms < 1)
 		return;
-	last_tick = now;
+	last_ms = now;
+
+	uint32_t elapsed = now - state_entry_ms;
 
 	switch (key_state)
 	{
 	case KEY_STATE_IDLE:
 		if (KEY_PRESSED())
 		{
-			key_state = KEY_STATE_DEBOUNCE;
-			key_tick = KEY_DEBOUNCE_TICK;
+			key_state      = KEY_STATE_DEBOUNCE;
+			state_entry_ms = now;
 		}
 		break;
 
 	case KEY_STATE_DEBOUNCE:
 		if (!KEY_PRESSED())
 		{
-			key_state = KEY_STATE_IDLE;
+			key_click_cnt = 0;
+			key_state     = KEY_STATE_IDLE;
 		}
-		else if (--key_tick == 0)
+		else if (elapsed >= KEY_DEBOUNCE_MS)
 		{
 			key_click_cnt++;
-			key_state = KEY_STATE_PRESS;
-			key_tick = 0;
+			key_state      = KEY_STATE_PRESS;
+			state_entry_ms = now;
 		}
 		break;
 
 	case KEY_STATE_PRESS:
 		if (!KEY_PRESSED())
 		{
-			if (key_tick >= KEY_SHORT_TICK)
+			if (elapsed >= KEY_SHORT_MS)
 			{
 				if (key_click_cnt >= 2)
 				{
 					key_double_press_cb();
 					key_click_cnt = 0;
-					key_state = KEY_STATE_IDLE;
+					key_state     = KEY_STATE_IDLE;
 				}
 				else
 				{
-					key_state = KEY_STATE_WAIT_DOUBLE;
-					key_tick = KEY_DOUBLE_TICK;
+					key_state      = KEY_STATE_WAIT_DOUBLE;
+					state_entry_ms = now;
 				}
 			}
 			else
 			{
+				if (key_click_cnt >= 2)
+				{
+					key_short_press_cb();
+				}
 				key_click_cnt = 0;
-				key_state = KEY_STATE_IDLE;
+				key_state     = KEY_STATE_IDLE;
 			}
 		}
 		else
 		{
-			key_tick++;
-			if (key_tick >= KEY_LONG_TICK)
+			if (elapsed >= KEY_LONG_MS)
 			{
 				key_long_press_cb();
 				key_click_cnt = 0;
-				key_state = KEY_STATE_LONG;
+				key_state     = KEY_STATE_LONG;
 			}
 		}
 		break;
@@ -84,14 +91,14 @@ void key_proc(void)
 	case KEY_STATE_WAIT_DOUBLE:
 		if (KEY_PRESSED())
 		{
-			key_state = KEY_STATE_DEBOUNCE;
-			key_tick = KEY_DEBOUNCE_TICK;
+			key_state      = KEY_STATE_DEBOUNCE;
+			state_entry_ms = now;
 		}
-		else if (--key_tick == 0)
+		else if (elapsed >= KEY_DOUBLE_MS)
 		{
 			key_short_press_cb();
 			key_click_cnt = 0;
-			key_state = KEY_STATE_IDLE;
+			key_state     = KEY_STATE_IDLE;
 		}
 		break;
 
@@ -110,12 +117,12 @@ void key_short_press_cb(void)
 
 	if (bl_on)
 	{
-		LCD_BLK_LOW();
+		LCD_BLK_HIGH();
 		bl_on = 0;
 	}
 	else
 	{
-		LCD_BLK_HIGH();
+		LCD_BLK_LOW();
 		bl_on = 1;
 	}
 }
