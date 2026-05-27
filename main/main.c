@@ -23,6 +23,7 @@ int main()
 		key_proc();
 		// g020_proc(ui_data.bat_power, (ui_data.bat_power <= 5) ? 1 : 0);
 		ui_proc();
+		default_page_updata();
 	}
 }
 

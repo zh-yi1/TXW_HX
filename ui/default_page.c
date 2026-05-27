@@ -441,6 +441,14 @@ void default_page_init()
 
 void default_page_updata(void)
 {
+	static uint32_t last_ms = 0;
+	uint32_t now = md_get_tick();
+
+	/* 1ms sampling: fast enough for response, slow enough to skip bounce */
+	if (now - last_ms < 20)
+		return;
+	last_ms = now;
+
 	int charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
 	int power_changed  = (ui_data.bat_power_last != ui_data.bat_power);
 
@@ -451,10 +459,10 @@ void default_page_updata(void)
 	ui_data.is_charge_last = ui_data.is_charge;
 	ui_data.bat_power_last = ui_data.bat_power;
 
-	/* 电量百分比只在数值变化或充放电切换时重绘, 动画每帧更新进度条区域 */
+	/* 电量变化时重绘电池+进度条, 充电时每帧更新动画, 否则不更新 */
 	if (power_changed || charge_changed)
 		default_page_show_battery();
-	else
+	else if (ui_data.is_charge)
 		default_page_show_bar_effect();
 
 	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */

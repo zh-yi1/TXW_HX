@@ -1,7 +1,7 @@
 #include "ui.h"
 #include "flash_image_addr.h"
 
-static void 			ui_gpio_init					(void);
+static void ui_gpio_init(void);
 
 ui_data_t ui_data = {
 	.bat_power = 50,

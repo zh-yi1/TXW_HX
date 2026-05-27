@@ -14,21 +14,23 @@ typedef enum
     INFO_MAX_CAP,     /* 最大容量 */
     INFO_CYCLE_CNT,   /* 循环次数 */
     INFO_BAT_TEMP,    /* 电池温度 */
-    INFO_BAT_MODEL,   /* 电池型号 */
+    INFO_BAT_ID,   /* 电池编号 */
+    INFO_BAT_NUM,   /* 具体电池编号 */
     INFO_RUN_TIME,    /* 运行时间 */
-    INFO_LAST_DISCHG, /* 上次放电电量 */
+    INFO_TIME_FAKE,   /* 伪时间 */
 
     INFO_ITEM_MAX,
 } bat_info_e;
 
 // TODO :文字切图出来后替换
 static const pos_and_addr_t bat_info_text_img[] = {
-    {32, 12, FLASH_ADDR_TEMP_BLUE},
-    {144, 12, FLASH_ADDR_TEMP_BLUE},
-    {88, 12, FLASH_ADDR_TEMP_BLUE},
-    {80, 4, FLASH_ADDR_TEMP_BLUE}, // 位置未知
-    {80, 4, FLASH_ADDR_TEMP_BLUE}, // 位置未知
-    {80, 4, FLASH_ADDR_TEMP_BLUE}, // 位置未知
+    {32, 12, FLASH_ADDR_MAX_CAP},
+    {144, 12, FLASH_ADDR_CYCLE_INDEX},
+    {88, 12, FLASH_ADDR_BAT_TMP},
+    {18, 113, FLASH_ADDR_BAT_NUM},
+    {98, 113, FLASH_ADDR_X_166102A_1C_16},
+    {36, 113, FLASH_ADDR_RUN_TIME},
+    {116, 113, FLASH_ADDR_TIME_FAKE},
 };
 
 static const range_t bat_info_range[] = {
@@ -116,7 +118,7 @@ void information_page_1_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
 
-    // // 最大容量
+    // 最大容量
     Dispphoto_Dispaly_flash(bat_info_text_img[INFO_MAX_CAP].x,
                             bat_info_text_img[INFO_MAX_CAP].y, bat_info_text_img[INFO_MAX_CAP].img_addr);
     // 循环次数
@@ -128,9 +130,12 @@ void information_page_1_init(void)
     //循环次数值
     draw_value_in_area(bat_info_range[INFO_CYCLE_CNT], ui_data.bat_cycle_cnt,
                        FLASH_ADDR_CI, CI_W, CI_H);
-    //电池型号
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_BAT_MODEL].x,
-                            bat_info_text_img[INFO_BAT_MODEL].y, bat_info_text_img[INFO_BAT_MODEL].img_addr);
+    //电池编号
+    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_BAT_ID].x,
+                            bat_info_text_img[INFO_BAT_ID].y, bat_info_text_img[INFO_BAT_ID].img_addr);
+    //ZH TODO ：电池编号值,后续要变化
+    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_BAT_NUM].x,
+                            bat_info_text_img[INFO_BAT_NUM].y, bat_info_text_img[INFO_BAT_NUM].img_addr);
 }
 
 void information_page_2_init(void)
@@ -146,10 +151,7 @@ void information_page_2_init(void)
     //运行时间
     Dispphoto_Dispaly_flash(bat_info_text_img[INFO_RUN_TIME].x,
                             bat_info_text_img[INFO_RUN_TIME].y, bat_info_text_img[INFO_RUN_TIME].img_addr);
-    // TODO ：运行时间值
-
-    // 上次放电电量
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_LAST_DISCHG].x,
-                            bat_info_text_img[INFO_LAST_DISCHG].y, bat_info_text_img[INFO_LAST_DISCHG].img_addr);
-    // TODO ：上次放电电量值
+    // TODO ：运行时间值,当前是假的
+    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_TIME_FAKE].x,
+                        bat_info_text_img[INFO_TIME_FAKE].y, bat_info_text_img[INFO_TIME_FAKE].img_addr);
 }
