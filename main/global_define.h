@@ -13,7 +13,6 @@
 #include "cw1573.h"
 
 #include "sw_i2c_gen.h"
-#include "g020.h"
 #include "cw1573_test.h"
 #include "timer.h"
 #include "key.h"

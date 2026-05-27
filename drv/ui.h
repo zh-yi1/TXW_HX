@@ -102,11 +102,11 @@ typedef struct
 	uint16_t count_down;		/* 倒计时剩余秒数（0=无倒计时） */
 	uint8_t  bat_max_cap;		/* 电池最大容量 0-100% */
 	uint16_t bat_cycle_cnt;	/* 循环次数 0-9999 */
-	uint8_t  bat_temperature;	/* 电池温度 0-100℃ (来自G020) */
+	uint8_t  bat_temperature;	/* 电池温度 0-100℃ */
 	uint16_t bat_voltage;		/* 电池包电压 0.1V (来自CW1573) */
 	int16_t  bat_current;		/* 电池电流 mA (来自CW1573,充电为正) */
 	uint32_t bat_cc;		/* 库伦量 mAh (来自CW1573) */
-	warning_t warning;		/* 警告状态 (来自G020) */
+	warning_t warning;		/* 警告状态 */
 	uint16_t anim_cur_x;		/* 电量百分比动画当前 X 偏移 */
 	uint8_t  anim_power;		/* 动画当前显示的电量值 1-100 */
 	uint16_t prev_disp_x;		/* 上一轮电量显示 X 坐标 */
