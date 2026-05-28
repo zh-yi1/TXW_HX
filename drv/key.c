@@ -125,12 +125,19 @@ void key_short_press_cb(void)
 		LCD_BLK_LOW();
 		bl_on = 1;
 	}
+
+	/* 设置按键事件 bit0: 单击 */
+	i2c_reg_map[REG_KEY_EVENT] |= 0x01;
 }
 
 void key_double_press_cb(void)
 {
+	/* 设置按键事件 bit1: 双击 */
+	i2c_reg_map[REG_KEY_EVENT] |= 0x02;
 }
 
 void key_long_press_cb(void)
 {
+	/* 设置按键事件 bit4: 长按3S */
+	i2c_reg_map[REG_KEY_EVENT] |= 0x10;
 }

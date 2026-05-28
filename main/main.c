@@ -18,6 +18,7 @@ int main()
 	while (1)
 	{
 		cw1573_proc();
+		i2c_slave_proc();
 		key_proc();
 		ui_proc();
 		default_page_updata();
@@ -45,6 +46,9 @@ static void sys_init(void)
 
 	//按键初始化
 	key_init();
+
+	//I2C从机初始化
+	i2c_slave_init();
 
 	//定时器初始化-PWM
 	// timer_init();

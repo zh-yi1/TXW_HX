@@ -16,6 +16,7 @@
 #include "cw1573_test.h"
 #include "timer.h"
 #include "key.h"
+#include "i2c_slave.h"
 
 #include "ui.h"
 #include "bar_progress.h"
