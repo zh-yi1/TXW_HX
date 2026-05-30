@@ -4,7 +4,7 @@
 #include "global_define.h"
 
 #define SW_I2C_SCL_PORT     GPIOA
-#define SW_I2C_SCL_PIN      MD_GPIO_PIN_5
+#define SW_I2C_SCL_PIN      MD_GPIO_PIN_0
 
 #define SW_I2C_SDA_PORT     GPIOA
 #define SW_I2C_SDA_PIN      MD_GPIO_PIN_14
