@@ -49,7 +49,7 @@ void i2c_slave_init(void)
     gpio_init.odrv = MD_GPIO_OUT_DRIVE_NORMAL;
     gpio_init.flt  = MD_GPIO_FILTER_DISABLE;
     gpio_init.type = MD_GPIO_TYPE_CMOS;
-    gpio_init.func = MD_GPIO_FUNC_3;
+    gpio_init.func = MD_GPIO_FUNC_2;
 
     md_gpio_init(GPIOA, MD_GPIO_PIN_5, &gpio_init);  /* SCL: PA5 */
     md_gpio_init(GPIOA, MD_GPIO_PIN_6, &gpio_init);  /* SDA: PA6 */
@@ -58,12 +58,12 @@ void i2c_slave_init(void)
     md_i2c_struct_init(&i2c_init);
 
     i2c_init.addr_mode    = MD_I2C_ADDR_7BIT;
-    i2c_init.clk_speed    = 100000;            /* 100kHz standard mode */
+    i2c_init.clk_speed    = 400000;            /* 400kHz standard mode */
     i2c_init.dual_addr    = MD_I2C_DUALADDR_DISABLE;
-    i2c_init.duty         = MD_I2C_DUTYCYCLE_2;
+    i2c_init.duty         = MD_I2C_DUTYCYCLE_16_9;
     i2c_init.general_call = MD_I2C_GENERALCALL_DISABLE;
     i2c_init.stretch      = MD_I2C_STRETCH_ENABLE;
-    i2c_init.own_addr1    = (uint32_t)(I2C_SLAVE_ADDR << 1);
+    i2c_init.own_addr1    = I2C_SLAVE_ADDR << 1;
 
     md_i2c_init(I2C1, &i2c_init);
 
