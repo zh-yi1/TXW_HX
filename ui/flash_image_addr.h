@@ -4,9 +4,9 @@
  * P25Q64SH Flash Image Address Map (64 Mb = 8 MB)
  * Sector size: 4096 bytes (4 KB)
  *
- * Images:       481
- * Flash used:   2399852 bytes (2343.6 KB)
- * Sectors used: 586 / 2048
+ * Images:       518
+ * Flash used:   2413366 bytes (2356.8 KB)
+ * Sectors used: 590 / 2048
  * Capacity:     8192 KB (8 MB)
  *
  * Sector layout:
@@ -368,7 +368,11 @@
  *   Sector 582  [0x246000 – 0x246FFF]  CHARGING_ORANGE_UP_0020, CHARGING_ORANGE_UP_0021, CHARGING_ORANGE_UP_0022, CHARGING_ORANGE_UP_0023, CHARGING_ORANGE_UP_0024  (3690B used, 406B free)
  *   Sector 583  [0x247000 – 0x247FFF]  CHARGING_ORANGE_UP_0025, NUM_24_0, NUM_24_1, NUM_24_2, NUM_24_3  (3690B used, 406B free)
  *   Sector 584  [0x248000 – 0x248FFF]  NUM_24_4, NUM_24_5, NUM_24_6, NUM_24_7, NUM_24_8  (3690B used, 406B free)
- *   Sector 585  [0x249000 – 0x249FFF]  NUM_24_9, NUM_24, CI, DEGREE, W, PERCENT_SMALL  (3692B used, 404B free)
+ *   Sector 585  [0x249000 – 0x249FFF]  NUM_24_9, NUM_24, CI, DEGREE, PERCENT_SMALL, POWER_W  (3692B used, 404B free)
+ *   Sector 586  [0x24A000 – 0x24AFFF]  W, C, G, M, O, Q, A, B, D, H  (3924B used, 172B free)
+ *   Sector 587  [0x24B000 – 0x24BFFF]  K, N, P, R, S, T, U, V, X, Y, Z  (3894B used, 202B free)
+ *   Sector 588  [0x24C000 – 0x24CFFF]  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, , E, F  (3978B used, 118B free)
+ *   Sector 589  [0x24D000 – 0x24DFFF]  J, L, I  (822B used, 3274B free)
  */
 
 #ifndef __FLASH_IMAGE_ADDR_H__
@@ -1332,9 +1336,83 @@
 #define FLASH_SIZE_CI                         578
 #define FLASH_ADDR_DEGREE                     (0x00000000 + 0x2497A6)
 #define FLASH_SIZE_DEGREE                     578
-#define FLASH_ADDR_W                          (0x00000000 + 0x2499E8)
-#define FLASH_SIZE_W                          578
-#define FLASH_ADDR_PERCENT_SMALL              (0x00000000 + 0x249C2A)
+#define FLASH_ADDR_PERCENT_SMALL              (0x00000000 + 0x2499E8)
 #define FLASH_SIZE_PERCENT_SMALL              578
+#define FLASH_ADDR_POWER_W                    (0x00000000 + 0x249C2A)
+#define FLASH_SIZE_POWER_W                    578
+#define FLASH_ADDR_W                          (0x00000000 + 0x24A000)
+#define FLASH_SIZE_W                          498
+#define FLASH_ADDR_C                          (0x00000000 + 0x24A1F2)
+#define FLASH_SIZE_C                          402
+#define FLASH_ADDR_G                          (0x00000000 + 0x24A384)
+#define FLASH_SIZE_G                          402
+#define FLASH_ADDR_M                          (0x00000000 + 0x24A516)
+#define FLASH_SIZE_M                          402
+#define FLASH_ADDR_O                          (0x00000000 + 0x24A6A8)
+#define FLASH_SIZE_O                          402
+#define FLASH_ADDR_Q                          (0x00000000 + 0x24A83A)
+#define FLASH_SIZE_Q                          402
+#define FLASH_ADDR_A                          (0x00000000 + 0x24A9CC)
+#define FLASH_SIZE_A                          354
+#define FLASH_ADDR_B                          (0x00000000 + 0x24AB2E)
+#define FLASH_SIZE_B                          354
+#define FLASH_ADDR_D                          (0x00000000 + 0x24AC90)
+#define FLASH_SIZE_D                          354
+#define FLASH_ADDR_H                          (0x00000000 + 0x24ADF2)
+#define FLASH_SIZE_H                          354
+#define FLASH_ADDR_K                          (0x00000000 + 0x24B000)
+#define FLASH_SIZE_K                          354
+#define FLASH_ADDR_N                          (0x00000000 + 0x24B162)
+#define FLASH_SIZE_N                          354
+#define FLASH_ADDR_P                          (0x00000000 + 0x24B2C4)
+#define FLASH_SIZE_P                          354
+#define FLASH_ADDR_R                          (0x00000000 + 0x24B426)
+#define FLASH_SIZE_R                          354
+#define FLASH_ADDR_S                          (0x00000000 + 0x24B588)
+#define FLASH_SIZE_S                          354
+#define FLASH_ADDR_T                          (0x00000000 + 0x24B6EA)
+#define FLASH_SIZE_T                          354
+#define FLASH_ADDR_U                          (0x00000000 + 0x24B84C)
+#define FLASH_SIZE_U                          354
+#define FLASH_ADDR_V                          (0x00000000 + 0x24B9AE)
+#define FLASH_SIZE_V                          354
+#define FLASH_ADDR_X                          (0x00000000 + 0x24BB10)
+#define FLASH_SIZE_X                          354
+#define FLASH_ADDR_Y                          (0x00000000 + 0x24BC72)
+#define FLASH_SIZE_Y                          354
+#define FLASH_ADDR_Z                          (0x00000000 + 0x24BDD4)
+#define FLASH_SIZE_Z                          354
+#define FLASH_ADDR_0                          (0x00000000 + 0x24C000)
+#define FLASH_SIZE_0                          306
+#define FLASH_ADDR_1                          (0x00000000 + 0x24C132)
+#define FLASH_SIZE_1                          306
+#define FLASH_ADDR_2                          (0x00000000 + 0x24C264)
+#define FLASH_SIZE_2                          306
+#define FLASH_ADDR_3                          (0x00000000 + 0x24C396)
+#define FLASH_SIZE_3                          306
+#define FLASH_ADDR_4                          (0x00000000 + 0x24C4C8)
+#define FLASH_SIZE_4                          306
+#define FLASH_ADDR_5                          (0x00000000 + 0x24C5FA)
+#define FLASH_SIZE_5                          306
+#define FLASH_ADDR_6                          (0x00000000 + 0x24C72C)
+#define FLASH_SIZE_6                          306
+#define FLASH_ADDR_7                          (0x00000000 + 0x24C85E)
+#define FLASH_SIZE_7                          306
+#define FLASH_ADDR_8                          (0x00000000 + 0x24C990)
+#define FLASH_SIZE_8                          306
+#define FLASH_ADDR_9                          (0x00000000 + 0x24CAC2)
+#define FLASH_SIZE_9                          306
+#define FLASH_ADDR_                           (0x00000000 + 0x24CBF4)
+#define FLASH_SIZE_                           306
+#define FLASH_ADDR_E                          (0x00000000 + 0x24CD26)
+#define FLASH_SIZE_E                          306
+#define FLASH_ADDR_F                          (0x00000000 + 0x24CE58)
+#define FLASH_SIZE_F                          306
+#define FLASH_ADDR_J                          (0x00000000 + 0x24D000)
+#define FLASH_SIZE_J                          306
+#define FLASH_ADDR_L                          (0x00000000 + 0x24D132)
+#define FLASH_SIZE_L                          306
+#define FLASH_ADDR_I                          (0x00000000 + 0x24D264)
+#define FLASH_SIZE_I                          210
 
 #endif /* __FLASH_IMAGE_ADDR_H__ */

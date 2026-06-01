@@ -68,6 +68,26 @@ typedef struct
 	uint8_t y2;
 } range_t;
 
+/* 界面名称 */
+typedef enum
+{
+	PAGE_DEFAULT            = 0,  /* 默认主页 (电量/端口功率) */
+	PAGE_INFO_1             = 1,  /* 电池信息页1 (最大容量/循环次数/电池编号) */
+	PAGE_INFO_2             = 2,  /* 电池信息页2 (温度/运行时间) */
+	PAGE_OVER_TEMP          = 3,  /* 过温提示页 */
+	PAGE_LOW_TEMP           = 4,  /* 低温提示页 */
+	PAGE_SHORT_CIRCUIT      = 5,  /* 短路提示页 */
+
+	PAGE_MAX,
+} page_t;
+
+/* 设备状态 */
+typedef enum
+{
+	DEV_STATE_NORMAL = 0,  /* 正常状态 */
+	DEV_STATE_SLEEP  = 1,  /* 休眠状态 */
+} dev_state_t;
+
 /* 警告类型 */
 typedef enum
 {
@@ -115,6 +135,15 @@ typedef struct
 	uint8_t  prev_bar_effect;	/* 上一轮进度条效果 0=初始 1=充电 2=放电 */
 	uint16_t prev_icon_x;		/* 上一轮充电图标 X 坐标 */
 	uint8_t  bat_power_last;	/* 上一轮电量值，检测变化 */
+	page_t   cur_page;		/* 当前界面 */
+	page_t   last_page;		/* 上一界面，用于检测切换 */
+	char     bat_model_1[16];	/* 电池型号 1 */
+	char     bat_model_2[16];	/* 电池型号 2 */
+	char     bat_model_3[16];	/* 电池型号 3 */
+	char     bat_model_4[16];	/* 电池型号 4 */
+	dev_state_t dev_state;		/* 设备运行状态 */
+	bool       low_current_flag;	/* USB-A 小电流模式标志 */
+
 } ui_data_t;
 
 extern ui_data_t ui_data;

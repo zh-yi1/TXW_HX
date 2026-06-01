@@ -156,24 +156,44 @@ void key_proc(void)
 
 void key_single_click_cb(void)
 {
-	static bool single_flag = false;
-	single_flag = !single_flag;
+	if (ui_data.dev_state == DEV_STATE_SLEEP)
+	{
+		/* 休眠 → 唤醒: 开背光, 进入主界面 */
+		LCD_BLK_LOW();
+		ui_data.dev_state = DEV_STATE_NORMAL;
+		ui_data.cur_page  = PAGE_DEFAULT;
+		ui_data.last_page = PAGE_MAX;  /* 强制触发界面重刷 */
+	}
+	else
+	{
+		//TODO: 处理切换界面的逻辑
+		/* 正常状态: 切换显示界面 (循环) */
+		ui_data.cur_page = (page_t)((ui_data.cur_page + 1) % PAGE_MAX);
+	}
 }
 
 void key_double_click_cb(void)
 {
-	static bool double_flag = false;
-	double_flag = !double_flag;
+	/* 休眠状态下忽略双击 */
+	if (ui_data.dev_state == DEV_STATE_SLEEP)
+		return;
+
+	/* 刷黑屏幕, 关背光, 进入休眠 */
+	LCD_BLK_HIGH();
+	DispColor(BLACK);
+	ui_data.dev_state = DEV_STATE_SLEEP;
 }
 
 void key_long_press_cb(void)
 {
-	static bool long_flag = false;
-	long_flag = !long_flag;
+	/* 休眠状态下忽略长按 */
+	if (ui_data.dev_state == DEV_STATE_SLEEP)
+		return;
+
+	/* 进入/退出 USB-A 小电流模式 */
+	ui_data.low_current_flag = !ui_data.low_current_flag;
 }
 
 void key_combo_cb(void)
 {
-	static bool combo_flag = false;
-	combo_flag = !combo_flag;
 }

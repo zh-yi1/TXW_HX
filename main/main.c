@@ -20,7 +20,6 @@ int main()
 		cw1573_proc();
 		key_proc();
 		ui_proc();
-		default_page_updata();
 	}
 }
 

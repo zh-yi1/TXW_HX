@@ -49,7 +49,6 @@ static void default_page_show_power(power_e port, uint8_t power_value, bool is_u
 	area_y = power_range[port].y1;
 	area_w = power_range[port].x2 - area_x;
 
-
 	if (!is_use)
 	{
 		int free_x = area_x + (area_w - FREE_W) / 2;
@@ -77,7 +76,7 @@ static void default_page_show_power(power_e port, uint8_t power_value, bool is_u
 	Dispphoto_Dispaly_flash(cur_x, cur_y, num_32_addrs[ones]);
 	cur_x += NUM_32_W + 1;
 
-	Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_32_H - W_H, FLASH_ADDR_W);
+	Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_32_H - W_H, FLASH_ADDR_POWER_W);
 }
 
 /* ============================ 充电百分比动画 ============================ */
@@ -319,10 +318,12 @@ void default_page_show_battery(void)
 
 	if (ui_data.is_charge)
 	{
-		int n = (ui_data.bat_power >= 100) ? 3 : (ui_data.bat_power >= 10) ? 2 : 1;
+		int n = (ui_data.bat_power >= 100) ? 3 : (ui_data.bat_power >= 10) ? 2
+																		   : 1;
 		int icon_x = x + n * NUM_48_W;
 		uint32_t icon_addr = (ui_data.bat_power > 10)
-		                     ? FLASH_ADDR_CHARGING_BLUE : FLASH_ADDR_CHARGING_ORANGE;
+								 ? FLASH_ADDR_CHARGING_BLUE
+								 : FLASH_ADDR_CHARGING_ORANGE;
 		Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
 	}
 
@@ -339,20 +340,26 @@ void default_page_show_battery(void)
 
 	if (old_x + old_w > x + total_w)
 		anima_erase_area(x + total_w, CHARGE_POWER_Y,
-		                 (old_x + old_w) - (x + total_w), NUM_48_H);
+						 (old_x + old_w) - (x + total_w), NUM_48_H);
 
 draw_bar:
-		default_page_show_bar_effect();
+	default_page_show_bar_effect();
 }
 
-#define BAR_EFFECT_UP_Y   (BAR_PROGRESS_Y - CHARGING_ICON_H)
-#define BAR_EFFECT_DN_Y   (BAR_PROGRESS_Y + BAR_PROGRESS_H)
+#define BAR_EFFECT_UP_Y (BAR_PROGRESS_Y - CHARGING_ICON_H)
+#define BAR_EFFECT_DN_Y (BAR_PROGRESS_Y + BAR_PROGRESS_H)
 #define BAR_EFFECT_AREA_H (CHARGING_ICON_H + BAR_PROGRESS_H + BLUR_H)
 
 static void default_page_show_bar_effect(void)
 {
 	int bat = ui_data.bat_power;
 	int fill_x;
+
+	/* 电量范围保护: 1-100, 防止数组越界 */
+	if (bat < 1)
+		bat = 1;
+	else if (bat > 100)
+		bat = 100;
 
 	if (ui_data.prev_bar_effect > 0)
 	{
@@ -372,7 +379,8 @@ static void default_page_show_bar_effect(void)
 	if (ui_data.is_charge)
 	{
 		int icon_x = fill_x - CHARGING_ICON_W;
-		if (icon_x < 0) icon_x = 0;
+		if (icon_x < 0)
+			icon_x = 0;
 		int is_blue = (bat > 10);
 		int f = ui_data.charge_anim_frame;
 		int px = ui_data.prev_icon_x;
@@ -400,9 +408,9 @@ static void default_page_show_bar_effect(void)
 			else if (icon_x < px)
 			{
 				anima_erase_area(icon_x + CHARGING_ICON_W, BAR_EFFECT_UP_Y,
-				                 px - icon_x, CHARGING_ICON_H);
+								 px - icon_x, CHARGING_ICON_H);
 				anima_erase_area(icon_x + CHARGING_ICON_W, BAR_EFFECT_DN_Y,
-				                 px - icon_x, CHARGING_ICON_H);
+								 px - icon_x, CHARGING_ICON_H);
 			}
 		}
 		ui_data.prev_icon_x = icon_x;
@@ -416,7 +424,6 @@ static void default_page_show_bar_effect(void)
 		Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y, blur_down[idx]);
 	}
 }
-
 
 void default_page_init()
 {
@@ -450,7 +457,7 @@ void default_page_updata(void)
 	last_ms = now;
 
 	int charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
-	int power_changed  = (ui_data.bat_power_last != ui_data.bat_power);
+	int power_changed = (ui_data.bat_power_last != ui_data.bat_power);
 
 	/* 充放电切换时重置追踪, 强制全量重绘避免位置偏差 */
 	if (charge_changed)
@@ -466,8 +473,7 @@ void default_page_updata(void)
 		default_page_show_bar_effect();
 
 	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */
-	if (ui_data.usb_c1_is_use != ui_data.usb_c1_is_use_last
-		|| ui_data.usb_c1_power != ui_data.usb_c1_power_last)
+	if (ui_data.usb_c1_is_use != ui_data.usb_c1_is_use_last || ui_data.usb_c1_power != ui_data.usb_c1_power_last)
 	{
 		const range_t *r = &power_range[C1_POWER];
 		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
@@ -476,8 +482,7 @@ void default_page_updata(void)
 		ui_data.usb_c1_power_last = ui_data.usb_c1_power;
 	}
 
-	if (ui_data.usb_c2_is_use != ui_data.usb_c2_is_use_last
-		|| ui_data.usb_c2_power != ui_data.usb_c2_power_last)
+	if (ui_data.usb_c2_is_use != ui_data.usb_c2_is_use_last || ui_data.usb_c2_power != ui_data.usb_c2_power_last)
 	{
 		const range_t *r = &power_range[C2_POWER];
 		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
@@ -486,8 +491,7 @@ void default_page_updata(void)
 		ui_data.usb_c2_power_last = ui_data.usb_c2_power;
 	}
 
-	if (ui_data.usb_a_is_use != ui_data.usb_a_is_use_last
-		|| ui_data.usb_a_power != ui_data.usb_a_power_last)
+	if (ui_data.usb_a_is_use != ui_data.usb_a_is_use_last || ui_data.usb_a_power != ui_data.usb_a_power_last)
 	{
 		const range_t *r = &power_range[A_POWER];
 		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
@@ -495,7 +499,6 @@ void default_page_updata(void)
 		ui_data.usb_a_is_use_last = ui_data.usb_a_is_use;
 		ui_data.usb_a_power_last = ui_data.usb_a_power;
 	}
-
 }
 
 /* ============================ 测试函数 ============================ */
@@ -505,14 +508,14 @@ void default_page_test(void)
 	int frame_cnt = 0;
 
 	/* 设置测试数据 */
-	ui_data.bat_power     = 5;
-	ui_data.is_charge     = 0;
+	ui_data.bat_power = 5;
+	ui_data.is_charge = 0;
 	ui_data.usb_c1_is_use = true;
-	ui_data.usb_c1_power  = 60;
+	ui_data.usb_c1_power = 60;
 	ui_data.usb_c2_is_use = false;
-	ui_data.usb_c2_power  = 0;
-	ui_data.usb_a_is_use  = true;
-	ui_data.usb_a_power   = 10;
+	ui_data.usb_c2_power = 0;
+	ui_data.usb_a_is_use = true;
+	ui_data.usb_a_power = 10;
 
 	default_page_init();
 
@@ -542,8 +545,8 @@ void default_page_test(void)
 	/* 充满, 播放充电结束动画 */
 	ui_data.is_charge = 0;
 	// default_page_updata();
-	Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y, blur_up[ui_data.bat_power-1]);
-	Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y, blur_down[ui_data.bat_power-1]);
+	Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y, blur_up[ui_data.bat_power - 1]);
+	Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y, blur_down[ui_data.bat_power - 1]);
 	start_change_anima(ui_data.is_charge);
 
 	frame_cnt = 0;

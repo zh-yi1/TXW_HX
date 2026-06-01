@@ -22,6 +22,8 @@
 #include "flash_image_addr.h"
 #include "default_page.h"
 #include "hint_page.h"
+#include "information_page.h"
+#include "digit_16.h"
 
 #endif
 

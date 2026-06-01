@@ -21,6 +21,13 @@ ui_data_t ui_data = {
 	.bat_current = 0,
 	.bat_cc = 0,
 	.warning = WARNING_NONE,
+	.cur_page = PAGE_DEFAULT,
+	.last_page = PAGE_MAX,
+	.bat_model_1 = "1234567890_A",
+	.bat_model_2 = "BCDEFGHIJKLM",
+	.bat_model_3 = "NOPQRSTUVWXY",
+	.bat_model_4 = "KJDSALFHJKHU",
+	.dev_state = DEV_STATE_NORMAL,
 };
 
 static void spi_init(void)
@@ -56,6 +63,7 @@ void ui_init(void)
 
 	// default_page_test();
 	default_page_init();
+	ui_data.cur_page = PAGE_DEFAULT;
 	// information_page_1_init();
 	// over_temp_hint_page();
 	//获取FLASH芯片 ID
@@ -66,7 +74,59 @@ void ui_init(void)
 //处理不同页面内容
 void ui_proc(void)
 {
-	
+	/* 休眠状态下不刷新界面 */
+	if (ui_data.dev_state == DEV_STATE_SLEEP)
+		return;
+
+	/* 检测界面切换，切换时初始化新界面 */
+	if (ui_data.cur_page != ui_data.last_page)
+	{
+		switch (ui_data.cur_page)
+		{
+		case PAGE_DEFAULT:
+			default_page_init();
+			break;
+		case PAGE_INFO_1:
+			information_page_1_init();
+			break;
+		case PAGE_INFO_2:
+			information_page_2_init();
+			break;
+		case PAGE_OVER_TEMP:
+			over_temp_hint_page();
+			break;
+		case PAGE_LOW_TEMP:
+			low_temp_hint_page();
+			break;
+		case PAGE_SHORT_CIRCUIT:
+			short_circuit_hint_page();
+			break;
+		default:
+			break;
+		}
+		ui_data.last_page = ui_data.cur_page;
+	}
+
+	/* 各界面周期性更新 */
+	switch (ui_data.cur_page)
+	{
+	case PAGE_DEFAULT:
+		default_page_updata();
+		break;
+	case PAGE_INFO_1:
+		information_page_1_updata();
+		break;
+	case PAGE_INFO_2:
+		information_page_2_updata();
+		break;
+	case PAGE_OVER_TEMP:
+	case PAGE_LOW_TEMP:
+	case PAGE_SHORT_CIRCUIT:
+		/* 提示页为静态页面，无需更新 */
+		break;
+	default:
+		break;
+	}
 }
 
 static void ui_gpio_init(void)
