@@ -89,29 +89,27 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 		res = 0;
 
 	/* CONFIG0: enable IC, TS, set cell count. WDT disabled (off). */
-	cfg = CW1573_EN_ICN | CW1573_EN_TS;
-	if (cell_count >= 3 && cell_count <= 7)
-		cfg |= cell_count;
-	else
-		cfg |= CW1573_CN_4S;
+	cfg = 0x94;
 	cw1573_write_reg(CW1573_REG_CONFIG0, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_CONFIG0, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
 	/* CONFIG1: exit sleep, enable VADC, IADC, CO, DO */
-	cfg = CW1573_RST | CW1573_EXIT_SLEEP | CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
+	// cfg = CW1573_RST | CW1573_EXIT_SLEEP | CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
+	cfg = 0x9F;
 	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_CONFIG1, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
 	/* CONFIG1: exit sleep, enable VADC, IADC, CO, DO */
-	cfg = CW1573_EXIT_SLEEP | CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
+	// cfg = CW1573_EXIT_SLEEP | CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
+	cfg = 0x1F;
 	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_CONFIG1, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	/* CONFIG2: enable DCTL, OT, DOC/COC, SC, hysteresis */
-	cfg = CW1573_EN_DCTL | CW1573_EN_OT | CW1573_EN_DOC_COC | CW1573_EN_SC
+	/* CONFIG2: enable DCTL, DOC/COC, SC, hysteresis */
+	cfg = CW1573_EN_DCTL | CW1573_EN_DOC_COC | CW1573_EN_SC
 	    | CW1573_CHG_DOV_HYS | CW1573_DSG_COV_HYS;
 	cw1573_write_reg(CW1573_REG_CONFIG2, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_CONFIG2, rbuf, 1) || rbuf[0] != cfg)
@@ -129,8 +127,8 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 	if (cw1573_read_reg(CW1573_REG_VOVR, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	/* VUV = 2.70V per cell (1280mV + 142*10mV) */
-	cfg = 0x8E;
+	/* VUV = 2.72V per cell (1280mV + 144*10mV) */
+	cfg = 0x90;
 	cw1573_write_reg(CW1573_REG_VUV, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_VUV, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
@@ -189,20 +187,20 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 	if (cw1573_read_reg(CW1573_REG_DUTR_HYS, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	/* DOC1: dischg OC1 30mV/12A (280ms) */
-	cfg = 0x48;
+	/* DOC1: dischg OC1 27.5mV/11A (2s) */
+	cfg = 0x42;
 	cw1573_write_reg(CW1573_REG_VDOC1, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_VDOC1, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	/* DOC2: dischg OC2 45mV/18A (56ms) */
-	cfg = 0x34;
+	/* DOC2: dischg OC2 38.4mV/15A (56ms) */
+	cfg = 0x2C;
 	cw1573_write_reg(CW1573_REG_VDOC2, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_VDOC2, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	/* COC: charge OC 15mV/6A (96ms) */
-	cfg = 0x20;
+	/* COC: charge OC 14.4mV/5.76A (96ms) */
+	cfg = 0x09;
 	cw1573_write_reg(CW1573_REG_VCOC, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_VCOC, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
@@ -213,14 +211,14 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 	if (cw1573_read_reg(CW1573_REG_IADC_DET, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	/* SC/TSC/TDOCR/WDT: VSC=-100mV, tSC=160us, tDOCR=64ms, tWDT=256s */
-	cfg = 0xC8;
+	/* SC/TSC/TDOCR/WDT: VSC=100mV, tSC=280us, tDOCR=64ms, tWDT=256s */
+	cfg = 0x30;
 	cw1573_write_reg(CW1573_REG_VSC_TSC, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_VSC_TSC, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	/* TOV/TUV: tOV=500ms, tUV=250ms, tBAL=16s */
-	cfg = 0x00;
+	/* TOV/TUV: tOV=1s, tUV=1s, tBAL=16s */
+	cfg = 0x50;
 	cw1573_write_reg(CW1573_REG_TOV_TUV, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_TOV_TUV, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
@@ -241,7 +239,7 @@ void cw1573_init(uint8_t cell_count)
 	md_gpio_init(CW1573_INT_PORT, CW1573_INT_PIN, &g);
 	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
 
-	if (cw1573_config_regs_ref(cell_count) != 0)
+	if (cw1573_config_regs(cell_count) != 0)
 		cw1573_cfg_done = 1;
 }
 
@@ -468,7 +466,7 @@ void cw1573_proc(void)
 		if (now - last_cfg_tick >= CW1573_CFG_RETRY_MS)
 		{
 			last_cfg_tick = now;
-			if (cw1573_config_regs_ref(cw1573_cell_cnt) != 0)
+			if (cw1573_config_regs(cw1573_cell_cnt) != 0)
 				cw1573_cfg_done = 1;
 			else
 				return;
