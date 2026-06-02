@@ -18,6 +18,7 @@ int main()
 	while (1)
 	{
 		cw1573_proc();
+		i2c_slave_proc();
 		key_proc();
 		ui_proc();
 	}
@@ -40,10 +41,13 @@ static void sys_init(void)
 	dma_init();
 
 	//TFT初始化
-	 ui_init();
+	ui_init();
 
 	//按键初始化
 	key_init();
+
+	//I2C从机初始化
+	i2c_slave_init();
 
 	//定时器初始化-PWM
 	// timer_init();

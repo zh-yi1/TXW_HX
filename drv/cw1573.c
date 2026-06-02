@@ -428,32 +428,6 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 	p->cc_mah = (uint32_t)((float)raw->cc * 6.25f / 2.5f / 3600.0f);
 }
 
-/* 电压-电量映射参数: 满电18V→100% 放电截止10.8V→0% */
-#define BAT_VOLT_FULL    180U
-#define BAT_VOLT_CUTOFF  108U
-
-static void cw1573_sync_to_ui_data(void)
-{
-	uint16_t volt;
-	int16_t  pct;
-
-	volt = (uint16_t)(cw1573_info.pack_v * 10.0f + 0.5f);
-	ui_data.bat_voltage = volt;
-	ui_data.bat_current = cw1573_info.current_ma;
-	ui_data.bat_cc      = cw1573_info.cc_mah;
-
-	if (volt <= BAT_VOLT_CUTOFF)
-		ui_data.bat_power = 0;
-	else if (volt >= BAT_VOLT_FULL)
-		ui_data.bat_power = 100;
-	else
-	{
-		pct = (int16_t)((int32_t)(volt - BAT_VOLT_CUTOFF) * 100
-		                / (BAT_VOLT_FULL - BAT_VOLT_CUTOFF));
-		ui_data.bat_power = (uint8_t)pct;
-	}
-}
-
 void cw1573_proc(void)
 {
 	static uint32_t last_tick;
@@ -464,6 +438,7 @@ void cw1573_proc(void)
 	if (!cw1573_cfg_done)
 	{
 		if (now - last_cfg_tick >= CW1573_CFG_RETRY_MS)
+		
 		{
 			last_cfg_tick = now;
 			if (cw1573_config_regs(cw1573_cell_cnt) != 0)
@@ -479,9 +454,5 @@ void cw1573_proc(void)
 		return;
 	last_tick = now;
 
-	if (cw1573_read_all((cw1573_data_t *)&cw1573_raw) == 0)
-	{
-		cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
-		cw1573_sync_to_ui_data();
-	}
+	cw1573_read_all((cw1573_data_t *)&cw1573_raw);
 }

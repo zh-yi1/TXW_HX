@@ -170,6 +170,9 @@ void key_single_click_cb(void)
 		/* 正常状态: 切换显示界面 (循环) */
 		ui_data.cur_page = (page_t)((ui_data.cur_page + 1) % PAGE_MAX);
 	}
+
+	/* 设置按键事件 bit0: 单击 */
+	i2c_reg_map[REG_KEY_EVENT] |= 0x01;
 }
 
 void key_double_click_cb(void)
@@ -182,6 +185,9 @@ void key_double_click_cb(void)
 	LCD_BLK_HIGH();
 	DispColor(BLACK);
 	ui_data.dev_state = DEV_STATE_SLEEP;
+
+	/* 设置按键事件 bit1: 双击 */
+	i2c_reg_map[REG_KEY_EVENT] |= 0x02;
 }
 
 void key_long_press_cb(void)
@@ -192,8 +198,12 @@ void key_long_press_cb(void)
 
 	/* 进入/退出 USB-A 小电流模式 */
 	ui_data.low_current_flag = !ui_data.low_current_flag;
+
+	/* 设置按键事件 bit2: 长按 */
+	i2c_reg_map[REG_KEY_EVENT] |= 0x10;
 }
 
 void key_combo_cb(void)
 {
+
 }
