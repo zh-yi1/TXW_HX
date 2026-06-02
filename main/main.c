@@ -42,7 +42,7 @@ static void sys_init(void)
 	dma_init();
 
 	//TFT初始化
-	 ui_init();
+	ui_init();
 
 	//按键初始化
 	key_init();
