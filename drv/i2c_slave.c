@@ -243,6 +243,10 @@ static void pull_sensor_data(void)
     /* 充放电状态: 来自 CW1573 state_flag2 bit4 (CHG_STATE) */
     ui_data.is_charge = (cw1573_raw.state_flag2 & CW1573_CHG_STATE) ? true : false;
 
+    /* 充电时自动关闭小电流模式 */
+    if (ui_data.is_charge)
+        ui_data.low_current_flag = false;
+
     /* NTC1: 温度电阻值 (Ω), 协议 §4.2 */
     uint16_t ts = cw1573_raw.ts_adc & 0x7FFF;
     uint32_t vntc = (uint32_t)ts * 78125UL / 1000000UL;

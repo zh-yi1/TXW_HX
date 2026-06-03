@@ -515,6 +515,19 @@ void default_page_updata(void)
 		ui_data.usb_a_status_last = ui_data.usb_a_status;
 		ui_data.usb_a_power_last = ui_data.usb_a_power;
 	}
+
+	/* 小电流模式标志: 在 (12,4) 显示/清除电池图标 */
+	{
+		static bool last_flag = false;
+		if (ui_data.low_current_flag != last_flag)
+		{
+			last_flag = ui_data.low_current_flag;
+			if (ui_data.low_current_flag)
+				Dispphoto_Dispaly_flash(12, 4, FLASH_ADDR_BATTERY);
+			else
+				anima_erase_area(12, 4, NUM_48_W, NUM_48_H);
+		}
+	}
 }
 
 
