@@ -2,16 +2,8 @@
 
 static void sys_init(void);
 
-uint16_t color_test = 0;
-
-volatile cw1573_test_result_t g_test;
-
-
 int main()
 {
-
- 	for(uint32_t i=60000; i<1; i--){}
-
 	sys_init();
 	spi_dma_send_ok = 1;
 	cw1573_init(4);

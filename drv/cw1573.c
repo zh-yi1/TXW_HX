@@ -6,6 +6,11 @@ volatile cw1573_proc_data_t cw1573_info;
 static uint8_t cw1573_cell_cnt  = 4;
 static uint8_t cw1573_cfg_done  = 0;
 
+uint8_t cw1573_is_ready(void)
+{
+	return cw1573_cfg_done;
+}
+
 static uint8_t crc8_update(uint8_t crc, uint8_t data)
 {
 	crc ^= data;
@@ -18,49 +23,6 @@ static uint8_t crc8_update(uint8_t crc, uint8_t data)
 	}
 	return crc;
 }
-
-#if 0
-static uint8_t cw1573_config_regs_ref(uint8_t cell_count)
-{
-	uint8_t cfg;
-	uint8_t res = 1;
-	uint8_t rbuf[2];
-
-	cfg = 0x94;
-	cw1573_write_reg(0x05, &cfg, 1);
-	if (cw1573_read_reg(0x05, rbuf, 1) || rbuf[0] != cfg)
-		res = 0;
-
-	// cfg = 0x97;
-	cfg = 0x9F;
-	cw1573_write_reg(0x06, &cfg, 1);
-	if (cw1573_read_reg(0x06, rbuf, 1) || rbuf[0] != cfg)
-		res = 0;
-	
-	// cfg = 0x17;
-	cfg = 0x1F;
-	cw1573_write_reg(0x06, &cfg, 1);
-	if (cw1573_read_reg(0x06, rbuf, 1) || rbuf[0] != cfg)
-		res = 0;
-
-	cfg = 0x84;
-	cw1573_write_reg(0x0A, &cfg, 1);
-	if (cw1573_read_reg(0x0A, rbuf, 1) || rbuf[0] != cfg)
-		res = 0;
-
-	cfg = 0x55;
-	cw1573_write_reg(0x14, &cfg, 1);
-	if (cw1573_read_reg(0x14, rbuf, 1) || rbuf[0] != cfg)
-		res = 0;
-	
-	cfg = 0x1A;
-	cw1573_write_reg(0x16, &cfg, 1);
-	if (cw1573_read_reg(0x16, rbuf, 1) || rbuf[0] != cfg)
-		res = 0;
-
-	return res;
-}
-#endif
 
 static uint8_t cw1573_config_regs(uint8_t cell_count)
 {

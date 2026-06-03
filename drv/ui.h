@@ -107,17 +107,17 @@ typedef struct
 	uint8_t  bat_power;		/* 电池电量 0-100% */
 	bool     is_charge;		/* 是否充电中 */
 	bool     is_charge_last;	/* 上一轮的充电状态，用于检测变化 */
-	bool     usb_c1_is_use;		/* USB-C1 口是否使用中 */
+	uint8_t  usb_c1_status;		/* USB-C1 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_c1_power;		/* USB-C1 实时功率 0-99W */
-	bool     usb_c1_is_use_last;	/* USB-C1 上一轮使用状态 */
+	uint8_t  usb_c1_status_last;	/* USB-C1 上一轮状态 */
 	uint8_t  usb_c1_power_last;	/* USB-C1 上一轮功率 */
-	bool     usb_c2_is_use;		/* USB-C2 口是否使用中 */
+	uint8_t  usb_c2_status;		/* USB-C2 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_c2_power;		/* USB-C2 实时功率 0-99W */
-	bool     usb_c2_is_use_last;	/* USB-C2 上一轮使用状态 */
+	uint8_t  usb_c2_status_last;	/* USB-C2 上一轮状态 */
 	uint8_t  usb_c2_power_last;	/* USB-C2 上一轮功率 */
-	bool     usb_a_is_use;		/* USB-A  口是否使用中 */
+	uint8_t  usb_a_status;		/* USB-A  端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_a_power;		/* USB-A  实时功率 0-99W */
-	bool     usb_a_is_use_last;	/* USB-A  上一轮使用状态 */
+	uint8_t  usb_a_status_last;	/* USB-A  上一轮状态 */
 	uint8_t  usb_a_power_last;	/* USB-A  上一轮功率 */
 	uint16_t count_down;		/* 倒计时剩余秒数（0=无倒计时） */
 	uint8_t  bat_max_cap;		/* 电池最大容量 0-100% */

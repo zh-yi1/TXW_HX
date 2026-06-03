@@ -211,6 +211,10 @@ static void pull_sensor_data(void)
     uint32_t mv;
     uint16_t tmp16;
 
+    /* CW1573 未就绪: 不覆盖 ui_data 已有值 (可能来自主机或初始值) */
+    if (!cw1573_is_ready())
+        return;
+
     cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
 
     /* V1~V4: 电芯电压 (mV), 协议 §4.2 R 区域 */
@@ -256,8 +260,6 @@ static void pull_sensor_data(void)
     if (cw1573_raw.state_flag2 & CW1573_CO_PIN) prot |= 0x02;
     i2c_reg_map[REG_AFE_PROTECT] = prot;
 
-    /* OVP_PERMANENT: 过压永久失效, 协议 §4.2 密匙 0x5A, bit0=永久失效 */
-    i2c_reg_map[REG_OVP_PERMANENT] = 0x5A;  /* 密匙有效, 默认无永久失效 */
 }
 
 /* ========================================================================
@@ -273,9 +275,9 @@ static void apply_host_data(void)
 
     /* ---- 端口数据 (协议 §4.3) ---- */
 
-    /* USB-C1 */
-    ui_data.usb_c1_is_use = (i2c_reg_map[REG_C1_STATUS] != 0);
-    if (ui_data.usb_c1_is_use) {
+    /* USB-C1 (协议 §4.3: 0=未连接 1=充电 2=放电) */
+    ui_data.usb_c1_status = i2c_reg_map[REG_C1_STATUS];
+    if (ui_data.usb_c1_status) {
         uint16_t v = (uint16_t)i2c_reg_map[REG_C1_VOLTAGE_L]
                    | ((uint16_t)i2c_reg_map[REG_C1_VOLTAGE_H] << 8);
         int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_C1_CURRENT_L]
@@ -287,9 +289,9 @@ static void apply_host_data(void)
         ui_data.usb_c1_power = 0;
     }
 
-    /* USB-C2 */
-    ui_data.usb_c2_is_use = (i2c_reg_map[REG_C2_STATUS] != 0);
-    if (ui_data.usb_c2_is_use) {
+    /* USB-C2 (协议 §4.3: 0=未连接 1=充电 2=放电) */
+    ui_data.usb_c2_status = i2c_reg_map[REG_C2_STATUS];
+    if (ui_data.usb_c2_status) {
         uint16_t v = (uint16_t)i2c_reg_map[REG_C2_VOLTAGE_L]
                    | ((uint16_t)i2c_reg_map[REG_C2_VOLTAGE_H] << 8);
         int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_C2_CURRENT_L]
@@ -301,9 +303,9 @@ static void apply_host_data(void)
         ui_data.usb_c2_power = 0;
     }
 
-    /* USB-A */
-    ui_data.usb_a_is_use = (i2c_reg_map[REG_USBA_STATUS] != 0);
-    if (ui_data.usb_a_is_use) {
+    /* USB-A (协议 §4.3: 0=未连接 1=充电 2=放电) */
+    ui_data.usb_a_status = i2c_reg_map[REG_USBA_STATUS];
+    if (ui_data.usb_a_status) {
         uint16_t v = (uint16_t)i2c_reg_map[REG_USBA_VOLTAGE_L]
                    | ((uint16_t)i2c_reg_map[REG_USBA_VOLTAGE_H] << 8);
         int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_USBA_CURRENT_L]
@@ -340,6 +342,9 @@ void i2c_slave_proc(void)
     i2c_reg_map[REG_FW_VERSION_L]   = 0x00;  /* V1.00 */
     i2c_reg_map[REG_FW_VERSION_H]   = 0x01;
     i2c_reg_map[REG_TFT_ONLINE_CRC] = 0x55;
+
+    /* OVP_PERMANENT: 协议 §4.2 密匙 0x5A, CW1573 离线时也可信 */
+    i2c_reg_map[REG_OVP_PERMANENT] = 0x5A;
 
     /* 按键事件原子交换: 影子缓冲 → reg_map, 防止主机清零竞争 (§4.5) */
     i2c_reg_map[REG_KEY_EVENT] = key_event_buf;

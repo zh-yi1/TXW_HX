@@ -26,8 +26,7 @@ typedef enum
 void default_page_init(void);
 void start_change_anima(bool is_charge);
 void anima_erase_area(int x, int y, int w, int h);
-void default_page_show_power(power_e port, uint8_t power_value, bool is_use);
+void default_page_show_power(power_e port, uint8_t power_value, uint8_t status);
 void default_page_updata(void);
-void default_page_test(void);
 
 #endif

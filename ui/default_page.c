@@ -38,9 +38,10 @@ static const uint32_t num_32_addrs[10] = {
 #define FREE_H 50
 #define FREE_W 32
 
-// 显示功率（is_use 为 false 时居中显示空闲图标）
-static void default_page_show_power(power_e port, uint8_t power_value, bool is_use)
+// 显示功率（status==0 时居中显示空闲图标, 协议 §4.3）
+static void default_page_show_power(power_e port, uint8_t power_value, uint8_t status)
 {
+	bool is_use = (status != 0);
 	int area_x, area_y, area_w;
 	int total_w, cur_x, cur_y;
 	int tens, ones;
@@ -111,13 +112,15 @@ static const uint32_t orange_num64_addrs[10] = {
 #define NUM_48_H 48
 #define PERCENT_W 24
 #define PERCENT_H 24
-#define ANIM_STEPS 30
 #define SCREEN_W 240
 
 #define CHARGE_POWER_X 12
 #define CHARGE_POWER_Y 4
 #define NORMAL_POWER_X 72
 #define NORMAL_POWER_Y 4
+
+#define BAR_PROGRESS_Y 65
+#include "bar_progress.h"
 
 static void anima_erase_area(int x, int y, int w, int h)
 {
@@ -175,118 +178,108 @@ static int anima_power_width(uint8_t power)
 	return n * NUM_48_W + PERCENT_W;
 }
 
+#define ANIM_STEPS          40
+#define ANIM_STEP_MS        20    /* 动画每帧间隔, 可调 */
+
+/* 充放电动画状态 (非阻塞, 由 default_page_updata 驱动) */
+static uint8_t  anima_step;
+static uint8_t  anima_active;       /* 0=空闲 1=进行中 */
+static int      anima_from_x;
+static int      anima_to_x;
+static int      anima_total_w;
+static bool     anima_is_charge;
+
 void start_change_anima(bool is_charge)
 {
-	int to_x, from_x, total_w, step;
+	anima_active    = 1;
+	anima_step      = 0;
+	anima_is_charge = is_charge;
 
 	ui_data.anim_power = ui_data.bat_power;
-
-	total_w = anima_power_width(ui_data.anim_power);
+	anima_total_w = anima_power_width(ui_data.anim_power);
 
 	if (is_charge)
 	{
 		/* 未充电 → 充电: 居中 → 左对齐 */
-		from_x = (SCREEN_W - total_w) / 2;
-		to_x = CHARGE_POWER_X;
+		anima_from_x = (SCREEN_W - anima_total_w) / 2;
+		anima_to_x   = CHARGE_POWER_X;
 	}
 	else
 	{
-		/* 充电 → 未充电: 先擦充电图标, 再左对齐 → 居中 */
-		int n = (ui_data.anim_power >= 100) ? 3 : (ui_data.anim_power >= 10) ? 2
-																			 : 1;
+		/* 充电 → 未充电: 清除充电图标 + 粒子效果, 再左对齐 → 居中 */
+		int n = (ui_data.anim_power >= 100) ? 3 : (ui_data.anim_power >= 10) ? 2 : 1;
 		int icon_x = ui_data.anim_cur_x + n * NUM_48_W;
 		anima_erase_area(icon_x, CHARGE_POWER_Y, NUM_48_W, NUM_48_H);
 
-		from_x = CHARGE_POWER_X;
-		to_x = (SCREEN_W - total_w) / 2;
+		/* 清除进度条上/下的充电动画粒子 (不擦进度条本身) */
+		anima_erase_area(0, BAR_PROGRESS_Y - CHARGING_ICON_H,
+		                 BAR_PROGRESS_W, CHARGING_ICON_H);
+		anima_erase_area(0, BAR_PROGRESS_Y + BAR_PROGRESS_H,
+		                 BAR_PROGRESS_W, BLUR_H);
+
+		anima_from_x = CHARGE_POWER_X;
+		anima_to_x   = (SCREEN_W - anima_total_w) / 2;
 	}
 
-	for (step = 0; step <= ANIM_STEPS; step++)
-	{
-		int prev_x = ui_data.anim_cur_x;
+	/* 预擦整条移动走廊, 立即画第一帧 (避免擦后黑窗) */
+	int left  = (anima_from_x < anima_to_x) ? anima_from_x : anima_to_x;
+	int right = (anima_from_x > anima_to_x) ? anima_from_x : anima_to_x;
+	right += anima_total_w - 1;
+	anima_erase_area(left, CHARGE_POWER_Y, right - left + 1, NUM_48_H);
 
-		ui_data.anim_cur_x = from_x + (to_x - from_x) * step / ANIM_STEPS;
-
-		/* 先画新帧 */
-		anima_draw_bat_power(ui_data.anim_cur_x, CHARGE_POWER_Y,
-							 ui_data.anim_power, (ui_data.bat_power > 10));
-
-		/* 擦除旧帧不重叠的边角 (先画后擦, 无闪烁) */
-		if (step > 0)
-		{
-			if (ui_data.anim_cur_x > prev_x)
-				anima_erase_area(prev_x, CHARGE_POWER_Y, ui_data.anim_cur_x - prev_x, NUM_48_H);
-			else if (ui_data.anim_cur_x < prev_x)
-				anima_erase_area(ui_data.anim_cur_x + total_w, CHARGE_POWER_Y,
-								 prev_x - ui_data.anim_cur_x, NUM_48_H);
-		}
-
-		if (step < ANIM_STEPS)
-			md_delay_1ms(5);
-	}
-
-	/* 动画结束, 充电时在 % 右侧显示充电图标 */
-	if (is_charge)
-	{
-		int n = (ui_data.anim_power >= 100) ? 3 : (ui_data.anim_power >= 10) ? 2
-																			 : 1;
-		int icon_x = ui_data.anim_cur_x + n * NUM_48_W;
-		uint32_t icon_addr = (ui_data.bat_power > 10)
-								 ? FLASH_ADDR_CHARGING_BLUE
-								 : FLASH_ADDR_CHARGING_ORANGE;
-		Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
-	}
+	ui_data.anim_cur_x = anima_from_x;
+	anima_draw_bat_power(anima_from_x, CHARGE_POWER_Y, ui_data.anim_power,
+	                     (ui_data.bat_power > 10));
+	anima_step = 1;  /* 第 0 帧已画, anima_tick 从第 1 帧开始 */
 }
 
-static const uint32_t charging_blue_anima[25] = {
-	// FLASH_ADDR_CHARGING_BLUE_0001,
-	// FLASH_ADDR_CHARGING_BLUE_0002,
-	// FLASH_ADDR_CHARGING_BLUE_0003,
-	// FLASH_ADDR_CHARGING_BLUE_0004,
-	// FLASH_ADDR_CHARGING_BLUE_0005,
-	// FLASH_ADDR_CHARGING_BLUE_0006,
-	// FLASH_ADDR_CHARGING_BLUE_0007,
-	// FLASH_ADDR_CHARGING_BLUE_0008,
-	// FLASH_ADDR_CHARGING_BLUE_0009,
-	// FLASH_ADDR_CHARGING_BLUE_0010,
-	// FLASH_ADDR_CHARGING_BLUE_0011,
-	// FLASH_ADDR_CHARGING_BLUE_0012,
-	// FLASH_ADDR_CHARGING_BLUE_0013,
-	// FLASH_ADDR_CHARGING_BLUE_0014,
-	// FLASH_ADDR_CHARGING_BLUE_0015,
-	// FLASH_ADDR_CHARGING_BLUE_0016,
-	// FLASH_ADDR_CHARGING_BLUE_0017,
-	// FLASH_ADDR_CHARGING_BLUE_0018,
-	// FLASH_ADDR_CHARGING_BLUE_0019,
-	// FLASH_ADDR_CHARGING_BLUE_0020,
-	// FLASH_ADDR_CHARGING_BLUE_0021,
-	// FLASH_ADDR_CHARGING_BLUE_0022,
-	// FLASH_ADDR_CHARGING_BLUE_0023,
-	// FLASH_ADDR_CHARGING_BLUE_0024,
-	// FLASH_ADDR_CHARGING_BLUE_0025,
-};
-
-void draw_charging_blue_anima()
+/* 动画逐帧推进 — 先擦旧残留, 再画新位置, 返回 true 表示动画结束 */
+static bool anima_tick(void)
 {
-	int frame = 0;
-	while (1)
-	{
-		Dispphoto_Dispaly_flash(0, 0, charging_blue_anima[frame]);
-		md_delay_1ms(10);
+	int step = anima_step;
+	int prev_x = ui_data.anim_cur_x;
+	int x = anima_from_x + (anima_to_x - anima_from_x) * step / ANIM_STEPS;
 
-		frame++;
-		if (frame >= 25)
-		{
-			frame = 0;
-		}
+	ui_data.anim_cur_x = x;
+
+	/* 先擦旧帧不重叠的边角 */
+	if (step > 0)
+	{
+		if (x > prev_x)
+			anima_erase_area(prev_x, CHARGE_POWER_Y, x - prev_x, NUM_48_H);
+		else if (x < prev_x)
+			anima_erase_area(x + anima_total_w, CHARGE_POWER_Y,
+			                 prev_x - x, NUM_48_H);
 	}
+
+	/* 再画新帧 */
+	anima_draw_bat_power(x, CHARGE_POWER_Y, ui_data.anim_power,
+	                     (ui_data.bat_power > 10));
+
+	anima_step++;
+
+	if (step >= ANIM_STEPS)
+	{
+		anima_active = 0;
+
+		/* 动画结束, 充电时在 % 右侧显示充电图标 */
+		if (anima_is_charge)
+		{
+			int n = (ui_data.anim_power >= 100) ? 3 : (ui_data.anim_power >= 10) ? 2 : 1;
+			int icon_x = x + n * NUM_48_W;
+			uint32_t icon_addr = (ui_data.bat_power > 10)
+			                     ? FLASH_ADDR_CHARGING_BLUE
+			                     : FLASH_ADDR_CHARGING_ORANGE;
+			Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
+		}
+		return true;
+	}
+	return false;
 }
+
 
 /* ============================ 电量显示 ============================ */
 #define BAR_PROGRESS_X 0
-#define BAR_PROGRESS_Y 65
-
-#include "bar_progress.h"
 
 static void default_page_show_bar_effect(void);
 
@@ -439,19 +432,36 @@ void default_page_init()
 	}
 
 	// 显示USB功率
-	default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_is_use);
-	default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_is_use);
-	default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_is_use);
+	default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
+	default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_status);
+	default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_status);
 }
 
 /* ============================ 数据更新 ============================ */
 
 void default_page_updata(void)
 {
-	static uint32_t last_ms = 0;
+	static uint32_t last_ms      = 0;
+	static uint32_t anima_last_ms = 0;
 	uint32_t now = md_get_tick();
 
-	/* 1ms sampling: fast enough for response, slow enough to skip bounce */
+	/* ---- 充放电动画进行中: 按 ANIM_STEP_MS 逐帧推进, 暂停普通更新 ---- */
+	if (anima_active)
+	{
+		if (now - anima_last_ms >= ANIM_STEP_MS)
+		{
+			anima_last_ms = now;
+			if (anima_tick())
+			{
+				/* 动画结束, 最终全量重绘 */
+				default_page_show_battery();
+				last_ms = now;
+			}
+		}
+		return;
+	}
+
+	/* ---- 普通更新: 20ms 间隔 ---- */
 	if (now - last_ms < 20)
 		return;
 	last_ms = now;
@@ -459,9 +469,15 @@ void default_page_updata(void)
 	int charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
 	int power_changed = (ui_data.bat_power_last != ui_data.bat_power);
 
-	/* 充放电切换时重置追踪, 强制全量重绘避免位置偏差 */
-	if (charge_changed)
+	/* 充放电切换: 启动非阻塞动画 */
+	if (charge_changed) {
+		start_change_anima(ui_data.is_charge);
 		ui_data.prev_disp_w = 0;
+		ui_data.is_charge_last = ui_data.is_charge;
+		ui_data.bat_power_last = ui_data.bat_power;
+		anima_last_ms = now;
+		return;
+	}
 
 	ui_data.is_charge_last = ui_data.is_charge;
 	ui_data.bat_power_last = ui_data.bat_power;
@@ -473,101 +489,32 @@ void default_page_updata(void)
 		default_page_show_bar_effect();
 
 	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */
-	if (ui_data.usb_c1_is_use != ui_data.usb_c1_is_use_last || ui_data.usb_c1_power != ui_data.usb_c1_power_last)
+	if (ui_data.usb_c1_status != ui_data.usb_c1_status_last || ui_data.usb_c1_power != ui_data.usb_c1_power_last)
 	{
 		const range_t *r = &power_range[C1_POWER];
 		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
-		default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_is_use);
-		ui_data.usb_c1_is_use_last = ui_data.usb_c1_is_use;
+		default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
+		ui_data.usb_c1_status_last = ui_data.usb_c1_status;
 		ui_data.usb_c1_power_last = ui_data.usb_c1_power;
 	}
 
-	if (ui_data.usb_c2_is_use != ui_data.usb_c2_is_use_last || ui_data.usb_c2_power != ui_data.usb_c2_power_last)
+	if (ui_data.usb_c2_status != ui_data.usb_c2_status_last || ui_data.usb_c2_power != ui_data.usb_c2_power_last)
 	{
 		const range_t *r = &power_range[C2_POWER];
 		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
-		default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_is_use);
-		ui_data.usb_c2_is_use_last = ui_data.usb_c2_is_use;
+		default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_status);
+		ui_data.usb_c2_status_last = ui_data.usb_c2_status;
 		ui_data.usb_c2_power_last = ui_data.usb_c2_power;
 	}
 
-	if (ui_data.usb_a_is_use != ui_data.usb_a_is_use_last || ui_data.usb_a_power != ui_data.usb_a_power_last)
+	if (ui_data.usb_a_status != ui_data.usb_a_status_last || ui_data.usb_a_power != ui_data.usb_a_power_last)
 	{
 		const range_t *r = &power_range[A_POWER];
 		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
-		default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_is_use);
-		ui_data.usb_a_is_use_last = ui_data.usb_a_is_use;
+		default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_status);
+		ui_data.usb_a_status_last = ui_data.usb_a_status;
 		ui_data.usb_a_power_last = ui_data.usb_a_power;
 	}
 }
 
-/* ============================ 测试函数 ============================ */
 
-void default_page_test(void)
-{
-	int frame_cnt = 0;
-
-	/* 设置测试数据 */
-	ui_data.bat_power = 5;
-	ui_data.is_charge = 0;
-	ui_data.usb_c1_is_use = true;
-	ui_data.usb_c1_power = 60;
-	ui_data.usb_c2_is_use = false;
-	ui_data.usb_c2_power = 0;
-	ui_data.usb_a_is_use = true;
-	ui_data.usb_a_power = 10;
-
-	default_page_init();
-
-	ui_data.is_charge = 1;
-	start_change_anima(ui_data.is_charge);
-
-	/* 模拟充电过程 5→100, 动画持续播放 */
-	while (ui_data.bat_power < 100)
-	{
-		md_delay_1ms(20);
-		frame_cnt++;
-
-		if (frame_cnt >= 15)
-		{
-			frame_cnt = 0;
-			if (ui_data.bat_power < 10)
-				ui_data.bat_power += 1;
-			else
-				ui_data.bat_power += 10;
-			if (ui_data.bat_power > 100)
-				ui_data.bat_power = 100;
-		}
-
-		default_page_updata();
-	}
-
-	/* 充满, 播放充电结束动画 */
-	ui_data.is_charge = 0;
-	// default_page_updata();
-	Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y, blur_up[ui_data.bat_power - 1]);
-	Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y, blur_down[ui_data.bat_power - 1]);
-	start_change_anima(ui_data.is_charge);
-
-	frame_cnt = 0;
-
-	/* 模拟掉电过程 100→1, 动画持续播放 */
-	while (ui_data.bat_power > 1)
-	{
-		md_delay_1ms(20);
-		frame_cnt++;
-
-		if (frame_cnt >= 15)
-		{
-			frame_cnt = 0;
-			if (ui_data.bat_power > 10)
-				ui_data.bat_power -= 5;
-			else
-				ui_data.bat_power -= 1;
-			if (ui_data.bat_power < 1)
-				ui_data.bat_power = 1;
-		}
-
-		default_page_updata();
-	}
-}
