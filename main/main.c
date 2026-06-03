@@ -17,6 +17,13 @@ int main()
 	cw1573_init(4);
 	while (1)
 	{
+		/* 升级模式: 按键组合触发后直接跳转 Bootloader */
+		if (g_enter_upgrade)
+		{
+			g_enter_upgrade = 0;
+			uart_upgrade_enter();
+		}
+
 		cw1573_proc();
 		i2c_slave_proc();
 		key_proc();

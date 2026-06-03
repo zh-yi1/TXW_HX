@@ -19,7 +19,7 @@
 /* #define MD_MSC */
 /* #define MD_PIS */
  #define MD_PMU 
-/* #define MD_RMU */
+#define MD_RMU
 /* #define MD_SYSCFG */
 /* #define MD_TYPE */
 #define MD_UTILS

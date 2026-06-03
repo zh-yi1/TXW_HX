@@ -205,5 +205,6 @@ void key_long_press_cb(void)
 
 void key_combo_cb(void)
 {
-
+	/* 触发升级模式: 设置标志位, main() 循环中处理 */
+	g_enter_upgrade = 1;
 }
