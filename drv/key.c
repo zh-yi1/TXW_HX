@@ -171,8 +171,8 @@ void key_single_click_cb(void)
 		ui_data.cur_page = (page_t)((ui_data.cur_page + 1) % PAGE_MAX);
 	}
 
-	/* 设置按键事件 bit0: 单击 */
-	i2c_reg_map[REG_KEY_EVENT] |= 0x01;
+	/* 设置按键事件 bit0: 单击 (写入影子缓冲, 由 i2c_slave_proc 原子交换) */
+	key_event_buf |= 0x01;
 }
 
 void key_double_click_cb(void)
@@ -186,8 +186,8 @@ void key_double_click_cb(void)
 	DispColor(BLACK);
 	ui_data.dev_state = DEV_STATE_SLEEP;
 
-	/* 设置按键事件 bit1: 双击 */
-	i2c_reg_map[REG_KEY_EVENT] |= 0x02;
+	/* 设置按键事件 bit1: 双击 (写入影子缓冲) */
+	key_event_buf |= 0x02;
 }
 
 void key_long_press_cb(void)
@@ -199,8 +199,8 @@ void key_long_press_cb(void)
 	/* 进入/退出 USB-A 小电流模式 */
 	ui_data.low_current_flag = !ui_data.low_current_flag;
 
-	/* 设置按键事件 bit2: 长按 */
-	i2c_reg_map[REG_KEY_EVENT] |= 0x10;
+	/* 设置按键事件 bit4: 长按3S (写入影子缓冲) */
+	key_event_buf |= 0x10;
 }
 
 void key_combo_cb(void)

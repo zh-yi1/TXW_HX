@@ -19,6 +19,7 @@ static uint8_t crc8_update(uint8_t crc, uint8_t data)
 	return crc;
 }
 
+#if 0
 static uint8_t cw1573_config_regs_ref(uint8_t cell_count)
 {
 	uint8_t cfg;
@@ -59,15 +60,13 @@ static uint8_t cw1573_config_regs_ref(uint8_t cell_count)
 
 	return res;
 }
+#endif
 
 static uint8_t cw1573_config_regs(uint8_t cell_count)
 {
 	uint8_t cfg;
 	uint8_t res = 1;
 	uint8_t rbuf[2];
-
-	/* Wake up from sleep */
-	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
 
 	/* Exit any existing sleep state */
 	// cfg = CW1573_EXIT_SLEEP;
@@ -228,16 +227,9 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 
 void cw1573_init(uint8_t cell_count)
 {
-	md_gpio_init_t g;
-
 	cw1573_cell_cnt = cell_count;
 
 	sw_i2c_init();
-
-	/* INT/SLEEP pin (PA13): output low to prevent Sleep3 entry */
-	md_gpio_init_struct(&g);
-	md_gpio_init(CW1573_INT_PORT, CW1573_INT_PIN, &g);
-	md_gpio_set_pin_high(CW1573_INT_PORT, CW1573_INT_PIN);
 
 	if (cw1573_config_regs(cell_count) != 0)
 		cw1573_cfg_done = 1;

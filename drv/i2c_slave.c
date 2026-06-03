@@ -3,6 +3,9 @@
 /* ---- 寄存器缓冲区 ---- */
 volatile uint8_t i2c_reg_map[256];
 
+/* ---- 按键事件影子缓冲 (协议 §4.5) ---- */
+volatile uint8_t key_event_buf;
+
 /* ---- ISR 内部状态 ---- */
 static volatile uint8_t  i2c_reg_addr;
 static volatile uint8_t  i2c_first_byte;  /* 1 = 下一个接收字节是寄存器地址 */
@@ -198,52 +201,19 @@ void I2C1_Handler(void)
 }
 
 /* ========================================================================
- * i2c_sync_cw1573_to_reg — CW1573 原始数据 → reg_map + ui_data
+ * pull_sensor_data — 采集 CW1573 电池数据, 填入 reg_map (R 区域) + ui_data
  *
- * 调试时定义 I2C_SLAVE_DEBUG_USE_DEFAULT 可跳过 CW1573，使用默认测试值
+ * 协议 §4.2: V1~V4, VPACK, BAT_CURRENT, NTC1, AFE_PROTECT 为 R 区域,
+ * 由从机从 CW1573 读取后填入, 供主机读取.
  * ======================================================================== */
-#define I2C_SLAVE_DEBUG_USE_DEFAULT 
-
-static void i2c_sync_cw1573_to_reg(void)
+static void pull_sensor_data(void)
 {
-#ifdef I2C_SLAVE_DEBUG_USE_DEFAULT
-    /* ---- 调试模式: 使用固定默认值 ---- */
-    /* V1~V4: 模拟 4.000V */
-    uint16_t cell_mv = 4000;
-    for (int i = 0; i < 4; i++) {
-        i2c_reg_map[REG_V1_L + i * 2] = (uint8_t)(cell_mv & 0xFF);
-        i2c_reg_map[REG_V1_H + i * 2] = (uint8_t)(cell_mv >> 8);
-    }
-    /* VPACK: 16.000V */
-    uint16_t pack_mv = 16000;
-    i2c_reg_map[REG_VPACK_L] = (uint8_t)(pack_mv & 0xFF);
-    i2c_reg_map[REG_VPACK_H] = (uint8_t)(pack_mv >> 8);
-    ui_data.bat_voltage = pack_mv;
-
-    /* BAT_CURRENT: 2500mA (充电) */
-    int16_t cur = 2500;
-    i2c_reg_map[REG_BAT_CURRENT_L] = (uint8_t)(cur & 0xFF);
-    i2c_reg_map[REG_BAT_CURRENT_H] = (uint8_t)((cur >> 8) & 0xFF);
-    ui_data.bat_current = 2500;
-
-    /* NTC1: 10000Ω (25°C) */
-    i2c_reg_map[REG_NTC1_L] = 0x10;  /* 10000 = 0x2710 */
-    i2c_reg_map[REG_NTC1_H] = 0x27;
-    ui_data.bat_temperature = 250;    /* 25.0°C */
-
-    /* CC: 5000mAh */
-    ui_data.bat_cc = 5000;
-
-    /* AFE_PROTECT: 放电MOS+充电MOS 均开启 */
-    i2c_reg_map[REG_AFE_PROTECT] = 0x03;
-
-#else
-    /* ---- 正常模式: 从 CW1573 读取 ---- */
     uint32_t mv;
     uint16_t tmp16;
 
     cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
 
+    /* V1~V4: 电芯电压 (mV), 协议 §4.2 R 区域 */
     for (int i = 0; i < 4; i++) {
         mv = (uint32_t)cw1573_raw.vcell[i] * 78125UL / 1000000UL;
         tmp16 = (uint16_t)mv;
@@ -251,6 +221,7 @@ static void i2c_sync_cw1573_to_reg(void)
         i2c_reg_map[REG_V1_H + i * 2] = (uint8_t)(tmp16 >> 8);
     }
 
+    /* VPACK: 电池组总电压 (mV), 协议 §4.2 */
     mv = 0;
     for (int i = 0; i < 4; i++)
         mv += (uint32_t)cw1573_raw.vcell[i] * 78125UL / 1000000UL;
@@ -259,11 +230,16 @@ static void i2c_sync_cw1573_to_reg(void)
     i2c_reg_map[REG_VPACK_H] = (uint8_t)(tmp16 >> 8);
     ui_data.bat_voltage = tmp16;
 
+    /* BAT_CURRENT: 电池电流 (mA, 正=充电), 协议 §4.2 */
     int16_t cur = (int16_t)cw1573_info.current_ma;
     i2c_reg_map[REG_BAT_CURRENT_L] = (uint8_t)(cur & 0xFF);
     i2c_reg_map[REG_BAT_CURRENT_H] = (uint8_t)((cur >> 8) & 0xFF);
     ui_data.bat_current = cw1573_info.current_ma;
 
+    /* 充放电状态: 来自 CW1573 state_flag2 bit4 (CHG_STATE) */
+    ui_data.is_charge = (cw1573_raw.state_flag2 & CW1573_CHG_STATE) ? true : false;
+
+    /* NTC1: 温度电阻值 (Ω), 协议 §4.2 */
     uint16_t ts = cw1573_raw.ts_adc & 0x7FFF;
     uint32_t vntc = (uint32_t)ts * 78125UL / 1000000UL;
     int16_t rntc = 0;
@@ -274,39 +250,84 @@ static void i2c_sync_cw1573_to_reg(void)
     ui_data.bat_temperature = cw1573_info.temp_01c;
     ui_data.bat_cc = cw1573_info.cc_mah;
 
+    /* AFE_PROTECT: MOS 状态, 协议 §4.2 bit0=放电MOS bit1=充电MOS */
     uint8_t prot = 0;
     if (cw1573_raw.state_flag2 & CW1573_DO_PIN) prot |= 0x01;
     if (cw1573_raw.state_flag2 & CW1573_CO_PIN) prot |= 0x02;
     i2c_reg_map[REG_AFE_PROTECT] = prot;
-#endif
+
+    /* OVP_PERMANENT: 过压永久失效, 协议 §4.2 密匙 0x5A, bit0=永久失效 */
+    i2c_reg_map[REG_OVP_PERMANENT] = 0x5A;  /* 密匙有效, 默认无永久失效 */
 }
 
 /* ========================================================================
- * i2c_sync_reg_to_ui — G020 写入的 W 寄存器 → ui_data
+ * apply_host_data — 解析 G020 写入的 W 寄存器 → ui_data
  * ======================================================================== */
-static void i2c_sync_reg_to_ui(void)
+static void apply_host_data(void)
 {
+    /* 电池数据 (协议 §4.2 W 区域) */
     ui_data.bat_power     = i2c_reg_map[REG_SOC];
     ui_data.bat_max_cap   = i2c_reg_map[REG_SOH];
     ui_data.bat_cycle_cnt = (uint16_t)i2c_reg_map[REG_CYCLE_L]
                           | ((uint16_t)i2c_reg_map[REG_CYCLE_H] << 8);
 
-    /* 端口 C1 */
-    ui_data.usb_c1_is_use = (i2c_reg_map[REG_C1_STATUS] != 0);
+    /* ---- 端口数据 (协议 §4.3) ---- */
 
-    /* 端口 C2 */
+    /* USB-C1 */
+    ui_data.usb_c1_is_use = (i2c_reg_map[REG_C1_STATUS] != 0);
+    if (ui_data.usb_c1_is_use) {
+        uint16_t v = (uint16_t)i2c_reg_map[REG_C1_VOLTAGE_L]
+                   | ((uint16_t)i2c_reg_map[REG_C1_VOLTAGE_H] << 8);
+        int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_C1_CURRENT_L]
+                             | ((uint16_t)i2c_reg_map[REG_C1_CURRENT_H] << 8));
+        uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
+        uint8_t  w  = (uint8_t)(mw / 1000UL);
+        ui_data.usb_c1_power = (w > 99) ? 99 : w;
+    } else {
+        ui_data.usb_c1_power = 0;
+    }
+
+    /* USB-C2 */
     ui_data.usb_c2_is_use = (i2c_reg_map[REG_C2_STATUS] != 0);
+    if (ui_data.usb_c2_is_use) {
+        uint16_t v = (uint16_t)i2c_reg_map[REG_C2_VOLTAGE_L]
+                   | ((uint16_t)i2c_reg_map[REG_C2_VOLTAGE_H] << 8);
+        int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_C2_CURRENT_L]
+                             | ((uint16_t)i2c_reg_map[REG_C2_CURRENT_H] << 8));
+        uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
+        uint8_t  w  = (uint8_t)(mw / 1000UL);
+        ui_data.usb_c2_power = (w > 99) ? 99 : w;
+    } else {
+        ui_data.usb_c2_power = 0;
+    }
 
     /* USB-A */
     ui_data.usb_a_is_use = (i2c_reg_map[REG_USBA_STATUS] != 0);
+    if (ui_data.usb_a_is_use) {
+        uint16_t v = (uint16_t)i2c_reg_map[REG_USBA_VOLTAGE_L]
+                   | ((uint16_t)i2c_reg_map[REG_USBA_VOLTAGE_H] << 8);
+        int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_USBA_CURRENT_L]
+                             | ((uint16_t)i2c_reg_map[REG_USBA_CURRENT_H] << 8));
+        uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
+        uint8_t  w  = (uint8_t)(mw / 1000UL);
+        ui_data.usb_a_power = (w > 99) ? 99 : w;
+    } else {
+        ui_data.usb_a_power = 0;
+    }
 
-    /* 保护标志 → warning */
+    /* 保护标志 (协议 §4.4 PROTECT_FLAG_L)
+     * bit0: chg_ovp     → 过压
+     * bit1: ovp_permanent → 过压永久
+     * bit2: chg_otp     → 充电过温
+     * bit3: dsg_otp     → 放电过温
+     * bit4: chg_utp     → 充电低温
+     * bit5: dsg_utp     → 放电低温
+     */
     uint8_t pf = i2c_reg_map[REG_PROTECT_FLAG_L];
-    if (pf & 0x01)       ui_data.warning = WARNING_OVER_TEMP;
-    else if (pf & 0x04)  ui_data.warning = WARNING_OVER_TEMP;
-    else if (pf & 0x08)  ui_data.warning = WARNING_OVER_TEMP;
-    else if (pf & 0x10)  ui_data.warning = WARNING_LOW_TEMP;
-    else if (pf & 0x20)  ui_data.warning = WARNING_LOW_TEMP;
+    if      (pf & 0x04)  ui_data.warning = WARNING_OVER_TEMP;      /* chg_otp */
+    else if (pf & 0x08)  ui_data.warning = WARNING_OVER_TEMP;      /* dsg_otp */
+    else if (pf & 0x10)  ui_data.warning = WARNING_LOW_TEMP;       /* chg_utp */
+    else if (pf & 0x20)  ui_data.warning = WARNING_LOW_TEMP;       /* dsg_utp */
     else                 ui_data.warning = WARNING_NONE;
 }
 
@@ -320,9 +341,13 @@ void i2c_slave_proc(void)
     i2c_reg_map[REG_FW_VERSION_H]   = 0x01;
     i2c_reg_map[REG_TFT_ONLINE_CRC] = 0x55;
 
-    /* CW1573 原始数据 → reg_map (R) + ui_data */
-    i2c_sync_cw1573_to_reg();
+    /* 按键事件原子交换: 影子缓冲 → reg_map, 防止主机清零竞争 (§4.5) */
+    i2c_reg_map[REG_KEY_EVENT] = key_event_buf;
+    key_event_buf = 0;
 
-    /* G020 写入数据 (W) → ui_data */
-    i2c_sync_reg_to_ui();
+    /* CW1573 采集 → reg_map (R) + ui_data */
+    pull_sensor_data();
+
+    /* G020 下发数据 (W) → ui_data */
+    apply_host_data();
 }

@@ -63,13 +63,18 @@
 /* 按键事件 (R, 可被主机读后清零对应 bit) */
 #define REG_KEY_EVENT           0x70
 
-/* 系统信息 (R) */
+/* 系统信息 (R)
+ * NOTE: 协议文档 §4.6 表写 ONLINE_CRC=0xF1, 但 FW_VERSION 占 0xF0-F1,
+ * ONLINE_CRC 实为 0xF2 (协议笔误). */
 #define REG_FW_VERSION_L        0xF0
 #define REG_FW_VERSION_H        0xF1
 #define REG_TFT_ONLINE_CRC      0xF2
 
 /* ---- 寄存器缓冲区 ---- */
 extern volatile uint8_t i2c_reg_map[256];
+
+/* ---- 按键事件影子缓冲 (防主机清零竞争) ---- */
+extern volatile uint8_t key_event_buf;
 
 /* ---- 对外接口 ---- */
 void i2c_slave_init(void);
