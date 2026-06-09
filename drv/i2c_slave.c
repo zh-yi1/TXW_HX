@@ -81,6 +81,10 @@ void i2c_slave_init(void)
     MD_I2C_ENABLE(I2C1);
     md_i2c_enable_ack(I2C1);
 
+    for (int i = 0; i < 256; i++)
+    {
+        i2c_reg_map[i] = i;
+    }
     /* --- 初始化寄存器默认值 --- */
     i2c_reg_map[REG_FW_VERSION_L]    = 0x00;  /* V1.00, 由 proc 填充 */
     i2c_reg_map[REG_FW_VERSION_H]    = 0x01;
