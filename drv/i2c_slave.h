@@ -135,4 +135,12 @@ __STATIC_INLINE void i2c_clear_flag_stop(I2C_TypeDef *i2c)
     SET_BIT(i2c->CON1, I2C_CON1_PEN_MSK);
 }
 
+__STATIC_INLINE void i2c_clear_smbus_flag_alert(I2C_TypeDef *i2c)
+{
+    __IO uint32_t tmpreg;
+    tmpreg = i2c->STAT1;
+    (void)tmpreg;
+    SET_BIT(i2c->CON1, I2C_CON1_PEN_MSK);
+}
+
 #endif /* __I2C_SLAVE_H */

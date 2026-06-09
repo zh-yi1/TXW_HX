@@ -84,10 +84,6 @@ void i2c_slave_init(void)
     MD_I2C_ENABLE(I2C1);
     md_i2c_enable_ack(I2C1);
 
-    for (int i = 0; i < 256; i++)
-    {
-        i2c_reg_map[i] = i;
-    }
     /* --- 初始化寄存器默认值 --- */
     i2c_reg_map[REG_FW_VERSION_L]    = 0x00;  /* V1.00, 由 proc 填充 */
     i2c_reg_map[REG_FW_VERSION_H]    = 0x01;
@@ -109,18 +105,22 @@ void I2C1_Handler(void)
     uint8_t tmp;
 
     /* --- TXBE: 发送缓冲区空 (主机读方向, 从机发送) --- */
-    if (md_i2c_is_active_flag_txbe(I2C1) && md_i2c_is_enable_it_buf(I2C1)
+    if (md_i2c_is_active_flag_txbe(I2C1) == 1 && md_i2c_is_enable_it_buf(I2C1)
         && md_i2c_is_enable_it_evt(I2C1))
     {
         if (i2c_reg_addr < I2C_REG_MAP_SIZE)
             md_i2c_transmit_data8(I2C1, i2c_reg_map[i2c_reg_addr]);
         else
             md_i2c_transmit_data8(I2C1, 0x00);  /* 越界返回 0 */
+
+        /* wrap: 防止 addr 无限递增, 与 demo 环形缓冲行为一致 */
         i2c_reg_addr++;
+        if (i2c_reg_addr >= I2C_REG_MAP_SIZE)
+            i2c_reg_addr = 0;
     }
 
     /* --- RXNE: 接收缓冲区非空 (主机写方向, 从机接收) --- */
-    if (md_i2c_is_active_flag_rxne(I2C1) && md_i2c_is_enable_it_buf(I2C1)
+    if (md_i2c_is_active_flag_rxne(I2C1) == 1 && md_i2c_is_enable_it_buf(I2C1)
         && md_i2c_is_enable_it_evt(I2C1))
     {
         tmp = md_i2c_receive_data8(I2C1);
@@ -139,6 +139,8 @@ void I2C1_Handler(void)
                 i2c_reg_map[i2c_reg_addr] = tmp;
             }
             i2c_reg_addr++;
+            if (i2c_reg_addr >= I2C_REG_MAP_SIZE)
+                i2c_reg_addr = 0;
         }
     }
 
@@ -166,6 +168,7 @@ void I2C1_Handler(void)
         md_i2c_clear_flag_af(I2C1);
         md_i2c_disable_it_buf(I2C1);
         i2c_first_byte = 0;
+        i2c_reg_addr   = 0;   /* 确保下次传输从头开始, 防止多次读取累积越界 */
     }
 
     /* --- STOP: 停止条件 --- */
@@ -188,14 +191,14 @@ void I2C1_Handler(void)
     if (md_i2c_is_active_flag_berr(I2C1) && md_i2c_is_enable_it_err(I2C1))
     {
         md_i2c_clear_flag_berr(I2C1);
-        md_i2c_disable_it_buf(I2C1);
-        i2c_first_byte = 0;
-        i2c_reg_addr   = 0;
+        // md_i2c_disable_it_buf(I2C1);
+        // i2c_first_byte = 0;
+        // i2c_reg_addr   = 0;
 
-        /* 软复位 I2C 外设 */
-        MD_I2C_DISABLE(I2C1);
-        md_i2c_enable_ack(I2C1);
-        MD_I2C_ENABLE(I2C1);
+        // /* 软复位 I2C 外设 */
+        // MD_I2C_DISABLE(I2C1);
+        // md_i2c_enable_ack(I2C1);
+        // MD_I2C_ENABLE(I2C1);
     }
 
     /* --- ARLO: 仲裁丢失 (从机模式下罕见, 清标志即可) --- */
@@ -204,10 +207,28 @@ void I2C1_Handler(void)
         md_i2c_clear_flag_arlo(I2C1);
     }
 
-    /* --- OVR: 溢出 (数据丢失, 清标志, 通信流会错位, 等待下次 START 恢复) --- */
+    /* --- OVR: 溢出 (数据丢失, 清标志) --- */
     if (md_i2c_is_active_flag_ovr(I2C1) && md_i2c_is_enable_it_err(I2C1))
     {
         md_i2c_clear_flag_ovr(I2C1);
+    }
+
+    /* --- SMBALERT: SMBus 报警 --- */
+    if (md_i2c_is_active_smbus_flag_alert(I2C1) && md_i2c_is_enable_it_err(I2C1))
+    {
+        i2c_clear_smbus_flag_alert(I2C1);
+    }
+
+    /* --- SMBTO: SMBus 超时 --- */
+    if (md_i2c_is_active_smbus_flag_timeout(I2C1) && md_i2c_is_enable_it_err(I2C1))
+    {
+        md_i2c_clear_smbus_flag_timeout(I2C1);
+    }
+
+    /* --- PECERR: PEC 校验错 --- */
+    if (md_i2c_is_active_smbus_flag_pecerr(I2C1) && md_i2c_is_enable_it_err(I2C1))
+    {
+        md_i2c_clear_smbus_flag_pecerr(I2C1);
     }
 }
 
