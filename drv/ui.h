@@ -144,6 +144,18 @@ typedef struct
 	dev_state_t dev_state;		/* 设备运行状态 */
 	bool       low_current_flag;	/* USB-A 小电流模式标志 */
 
+	/* ---- NTC 数据 (协议 §4.3, 主机 W → ui_data) ---- */
+	uint8_t  ntc_status;		/* NTC 保护状态 (协议 0x20) */
+	uint32_t bat_ntc1;		/* 电池NTC1阻值 Ω (协议 0x21-0x24) */
+	uint32_t bat_ntc2;		/* 电池NTC2阻值 Ω (协议 0x25-0x28) */
+	uint32_t pcb_ntc1;		/* PCB NTC1阻值 Ω (协议 0x29-0x2C) */
+	uint32_t pcb_ntc2;		/* PCB NTC2阻值 Ω (协议 0x2D-0x30) */
+
+	/* ---- 主机电池数据 (协议 §4.2, 主机 W → ui_data) ---- */
+	uint32_t charge_remain_time;	/* 剩余充满时间(秒) (协议 0x14-0x17) */
+	uint32_t discharge_remain_time;	/* 剩余放空时间(秒) (协议 0x18-0x1B) */
+	uint16_t res_vbat;		/* 采样电阻 Vbat (mV) (协议 0x1C-0x1D) */
+
 } ui_data_t;
 
 extern ui_data_t ui_data;

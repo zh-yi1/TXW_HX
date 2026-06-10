@@ -140,14 +140,14 @@ typedef struct
 } cw1573_data_t;
 #pragma pack()
 
-/* Processed data (human-readable) */
+/* Processed data (human-readable, integer only) */
 typedef struct
 {
-	float    vcell_v[7];
-	float    pack_v;
-	int16_t  temp_01c;
-	int32_t  current_ma;
-	uint32_t cc_mah;
+	uint16_t vcell_mv[7];   /* 电芯电压 (mV), VCELL1~VCELL7 */
+	uint16_t pack_mv;       /* 电池组总电压 (mV) */
+	int16_t  temp_01c;      /* NTC 温度 (0.1°C) */
+	int32_t  current_ma;    /* 电池电流 (mA, 正=充电) */
+	uint32_t cc_mah;        /* 库仑量 (mAh) */
 } cw1573_proc_data_t;
 
 void cw1573_init(uint8_t cell_count);

@@ -461,8 +461,8 @@ void default_page_updata(void)
 		return;
 	}
 
-	/* ---- 普通更新: 20ms 间隔 ---- */
-	if (now - last_ms < 20)
+	/* ---- 普通更新: 10ms 间隔 ---- */
+	if (now - last_ms < 10)
 		return;
 	last_ms = now;
 

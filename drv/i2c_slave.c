@@ -64,9 +64,9 @@ void i2c_slave_init(void)
     md_i2c_struct_init(&i2c_init);
 
     i2c_init.addr_mode    = MD_I2C_ADDR_7BIT;
-    i2c_init.clk_speed    = 100000;            /* 100kHz standard mode */
+    i2c_init.clk_speed    = 400000;            /* 100kHz standard mode */
     i2c_init.dual_addr    = MD_I2C_DUALADDR_DISABLE;
-    i2c_init.duty         = MD_I2C_DUTYCYCLE_2;
+    i2c_init.duty         = MD_I2C_DUTYCYCLE_16_9;
     i2c_init.general_call = MD_I2C_GENERALCALL_DISABLE;
     i2c_init.stretch      = MD_I2C_STRETCH_ENABLE;
     i2c_init.own_addr1    = I2C_SLAVE_ADDR << 1;
@@ -102,7 +102,7 @@ void i2c_slave_init(void)
  * ======================================================================== */
 void I2C1_Handler(void)
 {
-    uint8_t tmp;
+    volatile uint8_t tmp;
 
     /* --- TXBE: 发送缓冲区空 (主机读方向, 从机发送) --- */
     if (md_i2c_is_active_flag_txbe(I2C1) == 1 && md_i2c_is_enable_it_buf(I2C1)
@@ -240,9 +240,6 @@ void I2C1_Handler(void)
  * ======================================================================== */
 static void pull_sensor_data(void)
 {
-    uint32_t mv;
-    uint16_t tmp16;
-
     /* CW1573 未就绪: 不覆盖 ui_data 已有值 (可能来自主机或初始值) */
     if (!cw1573_is_ready())
         return;
@@ -251,20 +248,20 @@ static void pull_sensor_data(void)
 
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
     for (int i = 0; i < 4; i++) {
-        mv = (uint32_t)cw1573_raw.vcell[i] * 78125UL / 1000000UL;
-        tmp16 = (uint16_t)mv;
-        i2c_reg_map[REG_V1_L + i * 2] = (uint8_t)(tmp16 & 0xFF);
-        i2c_reg_map[REG_V1_H + i * 2] = (uint8_t)(tmp16 >> 8);
+        uint16_t v = cw1573_info.vcell_mv[i];
+        i2c_reg_map[REG_V1_L + i * 2] = (uint8_t)(v & 0xFF);
+        i2c_reg_map[REG_V1_H + i * 2] = (uint8_t)(v >> 8);
     }
 
-    /* VPACK: 电池组总电压 (mV), 协议 §4.5 */
-    mv = 0;
-    for (int i = 0; i < 4; i++)
-        mv += (uint32_t)cw1573_raw.vcell[i] * 78125UL / 1000000UL;
-    tmp16 = (uint16_t)mv;
-    i2c_reg_map[REG_VPACK_L] = (uint8_t)(tmp16 & 0xFF);
-    i2c_reg_map[REG_VPACK_H] = (uint8_t)(tmp16 >> 8);
-    ui_data.bat_voltage = tmp16;
+    /* VPACK: 电池组总电压 (mV), 协议 §4.5 (4 串) */
+    {
+        uint16_t vp = 0;
+        for (int i = 0; i < 4; i++)
+            vp += cw1573_info.vcell_mv[i];
+        i2c_reg_map[REG_VPACK_L] = (uint8_t)(vp & 0xFF);
+        i2c_reg_map[REG_VPACK_H] = (uint8_t)(vp >> 8);
+        ui_data.bat_voltage = vp;
+    }
 
     /* BAT_CURRENT: 电池电流 (mA, 正=充电), 协议 §4.5 */
     int16_t cur = (int16_t)cw1573_info.current_ma;
@@ -280,15 +277,18 @@ static void pull_sensor_data(void)
         ui_data.low_current_flag = false;
 
     /* NTC1: 温度电阻值 (Ω), 协议 §4.2 */
-    uint16_t ts = cw1573_raw.ts_adc & 0x7FFF;
-    uint32_t vntc = (uint32_t)ts * 78125UL / 1000000UL;
-    uint32_t rntc = 0;
-    if (vntc > 0 && vntc < 2545)
-        rntc = 10000UL * vntc / (2545 - vntc);
-    i2c_reg_map[REG_NTC1_0] = (uint8_t)(rntc & 0xFF);
-    i2c_reg_map[REG_NTC1_1] = (uint8_t)((rntc >> 8) & 0xFF);
-    i2c_reg_map[REG_NTC1_2] = (uint8_t)((rntc >> 16) & 0xFF);
-    i2c_reg_map[REG_NTC1_3] = (uint8_t)((rntc >> 24) & 0xFF);
+    uint16_t ts_raw = cw1573_raw.ts_adc;
+    /* bit15=1 温度数据有效才更新 */
+    if (ts_raw & 0x8000U) {
+        uint32_t vntc = (uint32_t)(ts_raw & 0x7FFFU) * 78125UL / 1000000UL;
+        uint32_t rntc = 0;
+        if (vntc > 0 && vntc < 2545)
+            rntc = 10000UL * vntc / (2545 - vntc);
+        i2c_reg_map[REG_NTC1_0] = (uint8_t)(rntc & 0xFF);
+        i2c_reg_map[REG_NTC1_1] = (uint8_t)((rntc >> 8) & 0xFF);
+        i2c_reg_map[REG_NTC1_2] = (uint8_t)((rntc >> 16) & 0xFF);
+        i2c_reg_map[REG_NTC1_3] = (uint8_t)((rntc >> 24) & 0xFF);
+    }
     ui_data.bat_temperature = cw1573_info.temp_01c;
     ui_data.bat_cc = cw1573_info.cc_mah;
 
@@ -296,7 +296,6 @@ static void pull_sensor_data(void)
     i2c_reg_map[REG_AFE_PROTECT1] = cw1573_raw.state_flag0;
     i2c_reg_map[REG_AFE_PROTECT2] = cw1573_raw.state_flag1;
     i2c_reg_map[REG_AFE_PROTECT3] = cw1573_raw.state_flag2;
-
 }
 
 /* ========================================================================
@@ -309,6 +308,52 @@ static void apply_host_data(void)
     ui_data.bat_max_cap   = i2c_reg_map[REG_SOH];
     ui_data.bat_cycle_cnt = (uint16_t)i2c_reg_map[REG_CYCLE_L]
                           | ((uint16_t)i2c_reg_map[REG_CYCLE_H] << 8);
+    ui_data.charge_remain_time    = (uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_0]
+                                  | ((uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_1] << 8)
+                                  | ((uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_2] << 16)
+                                  | ((uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_3] << 24);
+    ui_data.discharge_remain_time = (uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_0]
+                                  | ((uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_1] << 8)
+                                  | ((uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_2] << 16)
+                                  | ((uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_3] << 24);
+    ui_data.res_vbat       = (uint16_t)i2c_reg_map[REG_RES_VBAT_L]
+                           | ((uint16_t)i2c_reg_map[REG_RES_VBAT_H] << 8);
+
+    /* ---- NTC 数据 (协议 §4.3) ---- */
+    ui_data.ntc_status = i2c_reg_map[REG_NTC_STATUS];
+    ui_data.bat_ntc1   = (uint32_t)i2c_reg_map[REG_BAT_NTC1_0]
+                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC1_1] << 8)
+                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC1_2] << 16)
+                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC1_3] << 24);
+    ui_data.bat_ntc2   = (uint32_t)i2c_reg_map[REG_BAT_NTC2_0]
+                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC2_1] << 8)
+                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC2_2] << 16)
+                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC2_3] << 24);
+    ui_data.pcb_ntc1   = (uint32_t)i2c_reg_map[REG_PCB_NTC1_0]
+                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC1_1] << 8)
+                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC1_2] << 16)
+                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC1_3] << 24);
+    ui_data.pcb_ntc2   = (uint32_t)i2c_reg_map[REG_PCB_NTC2_0]
+                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC2_1] << 8)
+                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC2_2] << 16)
+                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC2_3] << 24);
+
+    /* NTC 温度保护警告 (协议 §4.3 0x20)
+     * 仅判断 BAT_NTC1/2: BIT[1:0]=BAT_NTC1, BIT[3:2]=BAT_NTC2
+     * 值: 00=正常 01=低温保护 02=高温保护 */
+    uint8_t ntc = ui_data.ntc_status;
+    uint8_t over_temp = 0, low_temp = 0;
+    for (int i = 0; i < 2; i++) {
+        uint8_t st = (ntc >> (i * 2)) & 0x03;
+        if (st == 0x02) over_temp = 1;
+        if (st == 0x01) low_temp  = 1;
+    }
+    if (over_temp)
+        ui_data.warning = WARNING_OVER_TEMP;
+    else if (low_temp)
+        ui_data.warning = WARNING_LOW_TEMP;
+    else
+        ui_data.warning = WARNING_NONE;
 
     /* ---- 端口数据 (协议 §4.4) ---- */
 
@@ -356,23 +401,6 @@ static void apply_host_data(void)
 
     /* 小电流模式 (协议 §4.4 0x4F) */
     ui_data.low_current_flag = i2c_reg_map[REG_SMALL_CURRENT_MODE] ? true : false;
-
-    /* NTC 温度保护状态 (协议 §4.3 0x20)
-     * BIT[1:0]=BAT_NTC1, BIT[3:2]=BAT_NTC2, BIT[5:4]=PCB_NTC1, BIT[7:6]=PCB_NTC2
-     * 值: 00=正常 01=低温保护 02=高温保护 */
-    uint8_t ntc = i2c_reg_map[REG_NTC_STATUS];
-    uint8_t over_temp = 0, low_temp = 0;
-    for (int i = 0; i < 4; i++) {
-        uint8_t st = (ntc >> (i * 2)) & 0x03;
-        if (st == 0x02) over_temp = 1;
-        if (st == 0x01) low_temp  = 1;
-    }
-    if (over_temp)
-        ui_data.warning = WARNING_OVER_TEMP;
-    else if (low_temp)
-        ui_data.warning = WARNING_LOW_TEMP;
-    else
-        ui_data.warning = WARNING_NONE;
 }
 
 /* ========================================================================

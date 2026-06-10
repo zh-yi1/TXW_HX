@@ -62,7 +62,8 @@ void ui_init(void)
 	// draw_charging_blue_anima();
 
 	// default_page_test();
-	default_page_init();
+	// default_page_init();
+	ui_data.last_page = PAGE_MAX;
 	ui_data.cur_page = PAGE_DEFAULT;
 	// information_page_1_init();
 	// over_temp_hint_page();
