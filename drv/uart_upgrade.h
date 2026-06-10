@@ -14,16 +14,12 @@
 
 #include "global_define.h"
 
-/* Flash layout */
-#define UUPG_BOOT_ADDR      0x0000
-#define UUPG_APP_ADDR       0x1000
-
-/* Jump targets */
-#define UUPG_GO_BOOT        0xFFFFFFFD
-#define UUPG_GO_APP         0xFFFFFFFE
-
-/* CRC page — last page of 32KB flash, erased before bootloader entry */
+#define APP_ADDR    0x1400
+#define BOOT_ADDR   0x0000
 #define CRC_CAL_PAGE_ADDR   0x7E00
+#define GO_APP      0xFFFFFFFE
+#define GO_BOOT     0xFFFFFFFD
+
 
 /* Exported variables */
 extern volatile uint8_t  g_enter_upgrade;
