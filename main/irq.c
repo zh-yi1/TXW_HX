@@ -86,10 +86,10 @@ void DMA_Handler(void)
  */
 void AD16C4T_UP_Handler(void)
 {
-	if (md_timer_get_update_valid_interrupt_flag_uei(AD16C4T) == 1)
-	{
-		md_timer_clear_update_interrupt_flag_ueic(AD16C4T);
-	}
+	// if (md_timer_get_update_valid_interrupt_flag_uei(AD16C4T) == 1)
+	// {
+	// 	md_timer_clear_update_interrupt_flag_ueic(AD16C4T);
+	// }
 
 	return;
 }
@@ -101,25 +101,25 @@ void AD16C4T_UP_Handler(void)
 void AD16C4T_CC_Handler(void)
 {
 	/* Handle TIM interrupt */
-	if (md_timer_get_cc1_valid_interrupt_flag_ch1cci(AD16C4T) == 1U)
-	{
-		md_timer_clear_cc1_interrupt_flag_ch1ccic(AD16C4T);
-	}
+	// if (md_timer_get_cc1_valid_interrupt_flag_ch1cci(AD16C4T) == 1U)
+	// {
+	// 	md_timer_clear_cc1_interrupt_flag_ch1ccic(AD16C4T);
+	// }
 
-	if (md_timer_get_cc2_valid_interrupt_flag_ch2cci(AD16C4T) == 1U)
-	{
-		md_timer_clear_cc2_interrupt_flag_ch2ccic(AD16C4T);
-	}
+	// if (md_timer_get_cc2_valid_interrupt_flag_ch2cci(AD16C4T) == 1U)
+	// {
+	// 	md_timer_clear_cc2_interrupt_flag_ch2ccic(AD16C4T);
+	// }
 
-	if (md_timer_get_cc3_valid_interrupt_flag_ch3cci(AD16C4T) == 1U)
-	{
-		md_timer_clear_cc3_interrupt_flag_ch3ccic(AD16C4T);
-	}
+	// if (md_timer_get_cc3_valid_interrupt_flag_ch3cci(AD16C4T) == 1U)
+	// {
+	// 	md_timer_clear_cc3_interrupt_flag_ch3ccic(AD16C4T);
+	// }
 
-	if (md_timer_get_cc4_valid_interrupt_flag_ch4cci(AD16C4T) == 1U)
-	{
-		md_timer_clear_cc4_interrupt_flag_ch4ccic(AD16C4T);
-	}
+	// if (md_timer_get_cc4_valid_interrupt_flag_ch4cci(AD16C4T) == 1U)
+	// {
+	// 	md_timer_clear_cc4_interrupt_flag_ch4ccic(AD16C4T);
+	// }
 }
 
 

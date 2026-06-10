@@ -38,6 +38,41 @@ static uint8_t reg_is_writable(uint8_t addr)
     return 1;
 }
 
+/* ---- 寄存器读写封装 (减少 Flash 占用) ---- */
+
+static uint16_t reg_read_u16(uint8_t addr_l)
+{
+    return (uint16_t)i2c_reg_map[addr_l]
+         | ((uint16_t)i2c_reg_map[addr_l + 1] << 8);
+}
+
+static int16_t reg_read_s16(uint8_t addr_l)
+{
+    return (int16_t)reg_read_u16(addr_l);
+}
+
+static uint32_t reg_read_u32(uint8_t addr_0)
+{
+    return (uint32_t)i2c_reg_map[addr_0]
+         | ((uint32_t)i2c_reg_map[addr_0 + 1] << 8)
+         | ((uint32_t)i2c_reg_map[addr_0 + 2] << 16)
+         | ((uint32_t)i2c_reg_map[addr_0 + 3] << 24);
+}
+
+static void reg_write_u16(uint8_t addr_l, uint16_t val)
+{
+    i2c_reg_map[addr_l]     = (uint8_t)(val & 0xFF);
+    i2c_reg_map[addr_l + 1] = (uint8_t)(val >> 8);
+}
+
+static void reg_write_u32(uint8_t addr_0, uint32_t val)
+{
+    i2c_reg_map[addr_0]     = (uint8_t)(val & 0xFF);
+    i2c_reg_map[addr_0 + 1] = (uint8_t)((val >> 8) & 0xFF);
+    i2c_reg_map[addr_0 + 2] = (uint8_t)((val >> 16) & 0xFF);
+    i2c_reg_map[addr_0 + 3] = (uint8_t)((val >> 24) & 0xFF);
+}
+
 /* ========================================================================
  * i2c_slave_init — 初始化 I2C1 为从机模式
  * ======================================================================== */
@@ -247,49 +282,32 @@ static void pull_sensor_data(void)
     cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
 
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < cw1573_cell_cnt; i++) {
         uint16_t v = cw1573_info.vcell_mv[i];
-        i2c_reg_map[REG_V1_L + i * 2] = (uint8_t)(v & 0xFF);
-        i2c_reg_map[REG_V1_H + i * 2] = (uint8_t)(v >> 8);
+        reg_write_u16(REG_V1_L + i * 2, v);
     }
 
-    /* VPACK: 电池组总电压 (mV), 协议 §4.5 (4 串) */
+    /* VPACK: 电池组总电压 (mV), 协议 §4.5 (4 串)
+       直接使用 cw1573_calc_data 已计算的 pack_mv，无需重复累加 */
     {
-        uint16_t vp = 0;
-        for (int i = 0; i < 4; i++)
-            vp += cw1573_info.vcell_mv[i];
-        i2c_reg_map[REG_VPACK_L] = (uint8_t)(vp & 0xFF);
-        i2c_reg_map[REG_VPACK_H] = (uint8_t)(vp >> 8);
+        uint16_t vp = cw1573_info.pack_mv;
+        reg_write_u16(REG_VPACK_L, vp);
         ui_data.bat_voltage = vp;
     }
 
     /* BAT_CURRENT: 电池电流 (mA, 正=充电), 协议 §4.5 */
     int16_t cur = (int16_t)cw1573_info.current_ma;
-    i2c_reg_map[REG_BAT_CURRENT_L] = (uint8_t)(cur & 0xFF);
-    i2c_reg_map[REG_BAT_CURRENT_H] = (uint8_t)((cur >> 8) & 0xFF);
+    reg_write_u16(REG_BAT_CURRENT_L, (uint16_t)cur);
     ui_data.bat_current = cw1573_info.current_ma;
 
-    /* 充放电状态: 来自 CW1573 state_flag2 bit4 (CHG_STATE) */
-    ui_data.is_charge = (cw1573_raw.state_flag2 & CW1573_CHG_STATE) ? true : false;
-
-    /* 充电时自动关闭小电流模式 */
-    if (ui_data.is_charge)
-        ui_data.low_current_flag = false;
-
-    /* NTC1: 温度电阻值 (Ω), 协议 §4.2 */
-    uint16_t ts_raw = cw1573_raw.ts_adc;
-    /* bit15=1 温度数据有效才更新 */
-    if (ts_raw & 0x8000U) {
-        uint32_t vntc = (uint32_t)(ts_raw & 0x7FFFU) * 78125UL / 1000000UL;
-        uint32_t rntc = 0;
-        if (vntc > 0 && vntc < 2545)
-            rntc = 10000UL * vntc / (2545 - vntc);
-        i2c_reg_map[REG_NTC1_0] = (uint8_t)(rntc & 0xFF);
-        i2c_reg_map[REG_NTC1_1] = (uint8_t)((rntc >> 8) & 0xFF);
-        i2c_reg_map[REG_NTC1_2] = (uint8_t)((rntc >> 16) & 0xFF);
-        i2c_reg_map[REG_NTC1_3] = (uint8_t)((rntc >> 24) & 0xFF);
+    /* NTC1: 温度电阻值 (Ω), 协议 §4.2
+       直接使用 cw1573_calc_data 已计算的 rntc_ohm，无需重复计算 */
+    {
+        uint32_t rntc = cw1573_info.rntc_ohm;
+        reg_write_u32(REG_NTC1_0, rntc);
     }
-    ui_data.bat_temperature = cw1573_info.temp_01c;
+    //TODO :温度如何计算
+    ui_data.bat_temperature = 0; /* 温度由主机通过 NTC 阻值自行计算 */
     ui_data.bat_cc = cw1573_info.cc_mah;
 
     /* AFE_PROTECT1-3: 映射 CW1573 原始状态寄存器, 协议 §4.5 */
@@ -306,37 +324,17 @@ static void apply_host_data(void)
     /* 电池数据 (协议 §4.2 W 区域) */
     ui_data.bat_power     = i2c_reg_map[REG_SOC];
     ui_data.bat_max_cap   = i2c_reg_map[REG_SOH];
-    ui_data.bat_cycle_cnt = (uint16_t)i2c_reg_map[REG_CYCLE_L]
-                          | ((uint16_t)i2c_reg_map[REG_CYCLE_H] << 8);
-    ui_data.charge_remain_time    = (uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_0]
-                                  | ((uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_1] << 8)
-                                  | ((uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_2] << 16)
-                                  | ((uint32_t)i2c_reg_map[REG_CHARGE_REMAIN_3] << 24);
-    ui_data.discharge_remain_time = (uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_0]
-                                  | ((uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_1] << 8)
-                                  | ((uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_2] << 16)
-                                  | ((uint32_t)i2c_reg_map[REG_DISCHARGE_REMAIN_3] << 24);
-    ui_data.res_vbat       = (uint16_t)i2c_reg_map[REG_RES_VBAT_L]
-                           | ((uint16_t)i2c_reg_map[REG_RES_VBAT_H] << 8);
+    ui_data.bat_cycle_cnt = reg_read_u16(REG_CYCLE_L);
+    ui_data.charge_remain_time    = reg_read_u32(REG_CHARGE_REMAIN_0);
+    ui_data.discharge_remain_time = reg_read_u32(REG_DISCHARGE_REMAIN_0);
+    ui_data.res_vbat       = reg_read_u16(REG_RES_VBAT_L);
 
     /* ---- NTC 数据 (协议 §4.3) ---- */
     ui_data.ntc_status = i2c_reg_map[REG_NTC_STATUS];
-    ui_data.bat_ntc1   = (uint32_t)i2c_reg_map[REG_BAT_NTC1_0]
-                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC1_1] << 8)
-                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC1_2] << 16)
-                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC1_3] << 24);
-    ui_data.bat_ntc2   = (uint32_t)i2c_reg_map[REG_BAT_NTC2_0]
-                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC2_1] << 8)
-                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC2_2] << 16)
-                       | ((uint32_t)i2c_reg_map[REG_BAT_NTC2_3] << 24);
-    ui_data.pcb_ntc1   = (uint32_t)i2c_reg_map[REG_PCB_NTC1_0]
-                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC1_1] << 8)
-                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC1_2] << 16)
-                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC1_3] << 24);
-    ui_data.pcb_ntc2   = (uint32_t)i2c_reg_map[REG_PCB_NTC2_0]
-                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC2_1] << 8)
-                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC2_2] << 16)
-                       | ((uint32_t)i2c_reg_map[REG_PCB_NTC2_3] << 24);
+    ui_data.bat_ntc1   = reg_read_u32(REG_BAT_NTC1_0);
+    ui_data.bat_ntc2   = reg_read_u32(REG_BAT_NTC2_0);
+    ui_data.pcb_ntc1   = reg_read_u32(REG_PCB_NTC1_0);
+    ui_data.pcb_ntc2   = reg_read_u32(REG_PCB_NTC2_0);
 
     /* NTC 温度保护警告 (协议 §4.3 0x20)
      * 仅判断 BAT_NTC1/2: BIT[1:0]=BAT_NTC1, BIT[3:2]=BAT_NTC2
@@ -348,6 +346,7 @@ static void apply_host_data(void)
         if (st == 0x02) over_temp = 1;
         if (st == 0x01) low_temp  = 1;
     }
+    //TODO ：这样写是否有问题
     if (over_temp)
         ui_data.warning = WARNING_OVER_TEMP;
     else if (low_temp)
@@ -360,10 +359,8 @@ static void apply_host_data(void)
     /* USB-C1 (协议 §4.4: 0=未连接 1=充电 2=放电) */
     ui_data.usb_c1_status = i2c_reg_map[REG_C1_STATUS];
     if (ui_data.usb_c1_status) {
-        uint16_t v = (uint16_t)i2c_reg_map[REG_C1_VOLTAGE_L]
-                   | ((uint16_t)i2c_reg_map[REG_C1_VOLTAGE_H] << 8);
-        int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_C1_CURRENT_L]
-                             | ((uint16_t)i2c_reg_map[REG_C1_CURRENT_H] << 8));
+        uint16_t v = reg_read_u16(REG_C1_VOLTAGE_L);
+        int16_t  a = reg_read_s16(REG_C1_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
         uint8_t  w  = (uint8_t)(mw / 1000UL);
         ui_data.usb_c1_power = (w > 99) ? 99 : w;
@@ -374,10 +371,8 @@ static void apply_host_data(void)
     /* USB-C2 (协议 §4.4: 0=未连接 1=充电 2=放电) */
     ui_data.usb_c2_status = i2c_reg_map[REG_C2_STATUS];
     if (ui_data.usb_c2_status) {
-        uint16_t v = (uint16_t)i2c_reg_map[REG_C2_VOLTAGE_L]
-                   | ((uint16_t)i2c_reg_map[REG_C2_VOLTAGE_H] << 8);
-        int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_C2_CURRENT_L]
-                             | ((uint16_t)i2c_reg_map[REG_C2_CURRENT_H] << 8));
+        uint16_t v = reg_read_u16(REG_C2_VOLTAGE_L);
+        int16_t  a = reg_read_s16(REG_C2_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
         uint8_t  w  = (uint8_t)(mw / 1000UL);
         ui_data.usb_c2_power = (w > 99) ? 99 : w;
@@ -388,10 +383,8 @@ static void apply_host_data(void)
     /* USB-A (协议 §4.4: 0=未连接 1=充电 2=放电) */
     ui_data.usb_a_status = i2c_reg_map[REG_USBA_STATUS];
     if (ui_data.usb_a_status) {
-        uint16_t v = (uint16_t)i2c_reg_map[REG_USBA_VOLTAGE_L]
-                   | ((uint16_t)i2c_reg_map[REG_USBA_VOLTAGE_H] << 8);
-        int16_t  a = (int16_t)((uint16_t)i2c_reg_map[REG_USBA_CURRENT_L]
-                             | ((uint16_t)i2c_reg_map[REG_USBA_CURRENT_H] << 8));
+        uint16_t v = reg_read_u16(REG_USBA_VOLTAGE_L);
+        int16_t  a = reg_read_s16(REG_USBA_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
         uint8_t  w  = (uint8_t)(mw / 1000UL);
         ui_data.usb_a_power = (w > 99) ? 99 : w;
@@ -401,6 +394,16 @@ static void apply_host_data(void)
 
     /* 小电流模式 (协议 §4.4 0x4F) */
     ui_data.low_current_flag = i2c_reg_map[REG_SMALL_CURRENT_MODE] ? true : false;
+
+    /* 充放电状态: 根据主机下发的端口状态判断 (§4.4)
+       任一端口为 0x01(充电中) 即认为电池在充电 */
+    ui_data.is_charge = (ui_data.usb_c1_status == 0x01)
+                     || (ui_data.usb_c2_status == 0x01)
+                     || (ui_data.usb_a_status  == 0x01);
+
+    /* 充电时自动关闭小电流模式 */
+    if (ui_data.is_charge)
+        ui_data.low_current_flag = false;
 }
 
 /* ========================================================================

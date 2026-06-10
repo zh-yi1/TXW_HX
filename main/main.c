@@ -6,7 +6,7 @@ int main()
 {
 	sys_init();
 	spi_dma_send_ok = 1;
-	cw1573_init(4);
+
 	while (1)
 	{
 		/* 升级模式: 按键组合触发后直接跳转 Bootloader */
@@ -47,6 +47,9 @@ static void sys_init(void)
 
 	//I2C从机初始化
 	i2c_slave_init();
+
+	//CW1573初始化
+	cw1573_init(4);
 
 	//定时器初始化-PWM
 	// timer_init();

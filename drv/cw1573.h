@@ -145,7 +145,7 @@ typedef struct
 {
 	uint16_t vcell_mv[7];   /* 电芯电压 (mV), VCELL1~VCELL7 */
 	uint16_t pack_mv;       /* 电池组总电压 (mV) */
-	int16_t  temp_01c;      /* NTC 温度 (0.1°C) */
+	uint32_t rntc_ohm;      /* NTC 阻值 (Ω) */
 	int32_t  current_ma;    /* 电池电流 (mA, 正=充电) */
 	uint32_t cc_mah;        /* 库仑量 (mAh) */
 } cw1573_proc_data_t;
@@ -160,6 +160,7 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *proc);
 #define CW1573_POLL_MS        500U
 #define CW1573_CFG_RETRY_MS  200U
 
+extern uint8_t cw1573_cell_cnt;
 extern volatile cw1573_data_t      cw1573_raw;
 extern volatile cw1573_proc_data_t cw1573_info;
 

@@ -10,7 +10,7 @@
 #define KEY_SAMPLE_MS       10
 
 /* timing thresholds (ms) */
-#define KEY_DEBOUNCE_MS     50      /* press debounce: must hold 50ms to confirm */
+#define KEY_DEBOUNCE_MS     30      /* press debounce: must hold 30ms to confirm */
 #define KEY_SHORT_MIN_MS    100     /* minimum press for a valid click */
 #define KEY_SHORT_MAX_MS    1500    /* maximum press for a click (beyond → long-press) */
 #define KEY_DOUBLE_GAP_MS   50     /* minimum gap after release for 2nd click (filters bounce) */

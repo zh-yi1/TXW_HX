@@ -462,7 +462,7 @@ void default_page_updata(void)
 	}
 
 	/* ---- 普通更新: 10ms 间隔 ---- */
-	if (now - last_ms < 10)
+	if (now - last_ms < 50)
 		return;
 	last_ms = now;
 

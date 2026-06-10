@@ -3,7 +3,7 @@
 volatile cw1573_data_t      cw1573_raw;
 volatile cw1573_proc_data_t cw1573_info;
 
-static uint8_t cw1573_cell_cnt  = 4;
+uint8_t cw1573_cell_cnt = 4;
 static uint8_t cw1573_cfg_done  = 0;
 
 uint8_t cw1573_is_ready(void)
@@ -295,7 +295,7 @@ uint8_t cw1573_read_all(cw1573_data_t *data)
 	uint8_t vcell_buf[14];
 	uint8_t err = 0;
 
-	if (data == 0)
+	if (data == NULL)
 		return 1;
 
 	/* Read state flags: 0x00-0x02 */
@@ -304,8 +304,8 @@ uint8_t cw1573_read_all(cw1573_data_t *data)
 	err |= cw1573_read_reg(CW1573_REG_STATE_FLAG2, &data->state_flag2, 1);
 
 	/* Read VCELL1-7: 14 bytes burst from 0x20 */
-	err |= cw1573_read_reg(CW1573_REG_CELL1_H, vcell_buf, 14);
-	for (uint8_t i = 0; i < 7; i++)
+	err |= cw1573_read_reg(CW1573_REG_CELL1_H, vcell_buf, cw1573_cell_cnt * 2);
+	for (uint8_t i = 0; i < cw1573_cell_cnt; i++)
 		data->vcell[i] = (uint16_t)(((uint16_t)vcell_buf[i * 2] << 8) | vcell_buf[i * 2 + 1]);
 
 	/* Read TS: 0x2E-0x2F */
@@ -333,54 +333,22 @@ uint8_t cw1573_read_all(cw1573_data_t *data)
 	return err;
 }
 
-/* ---- 定点 ln(x*1000) → ln(x)*1000 (x ∈ [0.1, 10]) ---- */
-static int32_t ln_x1000(int32_t x)
-{
-	int32_t r = 0;
-	/* 归一化到 [750, 1500]: ln(x*2^n) = ln(x) + n*ln(2), ln(2)*1000=693 */
-	while (x >= 1500) { x >>= 1; r += 693; }
-	while (x <   750) { x <<= 1; r -= 693; }
-	/* Taylor: ln(1+t) = t - t^2/2 + t^3/3, t = (x-1000)/1000 */
-	int32_t t  = x - 1000;
-	int32_t t2 = t * t / 1000;
-	int32_t t3 = t2 * t / 1000;
-	r += t - t2 / 2 + t3 / 3;
-	return r;
-}
-
-/* ---- Beta 方程整数计算: 阻值(Ω) → 温度(0.1°C) ---- */
-/* B=3435, R25=10kΩ, T25=298.15K */
-static int16_t ntc_r_to_temp(uint32_t r_ohm)
-{
-	/* R/R25 * 1000 = r_ohm * 1000 / 10000 = r_ohm / 10 */
-	int32_t ratio = (int32_t)(r_ohm / 10UL);
-	int32_t ln_val;
-
-	if (ratio < 10) ratio = 10;  /* 防止 ln 发散 */
-	ln_val = ln_x1000(ratio);
-
-	/* T_K ≈ 298 * 3435 * 1000 / (3435 * 1000 + 298 * ln_val) */
-	int32_t tempK = 1023630000L / (3435000L + 298L * ln_val);
-
-	/* temp(0.1°C) = (T_K - 273) * 10 */
-	return (int16_t)((tempK - 273) * 10);
-}
-
 void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 {
-	if (raw == 0 || p == 0) return;
+	if (raw == NULL || p == NULL) return;
 
 	/* 电芯电压: Vcell(mV) = CELL * 78.125uV / 1000 = CELL * 78125 / 1000000 */
 	p->pack_mv = 0;
-	for (uint8_t i = 0; i < 7; i++)
+	for (uint8_t i = 0; i < cw1573_cell_cnt; i++)
 	{
 		p->vcell_mv[i] = (uint16_t)((uint32_t)raw->vcell[i] * 78125UL / 1000000UL);
 		p->pack_mv += p->vcell_mv[i];
 	}
 
-	/* NTC温度: TS_ADC → Vntc(mV) → Rntc(Ω) → Beta → 0.1°C */
+	/* NTC阻值: TS_ADC → Vntc(mV) → Rntc(Ω) */
 	{
 		uint16_t ts = raw->ts_adc;
+		// 第15位为高，温度有效位
 		if (ts & 0x8000U)
 		{
 			/* Vntc(mV) = TS * 78.125uV / 1000 = TS * 78125 / 1000000 */
@@ -388,12 +356,12 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 			if (vntc > 0 && vntc < 2545)
 			{
 				/* Rntc(Ω) = 10000 * Vntc / (2545 - Vntc) */
-				uint32_t rntc = 10000UL * vntc / (2545UL - vntc);
-				p->temp_01c = ntc_r_to_temp(rntc);
+				p->rntc_ohm = 10000UL * vntc / (2545UL - vntc);
 			}
 		}
 	}
 
+	//TODO :确定采样电阻值是否是2.5mR
 	/* 电流: I(mA) = IADC * 6.25uV / 2.5mR = IADC * 5 / 2 */
 	{
 		int16_t iadc_s = (int16_t)raw->iadc;

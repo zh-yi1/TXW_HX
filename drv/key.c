@@ -193,8 +193,6 @@ void key_double_click_cb(void)
 void key_long_press_cb(void)
 {
 
-	//TODO :小电流模式
-
 	/* 休眠状态下忽略长按 */
 	if (ui_data.dev_state == DEV_STATE_SLEEP)
 		return;
