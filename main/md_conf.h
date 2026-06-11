@@ -12,7 +12,7 @@
 /* #define MD_IWDT */
 /* #define MD_WWDT */
 /* #define MD_CRC */
-/* #define MD_USART */
+#define MD_USART
 /* #define MD_CMP */
 #define MD_CMU
 /* #define MD_DBGC */

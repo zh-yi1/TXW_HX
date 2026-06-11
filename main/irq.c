@@ -122,4 +122,23 @@ void AD16C4T_CC_Handler(void)
 	// }
 }
 
+/**
+  * @brief  USART1 interrupt handler — RXNE: store byte into ring buffer
+  */
+void USART1_Handler(void)
+{
+	/* ---- RX not empty: read byte into ring buffer ---- */
+	if (md_usart_is_enabled_it_rxne(USART1) && md_usart_is_active_flag_rxne(USART1))
+	{
+		md_usart_clear_flag_rxne(USART1);
+
+		usart_rx_buf[usart_rx_head] = md_usart_recv_data8(USART1);
+		usart_rx_head = (usart_rx_head + 1) % USART_RX_BUF_SIZE;
+
+		/* Overrun protection: if head catches tail, advance tail */
+		if (usart_rx_head == usart_rx_tail)
+			usart_rx_tail = (usart_rx_tail + 1) % USART_RX_BUF_SIZE;
+	}
+}
+
 

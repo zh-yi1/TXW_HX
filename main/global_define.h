@@ -17,6 +17,7 @@
 #include "key.h"
 #include "i2c_slave.h"
 #include "uart_upgrade.h"
+#include "usart.h"
 
 #include "ui.h"
 #include "bar_progress.h"

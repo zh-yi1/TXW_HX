@@ -16,6 +16,12 @@ int main()
 			uart_upgrade_enter();
 		}
 
+		/* ---- USART1 回环测试: 收到什么发什么 ---- */
+		while (usart_recv_available())
+		{
+			usart_send_byte(usart_recv_byte());
+		}
+
 		cw1573_proc();
 		i2c_slave_proc();
 		key_proc();
@@ -50,6 +56,10 @@ static void sys_init(void)
 
 	//CW1573初始化
 	cw1573_init(4);
+
+	//USART1初始化 (测试回环)
+	usart_init(115200);
+
 
 	//定时器初始化-PWM
 	// timer_init();
