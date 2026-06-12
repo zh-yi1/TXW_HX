@@ -8,12 +8,16 @@ volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE];
 volatile uint8_t key_event_buf;
 
 /* ---- ISR 内部状态 ---- */
-static volatile uint8_t  i2c_reg_addr;
-static volatile uint8_t  i2c_first_byte;  /* 1 = 下一个接收字节是寄存器地址 */
+typedef struct {
+    volatile uint8_t reg_addr;    /* 当前寄存器地址 */
+    volatile uint8_t first_byte;  /* 1 = 下一个接收字节是寄存器地址 */
+    volatile uint8_t expect_len;  /* 期望的数据长度 (来自 LEN 字节) */
+    volatile uint8_t byte_cnt;    /* 当前已发/已收的字节计数 */
+    volatile uint8_t data_sum;    /* 数据字节累加和 (CRC 中间值) */
+    volatile uint8_t recv_buf[32]; /* 接收缓冲区 */
+} i2c_slave_state_t;
 
-static volatile uint8_t  icr_expect_len;  /* 期望的数据长度 (来自 LEN 字节) */
-static volatile uint8_t  icr_byte_cnt;    /* 当前已发/已收的字节计数 */
-static volatile uint8_t  icr_data_sum;    /* 数据字节累加和 (CRC 中间值) */
+static volatile i2c_slave_state_t i2c_s;
 
 /* ---- 方向定义 (与 SDK demo 一致) ---- */
 #define I2C_DIR_WRITE  I2C_STAT2_TRF_MSK
@@ -134,7 +138,7 @@ void i2c_slave_init(void)
  * tft_calc_crc — CRC 校验 (累加和取反)
  *
  * 对 DATA[0..LEN-1] 的累加和取低字节按位取反
- * ISR 中通过 icr_data_sum 增量累加, 本函数仅做最终取反
+ * ISR 中通过 i2c_s.data_sum 增量累加, 本函数仅做最终取反
  * ======================================================================== */
 static uint8_t tft_calc_crc_final(uint8_t sum)
 {
@@ -158,31 +162,31 @@ void I2C1_Handler(void)
     if (md_i2c_is_active_flag_txbe(I2C1) == 1 && md_i2c_is_enable_it_buf(I2C1)
         && md_i2c_is_enable_it_evt(I2C1))
     {
-        if (icr_byte_cnt < icr_expect_len)
+        if (i2c_s.byte_cnt < (i2c_s.expect_len + 1))
         {
             /* 发送数据字节 */
             uint8_t data_byte;
-            if (i2c_reg_addr < I2C_REG_MAP_SIZE)
-                data_byte = i2c_reg_map[i2c_reg_addr];
+            if (i2c_s.reg_addr < I2C_REG_MAP_SIZE)
+                data_byte = i2c_reg_map[i2c_s.reg_addr];
             else
                 data_byte = 0x00;  /* 越界返回 0 */
 
             md_i2c_transmit_data8(I2C1, data_byte);
-            icr_data_sum += data_byte;  /* 累加 CRC */
+            i2c_s.data_sum += data_byte;  /* 累加 CRC */
 
-            i2c_reg_addr++;
-            if (i2c_reg_addr >= I2C_REG_MAP_SIZE)
-                i2c_reg_addr = 0;
+            i2c_s.reg_addr++;
+            if (i2c_s.reg_addr >= I2C_REG_MAP_SIZE)
+                i2c_s.reg_addr = 0;
 
-            icr_byte_cnt++;
+            i2c_s.byte_cnt++;
         }
         else
         {
             /* 发送 CRC 字节 */
-            uint8_t crc_value = tft_calc_crc_final(icr_data_sum);
+            uint8_t crc_value = tft_calc_crc_final(i2c_s.data_sum);
             md_i2c_transmit_data8(I2C1, crc_value);
 
-            icr_byte_cnt = 0;
+            i2c_s.byte_cnt = 0;
         }
     }
 
@@ -192,43 +196,44 @@ void I2C1_Handler(void)
     {
         tmp = md_i2c_receive_data8(I2C1);
 
-        if (i2c_first_byte)
+        if (i2c_s.first_byte)
         {
             /* 第 1 字节 = 寄存器地址 */
-            i2c_reg_addr   = tmp;
-            i2c_first_byte = 0;
-            icr_byte_cnt   = 0;
-            icr_data_sum   = 0;
+            i2c_s.reg_addr   = tmp;
+            i2c_s.first_byte = 0;
+            i2c_s.byte_cnt   = 0;
+            i2c_s.data_sum   = 0;
         }
-        else if (icr_byte_cnt == 0)
+        else if (i2c_s.byte_cnt == 0)
         {
             /* 第 2 字节 = 数据长度 LEN */
-            icr_expect_len = tmp;
-            icr_byte_cnt   = 1;
+            i2c_s.expect_len = tmp;
+            i2c_s.byte_cnt++;
         }
-        else if (icr_byte_cnt <= icr_expect_len)
+        else if (i2c_s.byte_cnt < (i2c_s.expect_len + 1))
         {
             /* 第 3..N 字节 = DATA[0..LEN-1] */
-            if (i2c_reg_addr < I2C_REG_MAP_SIZE && reg_is_writable(i2c_reg_addr))
+            if (i2c_s.reg_addr < I2C_REG_MAP_SIZE && reg_is_writable(i2c_s.reg_addr))
             {
-                i2c_reg_map[i2c_reg_addr] = tmp;
+                i2c_s.recv_buf[i2c_s.byte_cnt] = tmp;
             }
-            icr_data_sum += tmp;  /* 累加 CRC (无论是否写入均参与校验) */
+            i2c_s.data_sum += tmp;  /* 累加 CRC (无论是否写入均参与校验) */
 
-            i2c_reg_addr++;
-            if (i2c_reg_addr >= I2C_REG_MAP_SIZE)
-                i2c_reg_addr = 0;
+            i2c_s.reg_addr++;
+            if (i2c_s.reg_addr >= I2C_REG_MAP_SIZE)
+                i2c_s.reg_addr = 0;
 
-            icr_byte_cnt++;
+            i2c_s.byte_cnt++;
         }
         else
         {
             /* 最后一字节 = CRC: 校验失败则丢弃整包 */
-            uint8_t calc = tft_calc_crc_final(icr_data_sum);
-            if (calc != tmp)
+            uint8_t calc = tft_calc_crc_final(i2c_s.data_sum);
+            if (calc == tmp)
             {
-                /* CRC 失败, 重置状态丢弃该包, 等待下一帧 */
-                i2c_first_byte = 0;
+                /* CRC 校验通过, 处理数据 */
+                memcpy((void*)&i2c_reg_map[i2c_s.reg_addr - i2c_s.expect_len - 1], (const void*)i2c_s.recv_buf, i2c_s.expect_len);
+                calc = 0;
             }
         }
     }
@@ -242,14 +247,7 @@ void I2C1_Handler(void)
         if (md_i2c_get_transfer_direction(I2C1) == I2C_DIR_READ)
         {
             /* TRF=0: 从机接收 → 主机写, 下一字节是寄存器地址 */
-            i2c_first_byte = 1;
-        }
-        else
-        {
-            /* TRF=1: 从机发送 → 主机读 */
-            i2c_first_byte = 0;
-            icr_byte_cnt   = 0;
-            icr_data_sum   = 0;
+            i2c_s.first_byte = 1;
         }
     }
 
@@ -258,11 +256,6 @@ void I2C1_Handler(void)
     {
         md_i2c_clear_flag_af(I2C1);
         md_i2c_disable_it_buf(I2C1);
-        i2c_first_byte  = 0;
-        i2c_reg_addr    = 0;
-        icr_expect_len  = 0;
-        icr_byte_cnt    = 0;
-        icr_data_sum    = 0;
     }
 
     /* --- STOP: 停止条件 --- */
@@ -276,12 +269,6 @@ void I2C1_Handler(void)
         {
             md_i2c_receive_data8(I2C1);
         }
-
-        i2c_first_byte  = 0;
-        i2c_reg_addr    = 0;
-        icr_expect_len  = 0;
-        icr_byte_cnt    = 0;
-        icr_data_sum    = 0;
     }
 
     /* --- BERR: 总线错误, 需要复位 I2C 模块恢复 --- */
