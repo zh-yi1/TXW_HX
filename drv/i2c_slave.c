@@ -10,6 +10,7 @@ volatile uint8_t key_event_buf;
 /* ---- ISR 内部状态 ---- */
 typedef struct {
     volatile uint8_t reg_addr;    /* 当前寄存器地址 */
+    volatile uint8_t first_reg_addr;  /* 第一个接收 寄存器地址 */
     volatile uint8_t first_byte;  /* 1 = 下一个接收字节是寄存器地址 */
     volatile uint8_t expect_len;  /* 期望的数据长度 (来自 LEN 字节) */
     volatile uint8_t byte_cnt;    /* 当前已发/已收的字节计数 */
@@ -200,6 +201,7 @@ void I2C1_Handler(void)
         {
             /* 第 1 字节 = 寄存器地址 */
             i2c_s.reg_addr   = tmp;
+            i2c_s.first_reg_addr = tmp;
             i2c_s.first_byte = 0;
             i2c_s.byte_cnt   = 0;
             i2c_s.data_sum   = 0;
@@ -215,7 +217,7 @@ void I2C1_Handler(void)
             /* 第 3..N 字节 = DATA[0..LEN-1] */
             if (i2c_s.reg_addr < I2C_REG_MAP_SIZE && reg_is_writable(i2c_s.reg_addr))
             {
-                i2c_s.recv_buf[i2c_s.byte_cnt] = tmp;
+                i2c_s.recv_buf[i2c_s.byte_cnt - 1] = tmp;
             }
             i2c_s.data_sum += tmp;  /* 累加 CRC (无论是否写入均参与校验) */
 
@@ -232,7 +234,7 @@ void I2C1_Handler(void)
             if (calc == tmp)
             {
                 /* CRC 校验通过, 处理数据 */
-                memcpy((void*)&i2c_reg_map[i2c_s.reg_addr - i2c_s.expect_len - 1], (const void*)i2c_s.recv_buf, i2c_s.expect_len);
+                memcpy((void*)&i2c_reg_map[i2c_s.first_reg_addr], (const void*)i2c_s.recv_buf, i2c_s.expect_len);
                 calc = 0;
             }
         }
@@ -402,7 +404,7 @@ static void apply_host_data(void)
     ui_data.usb_c1_status = i2c_reg_map[REG_C1_STATUS];
     if (ui_data.usb_c1_status) {
         uint16_t v = reg_read_u16(REG_C1_VOLTAGE_L);
-        int16_t  a = reg_read_s16(REG_C1_CURRENT_L);
+        uint16_t  a = reg_read_u16(REG_C1_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
         uint8_t  w  = (uint8_t)(mw / 1000UL);
         ui_data.usb_c1_power = (w > 99) ? 99 : w;
@@ -414,7 +416,7 @@ static void apply_host_data(void)
     ui_data.usb_c2_status = i2c_reg_map[REG_C2_STATUS];
     if (ui_data.usb_c2_status) {
         uint16_t v = reg_read_u16(REG_C2_VOLTAGE_L);
-        int16_t  a = reg_read_s16(REG_C2_CURRENT_L);
+        uint16_t  a = reg_read_u16(REG_C2_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
         uint8_t  w  = (uint8_t)(mw / 1000UL);
         ui_data.usb_c2_power = (w > 99) ? 99 : w;
@@ -426,7 +428,7 @@ static void apply_host_data(void)
     ui_data.usb_a_status = i2c_reg_map[REG_USBA_STATUS];
     if (ui_data.usb_a_status) {
         uint16_t v = reg_read_u16(REG_USBA_VOLTAGE_L);
-        int16_t  a = reg_read_s16(REG_USBA_CURRENT_L);
+        uint16_t  a = reg_read_u16(REG_USBA_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
         uint8_t  w  = (uint8_t)(mw / 1000UL);
         ui_data.usb_a_power = (w > 99) ? 99 : w;
