@@ -463,8 +463,8 @@ void i2c_slave_proc(void)
     /* OVP_PERMANENT: 协议 §4.5 密匙 0x5A, CW1573 离线时也可信 */
     i2c_reg_map[REG_OVP_PERMANENT] = 0x5A;
 
-    /* 按键事件原子交换: 影子缓冲 → reg_map, 防止主机清零竞争 (§4.6) */
-    i2c_reg_map[REG_KEY_EVENT] = key_event_buf;
+    /* 按键事件原子累积: 影子缓冲 OR → reg_map, 主机读后清零对应 bit (§4.6) */
+    i2c_reg_map[REG_KEY_EVENT] |= key_event_buf;
     key_event_buf = 0;
 
     /* CW1573 采集 → reg_map (R) + ui_data */

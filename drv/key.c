@@ -198,7 +198,7 @@ void key_long_press_cb(void)
 		return;
 
 	/* 进入/退出 USB-A 小电流模式 */
-	ui_data.low_current_flag = !ui_data.low_current_flag;
+	// ui_data.low_current_flag = !ui_data.low_current_flag;
 
 	/* 设置按键事件 bit4: 长按3S (写入影子缓冲) */
 	key_event_buf |= 0x10;
