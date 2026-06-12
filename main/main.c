@@ -1,19 +1,30 @@
 #include "main.h"
 
-FUNC_VAR_WORK_TICK work_time;
 static void sys_init(void);
-
-uint16_t color_test = 0;
 
 int main()
 {
- 	for(uint32_t i=60000; i<1; i--){}
-
 	sys_init();
 	spi_dma_send_ok = 1;
 
 	while (1)
 	{
+		/* 升级模式: 按键组合触发后直接跳转 Bootloader */
+		if (g_enter_upgrade)
+		{
+			g_enter_upgrade = 0;
+			uart_upgrade_enter();
+		}
+
+		/* ---- USART1 回环测试: 收到什么发什么 ---- */
+		while (usart_recv_available())
+		{
+			usart_send_byte(usart_recv_byte());
+		}
+
+		cw1573_proc();
+		i2c_slave_proc();
+		key_proc();
 		ui_proc();
 	}
 }
@@ -31,17 +42,27 @@ static void sys_init(void)
 	md_cmu_enable_perh_all();
 	SYSCFG_LOCK();
 
-	//从机IIC初始化
-//	iic_init();
-
 	//DMA初始化
 	dma_init();
 
 	//TFT初始化
 	ui_init();
 
+	//按键初始化
+	key_init();
+
+	//I2C从机初始化
+	i2c_slave_init();
+
+	//CW1573初始化
+	cw1573_init(4);
+
+	//USART1初始化 (测试回环)
+	usart_init(115200);
+
+
 	//定时器初始化-PWM
-//	timer_init();
+	// timer_init();
 }
 
 void SystemInit(void){}

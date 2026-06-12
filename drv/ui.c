@@ -1,10 +1,34 @@
 #include "ui.h"
 #include "flash_image_addr.h"
 
-static void 			ui_gpio_init					(void);
-static void				ui_iic_data_get					(void);
-static void				ui_disp_page_reflash			(void);
-static void				ui_disp_light_proc				(void);
+static void ui_gpio_init(void);
+
+ui_data_t ui_data = {
+	.bat_power = 50,
+	.is_charge = 1,
+	.is_charge_last = 0,
+	.usb_c1_status = 0,
+	.usb_c1_power = 5,
+	.usb_c2_status = 0,
+	.usb_c2_power = 30,
+	.usb_a_status = 0,
+	.usb_a_power = 10,
+	.count_down = 0,
+	.bat_max_cap = 100,
+	.bat_cycle_cnt = 9999,
+	.bat_temperature = 62,
+	.bat_voltage = 0,
+	.bat_current = 0,
+	.bat_cc = 0,
+	.warning = WARNING_NONE,
+	.cur_page = PAGE_DEFAULT,
+	.last_page = PAGE_MAX,
+	.bat_model_1 = "1234567890_A",
+	.bat_model_2 = "BCDEFGHIJKLM",
+	.bat_model_3 = "NOPQRSTUVWXY",
+	.bat_model_4 = "KJDSALFHJKHU",
+	.dev_state = DEV_STATE_NORMAL,
+};
 
 static void spi_init(void)
 {
@@ -31,184 +55,79 @@ void ui_init(void)
 	
 	//刷黑屏幕
 	DispColor(BLACK);
-	md_delay_1ms(500);
+	// md_delay_1ms(500);
 	// Dispphoto_Dispaly_flash(0,0,FLASH_ADDR_BLUE_NUM_64_0);
 	// start_change_anima(0);
 	// extern void draw_charging_blue_anima();
 	// draw_charging_blue_anima();
 
-	default_page_init();
+	// default_page_test();
+	// default_page_init();
+	ui_data.last_page = PAGE_MAX;
+	ui_data.cur_page = PAGE_DEFAULT;
+	// information_page_1_init();
+	// over_temp_hint_page();
 	//获取FLASH芯片 ID
 //	ui_ctrl.flash_id = flash_read_id();
 }
 
-void ui_task(void)
-{
-	//获取IIC读取数据
-	ui_iic_data_get();
-	
-	//处理页面切换
-	ui_disp_page_reflash();
-	
-	//处理LCD背光
-	ui_disp_light_proc();
-	
-}
 
 //处理不同页面内容
 void ui_proc(void)
 {
-#if 0
-	switch(ui_ctrl.disp_page)
+	/* 休眠状态下不刷新界面 */
+	if (ui_data.dev_state == DEV_STATE_SLEEP)
+		return;
+
+	/* 检测界面切换，切换时初始化新界面 */
+	if (ui_data.cur_page != ui_data.last_page)
 	{
-		case DISP_PAGE_BAT_NUM:
-			//电量界面
-			ui_bat_soc();
+		switch (ui_data.cur_page)
+		{
+		case PAGE_DEFAULT:
+			default_page_init();
 			break;
-		
-		case DISP_PAGE_BAT_INFO:
-			//电池信息
-			ui_bat_info();
+		case PAGE_INFO_1:
+			information_page_1_init();
 			break;
-		
-		case DISP_PAGE_OFF_TIME:
-			//设置熄屏时间
-			ui_screen_off_time();
+		case PAGE_INFO_2:
+			information_page_2_init();
 			break;
-		
-		case DISP_PAGE_BRIGHTNESS:
-			//设置屏幕亮度
-			ui_screen_brightness();
+		case PAGE_OVER_TEMP:
+			over_temp_hint_page();
 			break;
-		
-		case DISP_PAGE_PORT_STATUS:
-			//设置C1口功能
-			ui_c1_port_status();
+		case PAGE_LOW_TEMP:
+			low_temp_hint_page();
 			break;
-		
-		case DISP_PAGE_PROTECT:
-			//保护界面
-			ui_protection();
+		case PAGE_SHORT_CIRCUIT:
+			short_circuit_hint_page();
 			break;
-		
 		default:
 			break;
-	}
-		
-#endif
-}
-
-static void ui_iic_data_get(void)
-{
-#if 0
-	/**********************************获取IIC数据******************************************/	
-	//获取页面内容
-	ui_ctrl.iic_data.disp_ctrl_read.byte	= (disp_page_t)iic_send_buf[IIC_DISP_CTRL];
-	
-	//获取系统设置
-	ui_ctrl.iic_data.sys_status_read.byte	= iic_send_buf[IIC_SYS_STATUS];
-	
-	//获取电量百分比
-	ui_ctrl.iic_data.disp_bat_num_read		= iic_send_buf[IIC_BAT_SOC];
-	
-	//获取C1口功率
-	ui_ctrl.iic_data.port_c1_watt_read		= iic_send_buf[IIC_C1_WATT_H] << 8 | iic_send_buf[IIC_C1_WATT_L];
-	
-	//获取C2口功率
-	ui_ctrl.iic_data.port_c2_watt_read		= iic_send_buf[IIC_C2_WATT_H] << 8 | iic_send_buf[IIC_C2_WATT_L];
-	
-	//获取充电时长-小时
-	ui_ctrl.iic_data.chg_time_h_read		= iic_send_buf[IIC_CHG_TIME_H];
-	
-	//获取充电时长-分钟
-	ui_ctrl.iic_data.chg_time_m_read		= iic_send_buf[IIC_CHG_TIME_M];
-
-	//获取电池健康度
-	ui_ctrl.iic_data.bat_health_read		= iic_send_buf[IIC_BAT_HEALTH];
-
-	//获取电池循环次数
-	ui_ctrl.iic_data.bat_cycle_read			= iic_send_buf[IIC_BAT_CYCLE_H] << 8| iic_send_buf[IIC_BAT_CYCLE_L];
-	
-	//获取电池温度
-	ui_ctrl.iic_data.bat_temp_c_read		= (int16_t)iic_send_buf[IIC_BAT_TEMP] - 40;
-	
-	//获取当前语音设置
-	ui_ctrl.iic_data.language_set			= iic_send_buf[IIC_LANGUAGE_SET];
-	
-	//限定温度范围
-	if(ui_ctrl.iic_data.bat_temp_c_read < -18)
-		ui_ctrl.iic_data.bat_temp_c_read = -18;
-	
-	if(ui_ctrl.iic_data.bat_temp_c_read > 80)
-		ui_ctrl.iic_data.bat_temp_c_read = 80;
-#endif
-}
-
-static void ui_disp_page_reflash(void)
-{
-#if 0
-	if(ui_ctrl.disp_page != ui_ctrl.iic_data.disp_ctrl_read.disp_page)
-	{
-		ui_ctrl.disp_page = (disp_page_t)ui_ctrl.iic_data.disp_ctrl_read.disp_page;
-		
-		//如果存在界面切换，则更新屏幕
-		ui_ctrl.disp_step = DISP_STEP_REFLASH;
-		ui_ctrl.disp_pos = 0;
-	}
-#endif
-}
-
-static void ui_disp_light_proc(void)
-{
-#if 0
-	if(ui_ctrl.power_on < LCD_POWER_ON_DELAY)
-	{
-		ui_ctrl.power_on++;
-	}
-	
-	if((ui_ctrl.iic_data.disp_ctrl_read.disp_flag) && (ui_ctrl.power_on >= LCD_POWER_ON_DELAY))
-	{
-		ui_ctrl.disp_flag = 1;
-	}
-	else
-	{
-		ui_ctrl.disp_flag = 0;
-	}
-
-	if(ui_ctrl.disp_flag)
-	{
-		if(ui_ctrl.iic_data.sys_status_read.screen_brightness)
-		{
-			if(ui_ctrl.disp_pwm_duty_bk > 30)
-			{
-				ui_ctrl.disp_pwm_duty_bk -= 5;
-			}
-			else
-			{
-				ui_ctrl.disp_pwm_duty_bk = 30;
-			}
 		}
-		else
-		{
-			if(ui_ctrl.disp_pwm_duty_bk < 100 && ui_ctrl.disp_pwm_duty_bk != 0)
-			{
-				ui_ctrl.disp_pwm_duty_bk += 5;
-			}
-			else
-			{
-				ui_ctrl.disp_pwm_duty_bk = 100;
-			}
-		}
-		
-		ui_ctrl.disp_pwm_duty = ui_ctrl.disp_pwm_duty_bk;
+		ui_data.last_page = ui_data.cur_page;
 	}
-	else
+
+	/* 各界面周期性更新 */
+	switch (ui_data.cur_page)
 	{
-		ui_ctrl.disp_pwm_duty = 0;
+	case PAGE_DEFAULT:
+		default_page_updata();
+		break;
+	case PAGE_INFO_1:
+		information_page_1_updata();
+		break;
+	case PAGE_INFO_2:
+		information_page_2_updata();
+		break;
+	case PAGE_OVER_TEMP:
+	case PAGE_LOW_TEMP:
+	case PAGE_SHORT_CIRCUIT:
+		/* 提示页为静态页面，无需更新 */
+		break;
+	default:
+		break;
 	}
-	
-	ad16c4t_timer_pwm_set(ui_ctrl.disp_pwm_duty);
-#endif
 }
 
 static void ui_gpio_init(void)
@@ -233,8 +152,11 @@ static void ui_gpio_init(void)
 	FLASH_CS_SET();
 	
 	TFT_EN_SET();
-//	LCD_BLK_HIGH();
+	// LCD_BLK_HIGH();
 }
+
+
+
 
 
 

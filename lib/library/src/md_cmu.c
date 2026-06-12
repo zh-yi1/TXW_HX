@@ -44,7 +44,7 @@
   * @defgroup MD_CMU_Private_Variables CMU Private Variables
   * @{
   */
-uint32_t md_system_clock = 32000000U;
+uint32_t md_system_clock = 48000000U;
 /**
   * @}
   */

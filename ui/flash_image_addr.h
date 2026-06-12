@@ -4,355 +4,1415 @@
  * P25Q64SH Flash Image Address Map (64 Mb = 8 MB)
  * Sector size: 4096 bytes (4 KB)
  *
- * Images:       123
- * Flash used:   740234 bytes (722.9 KB)
- * Sectors used: 181 / 2048
+ * Images:       518
+ * Flash used:   2413366 bytes (2356.8 KB)
+ * Sectors used: 590 / 2048
  * Capacity:     8192 KB (8 MB)
  *
  * Sector layout:
- *   Sector   0  [0x000000 – 0x000FFF]  SHORT_CIRCUIT  (12866B used, -8770B free)
- *   Sector   4  [0x004000 – 0x004FFF]  TEMP_BLUE  (12866B used, -8770B free)
- *   Sector   8  [0x008000 – 0x008FFF]  TEMP_ORANGE  (12866B used, -8770B free)
- *   Sector  12  [0x00C000 – 0x00CFFF]  VOLTAGE_BLUE  (12866B used, -8770B free)
- *   Sector  16  [0x010000 – 0x010FFF]  VOLTAGE_ORANGE  (12866B used, -8770B free)
- *   Sector  20  [0x014000 – 0x014FFF]  OVER_CURRENT  (12866B used, -8770B free)
- *   Sector  24  [0x018000 – 0x018FFF]  CHARGING_BLUE_0001  (7746B used, -3650B free)
- *   Sector  26  [0x01A000 – 0x01AFFF]  CHARGING_BLUE_0002  (7746B used, -3650B free)
- *   Sector  28  [0x01C000 – 0x01CFFF]  CHARGING_BLUE_0003  (7746B used, -3650B free)
- *   Sector  30  [0x01E000 – 0x01EFFF]  CHARGING_BLUE_0004  (7746B used, -3650B free)
- *   Sector  32  [0x020000 – 0x020FFF]  CHARGING_BLUE_0005  (7746B used, -3650B free)
- *   Sector  34  [0x022000 – 0x022FFF]  CHARGING_BLUE_0006  (7746B used, -3650B free)
- *   Sector  36  [0x024000 – 0x024FFF]  CHARGING_BLUE_0007  (7746B used, -3650B free)
- *   Sector  38  [0x026000 – 0x026FFF]  CHARGING_BLUE_0008  (7746B used, -3650B free)
- *   Sector  40  [0x028000 – 0x028FFF]  CHARGING_BLUE_0009  (7746B used, -3650B free)
- *   Sector  42  [0x02A000 – 0x02AFFF]  CHARGING_BLUE_0010  (7746B used, -3650B free)
- *   Sector  44  [0x02C000 – 0x02CFFF]  CHARGING_BLUE_0011  (7746B used, -3650B free)
- *   Sector  46  [0x02E000 – 0x02EFFF]  CHARGING_BLUE_0012  (7746B used, -3650B free)
- *   Sector  48  [0x030000 – 0x030FFF]  CHARGING_BLUE_0013  (7746B used, -3650B free)
- *   Sector  50  [0x032000 – 0x032FFF]  CHARGING_BLUE_0014  (7746B used, -3650B free)
- *   Sector  52  [0x034000 – 0x034FFF]  CHARGING_BLUE_0015  (7746B used, -3650B free)
- *   Sector  54  [0x036000 – 0x036FFF]  CHARGING_BLUE_0016  (7746B used, -3650B free)
- *   Sector  56  [0x038000 – 0x038FFF]  CHARGING_BLUE_0017  (7746B used, -3650B free)
- *   Sector  58  [0x03A000 – 0x03AFFF]  CHARGING_BLUE_0018  (7746B used, -3650B free)
- *   Sector  60  [0x03C000 – 0x03CFFF]  CHARGING_BLUE_0019  (7746B used, -3650B free)
- *   Sector  62  [0x03E000 – 0x03EFFF]  CHARGING_BLUE_0020  (7746B used, -3650B free)
- *   Sector  64  [0x040000 – 0x040FFF]  CHARGING_BLUE_0021  (7746B used, -3650B free)
- *   Sector  66  [0x042000 – 0x042FFF]  CHARGING_BLUE_0022  (7746B used, -3650B free)
- *   Sector  68  [0x044000 – 0x044FFF]  CHARGING_BLUE_0023  (7746B used, -3650B free)
- *   Sector  70  [0x046000 – 0x046FFF]  CHARGING_BLUE_0024  (7746B used, -3650B free)
- *   Sector  72  [0x048000 – 0x048FFF]  CHARGING_BLUE_0025  (7746B used, -3650B free)
- *   Sector  74  [0x04A000 – 0x04AFFF]  CHARGING_ORANGE_0001  (7746B used, -3650B free)
- *   Sector  76  [0x04C000 – 0x04CFFF]  CHARGING_ORANGE_0002  (7746B used, -3650B free)
- *   Sector  78  [0x04E000 – 0x04EFFF]  CHARGING_ORANGE_0003  (7746B used, -3650B free)
- *   Sector  80  [0x050000 – 0x050FFF]  CHARGING_ORANGE_0004  (7746B used, -3650B free)
- *   Sector  82  [0x052000 – 0x052FFF]  CHARGING_ORANGE_0005  (7746B used, -3650B free)
- *   Sector  84  [0x054000 – 0x054FFF]  CHARGING_ORANGE_0006  (7746B used, -3650B free)
- *   Sector  86  [0x056000 – 0x056FFF]  CHARGING_ORANGE_0007  (7746B used, -3650B free)
- *   Sector  88  [0x058000 – 0x058FFF]  CHARGING_ORANGE_0008  (7746B used, -3650B free)
- *   Sector  90  [0x05A000 – 0x05AFFF]  CHARGING_ORANGE_0009  (7746B used, -3650B free)
- *   Sector  92  [0x05C000 – 0x05CFFF]  CHARGING_ORANGE_0010  (7746B used, -3650B free)
- *   Sector  94  [0x05E000 – 0x05EFFF]  CHARGING_ORANGE_0011  (7746B used, -3650B free)
- *   Sector  96  [0x060000 – 0x060FFF]  CHARGING_ORANGE_0012  (7746B used, -3650B free)
- *   Sector  98  [0x062000 – 0x062FFF]  CHARGING_ORANGE_0013  (7746B used, -3650B free)
- *   Sector 100  [0x064000 – 0x064FFF]  CHARGING_ORANGE_0014  (7746B used, -3650B free)
- *   Sector 102  [0x066000 – 0x066FFF]  CHARGING_ORANGE_0015  (7746B used, -3650B free)
- *   Sector 104  [0x068000 – 0x068FFF]  CHARGING_ORANGE_0016  (7746B used, -3650B free)
- *   Sector 106  [0x06A000 – 0x06AFFF]  CHARGING_ORANGE_0017  (7746B used, -3650B free)
- *   Sector 108  [0x06C000 – 0x06CFFF]  CHARGING_ORANGE_0018  (7746B used, -3650B free)
- *   Sector 110  [0x06E000 – 0x06EFFF]  CHARGING_ORANGE_0019  (7746B used, -3650B free)
- *   Sector 112  [0x070000 – 0x070FFF]  CHARGING_ORANGE_0020  (7746B used, -3650B free)
- *   Sector 114  [0x072000 – 0x072FFF]  CHARGING_ORANGE_0021  (7746B used, -3650B free)
- *   Sector 116  [0x074000 – 0x074FFF]  CHARGING_ORANGE_0022  (7746B used, -3650B free)
- *   Sector 118  [0x076000 – 0x076FFF]  CHARGING_ORANGE_0023  (7746B used, -3650B free)
- *   Sector 120  [0x078000 – 0x078FFF]  CHARGING_ORANGE_0024  (7746B used, -3650B free)
- *   Sector 122  [0x07A000 – 0x07AFFF]  CHARGING_ORANGE_0025  (7746B used, -3650B free)
- *   Sector 124  [0x07C000 – 0x07CFFF]  BLUE_NUM_64_0  (5186B used, -1090B free)
- *   Sector 126  [0x07E000 – 0x07EFFF]  BLUE_NUM_64_1  (5186B used, -1090B free)
- *   Sector 128  [0x080000 – 0x080FFF]  BLUE_NUM_64_2  (5186B used, -1090B free)
- *   Sector 130  [0x082000 – 0x082FFF]  BLUE_NUM_64_3  (5186B used, -1090B free)
- *   Sector 132  [0x084000 – 0x084FFF]  BLUE_NUM_64_4  (5186B used, -1090B free)
- *   Sector 134  [0x086000 – 0x086FFF]  BLUE_NUM_64_5  (5186B used, -1090B free)
- *   Sector 136  [0x088000 – 0x088FFF]  BLUE_NUM_64_6  (5186B used, -1090B free)
- *   Sector 138  [0x08A000 – 0x08AFFF]  BLUE_NUM_64_7  (5186B used, -1090B free)
- *   Sector 140  [0x08C000 – 0x08CFFF]  BLUE_NUM_64_8  (5186B used, -1090B free)
- *   Sector 142  [0x08E000 – 0x08EFFF]  BLUE_NUM_64_9  (5186B used, -1090B free)
- *   Sector 144  [0x090000 – 0x090FFF]  ORANGE_NUM_64_0  (5186B used, -1090B free)
- *   Sector 146  [0x092000 – 0x092FFF]  ORANGE_NUM_64_1  (5186B used, -1090B free)
- *   Sector 148  [0x094000 – 0x094FFF]  ORANGE_NUM_64_2  (5186B used, -1090B free)
- *   Sector 150  [0x096000 – 0x096FFF]  ORANGE_NUM_64_3  (5186B used, -1090B free)
- *   Sector 152  [0x098000 – 0x098FFF]  ORANGE_NUM_64_4  (5186B used, -1090B free)
- *   Sector 154  [0x09A000 – 0x09AFFF]  ORANGE_NUM_64_5  (5186B used, -1090B free)
- *   Sector 156  [0x09C000 – 0x09CFFF]  ORANGE_NUM_64_6  (5186B used, -1090B free)
- *   Sector 158  [0x09E000 – 0x09EFFF]  ORANGE_NUM_64_7  (5186B used, -1090B free)
- *   Sector 160  [0x0A0000 – 0x0A0FFF]  ORANGE_NUM_64_8  (5186B used, -1090B free)
- *   Sector 162  [0x0A2000 – 0x0A2FFF]  ORANGE_NUM_64_9  (5186B used, -1090B free)
- *   Sector 164  [0x0A4000 – 0x0A4FFF]  FREE  (3266B used, 830B free)
- *   Sector 165  [0x0A5000 – 0x0A5FFF]  TYPE_C  (2114B used, 1982B free)
- *   Sector 166  [0x0A6000 – 0x0A6FFF]  USB  (2114B used, 1982B free)
- *   Sector 167  [0x0A7000 – 0x0A7FFF]  NUM_40_0, NUM_40_1  (3972B used, 124B free)
- *   Sector 168  [0x0A8000 – 0x0A8FFF]  NUM_40_2, NUM_40_3  (3972B used, 124B free)
- *   Sector 169  [0x0A9000 – 0x0A9FFF]  NUM_40_4, NUM_40_5  (3972B used, 124B free)
- *   Sector 170  [0x0AA000 – 0x0AAFFF]  NUM_40_6, NUM_40_7  (3972B used, 124B free)
- *   Sector 171  [0x0AB000 – 0x0ABFFF]  NUM_40_8, NUM_40_9  (3972B used, 124B free)
- *   Sector 172  [0x0AC000 – 0x0ACFFF]  NUM_32_0, NUM_32_1, NUM_32_2  (4038B used, 58B free)
- *   Sector 173  [0x0AD000 – 0x0ADFFF]  NUM_32_3, NUM_32_4, NUM_32_5  (4038B used, 58B free)
- *   Sector 174  [0x0AE000 – 0x0AEFFF]  NUM_32_6, NUM_32_7, NUM_32_8  (4038B used, 58B free)
- *   Sector 175  [0x0AF000 – 0x0AFFFF]  NUM_32_9, BATTERY, CHARGING_BLUE  (3782B used, 314B free)
- *   Sector 176  [0x0B0000 – 0x0B0FFF]  CHARGING_ORANGE, TIME, PERCENT_BLUE  (3654B used, 442B free)
- *   Sector 177  [0x0B1000 – 0x0B1FFF]  PERCENT_ORANG, A, C_1, C_2  (3528B used, 568B free)
- *   Sector 178  [0x0B2000 – 0x0B2FFF]  NUM_24_0, NUM_24_1, NUM_24_2, NUM_24_3, NUM_24_4  (3690B used, 406B free)
- *   Sector 179  [0x0B3000 – 0x0B3FFF]  NUM_24_5, NUM_24_6, NUM_24_7, NUM_24_8, NUM_24_9  (3690B used, 406B free)
- *   Sector 180  [0x0B4000 – 0x0B4FFF]  NUM_24, CI, DEGREE, W, PERCENT_SMALL  (2954B used, 1142B free)
+ *   Sector   0  [0x000000 – 0x000FFF]  CIRCUIT_PROTECTION_TEXT  (22146B used, -18050B free)
+ *   Sector   6  [0x006000 – 0x006FFF]  HIGH_TMP_TEXT  (22146B used, -18050B free)
+ *   Sector  12  [0x00C000 – 0x00CFFF]  LOW_TMP_TEXT  (22146B used, -18050B free)
+ *   Sector  18  [0x012000 – 0x012FFF]  CIRCUIT_PROTECTION  (12866B used, -8770B free)
+ *   Sector  22  [0x016000 – 0x016FFF]  TEMP_BLUE  (12866B used, -8770B free)
+ *   Sector  26  [0x01A000 – 0x01AFFF]  TEMP_ORANGE  (12866B used, -8770B free)
+ *   Sector  30  [0x01E000 – 0x01EFFF]  OVER_CURRENT  (12866B used, -8770B free)
+ *   Sector  34  [0x022000 – 0x022FFF]  BLUR_DOWN_0001  (6786B used, -2690B free)
+ *   Sector  36  [0x024000 – 0x024FFF]  BLUR_DOWN_0002  (6786B used, -2690B free)
+ *   Sector  38  [0x026000 – 0x026FFF]  BLUR_DOWN_0003  (6786B used, -2690B free)
+ *   Sector  40  [0x028000 – 0x028FFF]  BLUR_DOWN_0004  (6786B used, -2690B free)
+ *   Sector  42  [0x02A000 – 0x02AFFF]  BLUR_DOWN_0005  (6786B used, -2690B free)
+ *   Sector  44  [0x02C000 – 0x02CFFF]  BLUR_DOWN_0006  (6786B used, -2690B free)
+ *   Sector  46  [0x02E000 – 0x02EFFF]  BLUR_DOWN_0007  (6786B used, -2690B free)
+ *   Sector  48  [0x030000 – 0x030FFF]  BLUR_DOWN_0008  (6786B used, -2690B free)
+ *   Sector  50  [0x032000 – 0x032FFF]  BLUR_DOWN_0009  (6786B used, -2690B free)
+ *   Sector  52  [0x034000 – 0x034FFF]  BLUR_DOWN_0010  (6786B used, -2690B free)
+ *   Sector  54  [0x036000 – 0x036FFF]  BLUR_DOWN_0011  (6786B used, -2690B free)
+ *   Sector  56  [0x038000 – 0x038FFF]  BLUR_DOWN_0012  (6786B used, -2690B free)
+ *   Sector  58  [0x03A000 – 0x03AFFF]  BLUR_DOWN_0013  (6786B used, -2690B free)
+ *   Sector  60  [0x03C000 – 0x03CFFF]  BLUR_DOWN_0014  (6786B used, -2690B free)
+ *   Sector  62  [0x03E000 – 0x03EFFF]  BLUR_DOWN_0015  (6786B used, -2690B free)
+ *   Sector  64  [0x040000 – 0x040FFF]  BLUR_DOWN_0016  (6786B used, -2690B free)
+ *   Sector  66  [0x042000 – 0x042FFF]  BLUR_DOWN_0017  (6786B used, -2690B free)
+ *   Sector  68  [0x044000 – 0x044FFF]  BLUR_DOWN_0018  (6786B used, -2690B free)
+ *   Sector  70  [0x046000 – 0x046FFF]  BLUR_DOWN_0019  (6786B used, -2690B free)
+ *   Sector  72  [0x048000 – 0x048FFF]  BLUR_DOWN_0020  (6786B used, -2690B free)
+ *   Sector  74  [0x04A000 – 0x04AFFF]  BLUR_DOWN_0021  (6786B used, -2690B free)
+ *   Sector  76  [0x04C000 – 0x04CFFF]  BLUR_DOWN_0022  (6786B used, -2690B free)
+ *   Sector  78  [0x04E000 – 0x04EFFF]  BLUR_DOWN_0023  (6786B used, -2690B free)
+ *   Sector  80  [0x050000 – 0x050FFF]  BLUR_DOWN_0024  (6786B used, -2690B free)
+ *   Sector  82  [0x052000 – 0x052FFF]  BLUR_DOWN_0025  (6786B used, -2690B free)
+ *   Sector  84  [0x054000 – 0x054FFF]  BLUR_DOWN_0026  (6786B used, -2690B free)
+ *   Sector  86  [0x056000 – 0x056FFF]  BLUR_DOWN_0027  (6786B used, -2690B free)
+ *   Sector  88  [0x058000 – 0x058FFF]  BLUR_DOWN_0028  (6786B used, -2690B free)
+ *   Sector  90  [0x05A000 – 0x05AFFF]  BLUR_DOWN_0029  (6786B used, -2690B free)
+ *   Sector  92  [0x05C000 – 0x05CFFF]  BLUR_DOWN_0030  (6786B used, -2690B free)
+ *   Sector  94  [0x05E000 – 0x05EFFF]  BLUR_DOWN_0031  (6786B used, -2690B free)
+ *   Sector  96  [0x060000 – 0x060FFF]  BLUR_DOWN_0032  (6786B used, -2690B free)
+ *   Sector  98  [0x062000 – 0x062FFF]  BLUR_DOWN_0033  (6786B used, -2690B free)
+ *   Sector 100  [0x064000 – 0x064FFF]  BLUR_DOWN_0034  (6786B used, -2690B free)
+ *   Sector 102  [0x066000 – 0x066FFF]  BLUR_DOWN_0035  (6786B used, -2690B free)
+ *   Sector 104  [0x068000 – 0x068FFF]  BLUR_DOWN_0036  (6786B used, -2690B free)
+ *   Sector 106  [0x06A000 – 0x06AFFF]  BLUR_DOWN_0037  (6786B used, -2690B free)
+ *   Sector 108  [0x06C000 – 0x06CFFF]  BLUR_DOWN_0038  (6786B used, -2690B free)
+ *   Sector 110  [0x06E000 – 0x06EFFF]  BLUR_DOWN_0039  (6786B used, -2690B free)
+ *   Sector 112  [0x070000 – 0x070FFF]  BLUR_DOWN_0040  (6786B used, -2690B free)
+ *   Sector 114  [0x072000 – 0x072FFF]  BLUR_DOWN_0041  (6786B used, -2690B free)
+ *   Sector 116  [0x074000 – 0x074FFF]  BLUR_DOWN_0042  (6786B used, -2690B free)
+ *   Sector 118  [0x076000 – 0x076FFF]  BLUR_DOWN_0043  (6786B used, -2690B free)
+ *   Sector 120  [0x078000 – 0x078FFF]  BLUR_DOWN_0044  (6786B used, -2690B free)
+ *   Sector 122  [0x07A000 – 0x07AFFF]  BLUR_DOWN_0045  (6786B used, -2690B free)
+ *   Sector 124  [0x07C000 – 0x07CFFF]  BLUR_DOWN_0046  (6786B used, -2690B free)
+ *   Sector 126  [0x07E000 – 0x07EFFF]  BLUR_DOWN_0047  (6786B used, -2690B free)
+ *   Sector 128  [0x080000 – 0x080FFF]  BLUR_DOWN_0048  (6786B used, -2690B free)
+ *   Sector 130  [0x082000 – 0x082FFF]  BLUR_DOWN_0049  (6786B used, -2690B free)
+ *   Sector 132  [0x084000 – 0x084FFF]  BLUR_DOWN_0050  (6786B used, -2690B free)
+ *   Sector 134  [0x086000 – 0x086FFF]  BLUR_DOWN_0051  (6786B used, -2690B free)
+ *   Sector 136  [0x088000 – 0x088FFF]  BLUR_DOWN_0052  (6786B used, -2690B free)
+ *   Sector 138  [0x08A000 – 0x08AFFF]  BLUR_DOWN_0053  (6786B used, -2690B free)
+ *   Sector 140  [0x08C000 – 0x08CFFF]  BLUR_DOWN_0054  (6786B used, -2690B free)
+ *   Sector 142  [0x08E000 – 0x08EFFF]  BLUR_DOWN_0055  (6786B used, -2690B free)
+ *   Sector 144  [0x090000 – 0x090FFF]  BLUR_DOWN_0056  (6786B used, -2690B free)
+ *   Sector 146  [0x092000 – 0x092FFF]  BLUR_DOWN_0057  (6786B used, -2690B free)
+ *   Sector 148  [0x094000 – 0x094FFF]  BLUR_DOWN_0058  (6786B used, -2690B free)
+ *   Sector 150  [0x096000 – 0x096FFF]  BLUR_DOWN_0059  (6786B used, -2690B free)
+ *   Sector 152  [0x098000 – 0x098FFF]  BLUR_DOWN_0060  (6786B used, -2690B free)
+ *   Sector 154  [0x09A000 – 0x09AFFF]  BLUR_DOWN_0061  (6786B used, -2690B free)
+ *   Sector 156  [0x09C000 – 0x09CFFF]  BLUR_DOWN_0062  (6786B used, -2690B free)
+ *   Sector 158  [0x09E000 – 0x09EFFF]  BLUR_DOWN_0063  (6786B used, -2690B free)
+ *   Sector 160  [0x0A0000 – 0x0A0FFF]  BLUR_DOWN_0064  (6786B used, -2690B free)
+ *   Sector 162  [0x0A2000 – 0x0A2FFF]  BLUR_DOWN_0065  (6786B used, -2690B free)
+ *   Sector 164  [0x0A4000 – 0x0A4FFF]  BLUR_DOWN_0066  (6786B used, -2690B free)
+ *   Sector 166  [0x0A6000 – 0x0A6FFF]  BLUR_DOWN_0067  (6786B used, -2690B free)
+ *   Sector 168  [0x0A8000 – 0x0A8FFF]  BLUR_DOWN_0068  (6786B used, -2690B free)
+ *   Sector 170  [0x0AA000 – 0x0AAFFF]  BLUR_DOWN_0069  (6786B used, -2690B free)
+ *   Sector 172  [0x0AC000 – 0x0ACFFF]  BLUR_DOWN_0070  (6786B used, -2690B free)
+ *   Sector 174  [0x0AE000 – 0x0AEFFF]  BLUR_DOWN_0071  (6786B used, -2690B free)
+ *   Sector 176  [0x0B0000 – 0x0B0FFF]  BLUR_DOWN_0072  (6786B used, -2690B free)
+ *   Sector 178  [0x0B2000 – 0x0B2FFF]  BLUR_DOWN_0073  (6786B used, -2690B free)
+ *   Sector 180  [0x0B4000 – 0x0B4FFF]  BLUR_DOWN_0074  (6786B used, -2690B free)
+ *   Sector 182  [0x0B6000 – 0x0B6FFF]  BLUR_DOWN_0075  (6786B used, -2690B free)
+ *   Sector 184  [0x0B8000 – 0x0B8FFF]  BLUR_DOWN_0076  (6786B used, -2690B free)
+ *   Sector 186  [0x0BA000 – 0x0BAFFF]  BLUR_DOWN_0077  (6786B used, -2690B free)
+ *   Sector 188  [0x0BC000 – 0x0BCFFF]  BLUR_DOWN_0078  (6786B used, -2690B free)
+ *   Sector 190  [0x0BE000 – 0x0BEFFF]  BLUR_DOWN_0079  (6786B used, -2690B free)
+ *   Sector 192  [0x0C0000 – 0x0C0FFF]  BLUR_DOWN_0080  (6786B used, -2690B free)
+ *   Sector 194  [0x0C2000 – 0x0C2FFF]  BLUR_DOWN_0081  (6786B used, -2690B free)
+ *   Sector 196  [0x0C4000 – 0x0C4FFF]  BLUR_DOWN_0082  (6786B used, -2690B free)
+ *   Sector 198  [0x0C6000 – 0x0C6FFF]  BLUR_DOWN_0083  (6786B used, -2690B free)
+ *   Sector 200  [0x0C8000 – 0x0C8FFF]  BLUR_DOWN_0084  (6786B used, -2690B free)
+ *   Sector 202  [0x0CA000 – 0x0CAFFF]  BLUR_DOWN_0085  (6786B used, -2690B free)
+ *   Sector 204  [0x0CC000 – 0x0CCFFF]  BLUR_DOWN_0086  (6786B used, -2690B free)
+ *   Sector 206  [0x0CE000 – 0x0CEFFF]  BLUR_DOWN_0087  (6786B used, -2690B free)
+ *   Sector 208  [0x0D0000 – 0x0D0FFF]  BLUR_DOWN_0088  (6786B used, -2690B free)
+ *   Sector 210  [0x0D2000 – 0x0D2FFF]  BLUR_DOWN_0089  (6786B used, -2690B free)
+ *   Sector 212  [0x0D4000 – 0x0D4FFF]  BLUR_DOWN_0090  (6786B used, -2690B free)
+ *   Sector 214  [0x0D6000 – 0x0D6FFF]  BLUR_DOWN_0091  (6786B used, -2690B free)
+ *   Sector 216  [0x0D8000 – 0x0D8FFF]  BLUR_DOWN_0092  (6786B used, -2690B free)
+ *   Sector 218  [0x0DA000 – 0x0DAFFF]  BLUR_DOWN_0093  (6786B used, -2690B free)
+ *   Sector 220  [0x0DC000 – 0x0DCFFF]  BLUR_DOWN_0094  (6786B used, -2690B free)
+ *   Sector 222  [0x0DE000 – 0x0DEFFF]  BLUR_DOWN_0095  (6786B used, -2690B free)
+ *   Sector 224  [0x0E0000 – 0x0E0FFF]  BLUR_DOWN_0096  (6786B used, -2690B free)
+ *   Sector 226  [0x0E2000 – 0x0E2FFF]  BLUR_DOWN_0097  (6786B used, -2690B free)
+ *   Sector 228  [0x0E4000 – 0x0E4FFF]  BLUR_DOWN_0098  (6786B used, -2690B free)
+ *   Sector 230  [0x0E6000 – 0x0E6FFF]  BLUR_DOWN_0099  (6786B used, -2690B free)
+ *   Sector 232  [0x0E8000 – 0x0E8FFF]  BLUR_DOWN_0100  (6786B used, -2690B free)
+ *   Sector 234  [0x0EA000 – 0x0EAFFF]  BLUR_UP_0001  (6786B used, -2690B free)
+ *   Sector 236  [0x0EC000 – 0x0ECFFF]  BLUR_UP_0002  (6786B used, -2690B free)
+ *   Sector 238  [0x0EE000 – 0x0EEFFF]  BLUR_UP_0003  (6786B used, -2690B free)
+ *   Sector 240  [0x0F0000 – 0x0F0FFF]  BLUR_UP_0004  (6786B used, -2690B free)
+ *   Sector 242  [0x0F2000 – 0x0F2FFF]  BLUR_UP_0005  (6786B used, -2690B free)
+ *   Sector 244  [0x0F4000 – 0x0F4FFF]  BLUR_UP_0006  (6786B used, -2690B free)
+ *   Sector 246  [0x0F6000 – 0x0F6FFF]  BLUR_UP_0007  (6786B used, -2690B free)
+ *   Sector 248  [0x0F8000 – 0x0F8FFF]  BLUR_UP_0008  (6786B used, -2690B free)
+ *   Sector 250  [0x0FA000 – 0x0FAFFF]  BLUR_UP_0009  (6786B used, -2690B free)
+ *   Sector 252  [0x0FC000 – 0x0FCFFF]  BLUR_UP_0010  (6786B used, -2690B free)
+ *   Sector 254  [0x0FE000 – 0x0FEFFF]  BLUR_UP_0011  (6786B used, -2690B free)
+ *   Sector 256  [0x100000 – 0x100FFF]  BLUR_UP_0012  (6786B used, -2690B free)
+ *   Sector 258  [0x102000 – 0x102FFF]  BLUR_UP_0013  (6786B used, -2690B free)
+ *   Sector 260  [0x104000 – 0x104FFF]  BLUR_UP_0014  (6786B used, -2690B free)
+ *   Sector 262  [0x106000 – 0x106FFF]  BLUR_UP_0015  (6786B used, -2690B free)
+ *   Sector 264  [0x108000 – 0x108FFF]  BLUR_UP_0016  (6786B used, -2690B free)
+ *   Sector 266  [0x10A000 – 0x10AFFF]  BLUR_UP_0017  (6786B used, -2690B free)
+ *   Sector 268  [0x10C000 – 0x10CFFF]  BLUR_UP_0018  (6786B used, -2690B free)
+ *   Sector 270  [0x10E000 – 0x10EFFF]  BLUR_UP_0019  (6786B used, -2690B free)
+ *   Sector 272  [0x110000 – 0x110FFF]  BLUR_UP_0020  (6786B used, -2690B free)
+ *   Sector 274  [0x112000 – 0x112FFF]  BLUR_UP_0021  (6786B used, -2690B free)
+ *   Sector 276  [0x114000 – 0x114FFF]  BLUR_UP_0022  (6786B used, -2690B free)
+ *   Sector 278  [0x116000 – 0x116FFF]  BLUR_UP_0023  (6786B used, -2690B free)
+ *   Sector 280  [0x118000 – 0x118FFF]  BLUR_UP_0024  (6786B used, -2690B free)
+ *   Sector 282  [0x11A000 – 0x11AFFF]  BLUR_UP_0025  (6786B used, -2690B free)
+ *   Sector 284  [0x11C000 – 0x11CFFF]  BLUR_UP_0026  (6786B used, -2690B free)
+ *   Sector 286  [0x11E000 – 0x11EFFF]  BLUR_UP_0027  (6786B used, -2690B free)
+ *   Sector 288  [0x120000 – 0x120FFF]  BLUR_UP_0028  (6786B used, -2690B free)
+ *   Sector 290  [0x122000 – 0x122FFF]  BLUR_UP_0029  (6786B used, -2690B free)
+ *   Sector 292  [0x124000 – 0x124FFF]  BLUR_UP_0030  (6786B used, -2690B free)
+ *   Sector 294  [0x126000 – 0x126FFF]  BLUR_UP_0031  (6786B used, -2690B free)
+ *   Sector 296  [0x128000 – 0x128FFF]  BLUR_UP_0032  (6786B used, -2690B free)
+ *   Sector 298  [0x12A000 – 0x12AFFF]  BLUR_UP_0033  (6786B used, -2690B free)
+ *   Sector 300  [0x12C000 – 0x12CFFF]  BLUR_UP_0034  (6786B used, -2690B free)
+ *   Sector 302  [0x12E000 – 0x12EFFF]  BLUR_UP_0035  (6786B used, -2690B free)
+ *   Sector 304  [0x130000 – 0x130FFF]  BLUR_UP_0036  (6786B used, -2690B free)
+ *   Sector 306  [0x132000 – 0x132FFF]  BLUR_UP_0037  (6786B used, -2690B free)
+ *   Sector 308  [0x134000 – 0x134FFF]  BLUR_UP_0038  (6786B used, -2690B free)
+ *   Sector 310  [0x136000 – 0x136FFF]  BLUR_UP_0039  (6786B used, -2690B free)
+ *   Sector 312  [0x138000 – 0x138FFF]  BLUR_UP_0040  (6786B used, -2690B free)
+ *   Sector 314  [0x13A000 – 0x13AFFF]  BLUR_UP_0041  (6786B used, -2690B free)
+ *   Sector 316  [0x13C000 – 0x13CFFF]  BLUR_UP_0042  (6786B used, -2690B free)
+ *   Sector 318  [0x13E000 – 0x13EFFF]  BLUR_UP_0043  (6786B used, -2690B free)
+ *   Sector 320  [0x140000 – 0x140FFF]  BLUR_UP_0044  (6786B used, -2690B free)
+ *   Sector 322  [0x142000 – 0x142FFF]  BLUR_UP_0045  (6786B used, -2690B free)
+ *   Sector 324  [0x144000 – 0x144FFF]  BLUR_UP_0046  (6786B used, -2690B free)
+ *   Sector 326  [0x146000 – 0x146FFF]  BLUR_UP_0047  (6786B used, -2690B free)
+ *   Sector 328  [0x148000 – 0x148FFF]  BLUR_UP_0048  (6786B used, -2690B free)
+ *   Sector 330  [0x14A000 – 0x14AFFF]  BLUR_UP_0049  (6786B used, -2690B free)
+ *   Sector 332  [0x14C000 – 0x14CFFF]  BLUR_UP_0050  (6786B used, -2690B free)
+ *   Sector 334  [0x14E000 – 0x14EFFF]  BLUR_UP_0051  (6786B used, -2690B free)
+ *   Sector 336  [0x150000 – 0x150FFF]  BLUR_UP_0052  (6786B used, -2690B free)
+ *   Sector 338  [0x152000 – 0x152FFF]  BLUR_UP_0053  (6786B used, -2690B free)
+ *   Sector 340  [0x154000 – 0x154FFF]  BLUR_UP_0054  (6786B used, -2690B free)
+ *   Sector 342  [0x156000 – 0x156FFF]  BLUR_UP_0055  (6786B used, -2690B free)
+ *   Sector 344  [0x158000 – 0x158FFF]  BLUR_UP_0056  (6786B used, -2690B free)
+ *   Sector 346  [0x15A000 – 0x15AFFF]  BLUR_UP_0057  (6786B used, -2690B free)
+ *   Sector 348  [0x15C000 – 0x15CFFF]  BLUR_UP_0058  (6786B used, -2690B free)
+ *   Sector 350  [0x15E000 – 0x15EFFF]  BLUR_UP_0059  (6786B used, -2690B free)
+ *   Sector 352  [0x160000 – 0x160FFF]  BLUR_UP_0060  (6786B used, -2690B free)
+ *   Sector 354  [0x162000 – 0x162FFF]  BLUR_UP_0061  (6786B used, -2690B free)
+ *   Sector 356  [0x164000 – 0x164FFF]  BLUR_UP_0062  (6786B used, -2690B free)
+ *   Sector 358  [0x166000 – 0x166FFF]  BLUR_UP_0063  (6786B used, -2690B free)
+ *   Sector 360  [0x168000 – 0x168FFF]  BLUR_UP_0064  (6786B used, -2690B free)
+ *   Sector 362  [0x16A000 – 0x16AFFF]  BLUR_UP_0065  (6786B used, -2690B free)
+ *   Sector 364  [0x16C000 – 0x16CFFF]  BLUR_UP_0066  (6786B used, -2690B free)
+ *   Sector 366  [0x16E000 – 0x16EFFF]  BLUR_UP_0067  (6786B used, -2690B free)
+ *   Sector 368  [0x170000 – 0x170FFF]  BLUR_UP_0068  (6786B used, -2690B free)
+ *   Sector 370  [0x172000 – 0x172FFF]  BLUR_UP_0069  (6786B used, -2690B free)
+ *   Sector 372  [0x174000 – 0x174FFF]  BLUR_UP_0070  (6786B used, -2690B free)
+ *   Sector 374  [0x176000 – 0x176FFF]  BLUR_UP_0071  (6786B used, -2690B free)
+ *   Sector 376  [0x178000 – 0x178FFF]  BLUR_UP_0072  (6786B used, -2690B free)
+ *   Sector 378  [0x17A000 – 0x17AFFF]  BLUR_UP_0073  (6786B used, -2690B free)
+ *   Sector 380  [0x17C000 – 0x17CFFF]  BLUR_UP_0074  (6786B used, -2690B free)
+ *   Sector 382  [0x17E000 – 0x17EFFF]  BLUR_UP_0075  (6786B used, -2690B free)
+ *   Sector 384  [0x180000 – 0x180FFF]  BLUR_UP_0076  (6786B used, -2690B free)
+ *   Sector 386  [0x182000 – 0x182FFF]  BLUR_UP_0077  (6786B used, -2690B free)
+ *   Sector 388  [0x184000 – 0x184FFF]  BLUR_UP_0078  (6786B used, -2690B free)
+ *   Sector 390  [0x186000 – 0x186FFF]  BLUR_UP_0079  (6786B used, -2690B free)
+ *   Sector 392  [0x188000 – 0x188FFF]  BLUR_UP_0080  (6786B used, -2690B free)
+ *   Sector 394  [0x18A000 – 0x18AFFF]  BLUR_UP_0081  (6786B used, -2690B free)
+ *   Sector 396  [0x18C000 – 0x18CFFF]  BLUR_UP_0082  (6786B used, -2690B free)
+ *   Sector 398  [0x18E000 – 0x18EFFF]  BLUR_UP_0083  (6786B used, -2690B free)
+ *   Sector 400  [0x190000 – 0x190FFF]  BLUR_UP_0084  (6786B used, -2690B free)
+ *   Sector 402  [0x192000 – 0x192FFF]  BLUR_UP_0085  (6786B used, -2690B free)
+ *   Sector 404  [0x194000 – 0x194FFF]  BLUR_UP_0086  (6786B used, -2690B free)
+ *   Sector 406  [0x196000 – 0x196FFF]  BLUR_UP_0087  (6786B used, -2690B free)
+ *   Sector 408  [0x198000 – 0x198FFF]  BLUR_UP_0088  (6786B used, -2690B free)
+ *   Sector 410  [0x19A000 – 0x19AFFF]  BLUR_UP_0089  (6786B used, -2690B free)
+ *   Sector 412  [0x19C000 – 0x19CFFF]  BLUR_UP_0090  (6786B used, -2690B free)
+ *   Sector 414  [0x19E000 – 0x19EFFF]  BLUR_UP_0091  (6786B used, -2690B free)
+ *   Sector 416  [0x1A0000 – 0x1A0FFF]  BLUR_UP_0092  (6786B used, -2690B free)
+ *   Sector 418  [0x1A2000 – 0x1A2FFF]  BLUR_UP_0093  (6786B used, -2690B free)
+ *   Sector 420  [0x1A4000 – 0x1A4FFF]  BLUR_UP_0094  (6786B used, -2690B free)
+ *   Sector 422  [0x1A6000 – 0x1A6FFF]  BLUR_UP_0095  (6786B used, -2690B free)
+ *   Sector 424  [0x1A8000 – 0x1A8FFF]  BLUR_UP_0096  (6786B used, -2690B free)
+ *   Sector 426  [0x1AA000 – 0x1AAFFF]  BLUR_UP_0097  (6786B used, -2690B free)
+ *   Sector 428  [0x1AC000 – 0x1ACFFF]  BLUR_UP_0098  (6786B used, -2690B free)
+ *   Sector 430  [0x1AE000 – 0x1AEFFF]  BLUR_UP_0099  (6786B used, -2690B free)
+ *   Sector 432  [0x1B0000 – 0x1B0FFF]  BLUR_UP_0100  (6786B used, -2690B free)
+ *   Sector 434  [0x1B2000 – 0x1B2FFF]  BLUE_NUM_48_0  (3906B used, 190B free)
+ *   Sector 435  [0x1B3000 – 0x1B3FFF]  BLUE_NUM_48_1  (3906B used, 190B free)
+ *   Sector 436  [0x1B4000 – 0x1B4FFF]  BLUE_NUM_48_2  (3906B used, 190B free)
+ *   Sector 437  [0x1B5000 – 0x1B5FFF]  BLUE_NUM_48_3  (3906B used, 190B free)
+ *   Sector 438  [0x1B6000 – 0x1B6FFF]  BLUE_NUM_48_4  (3906B used, 190B free)
+ *   Sector 439  [0x1B7000 – 0x1B7FFF]  BLUE_NUM_48_5  (3906B used, 190B free)
+ *   Sector 440  [0x1B8000 – 0x1B8FFF]  BLUE_NUM_48_6  (3906B used, 190B free)
+ *   Sector 441  [0x1B9000 – 0x1B9FFF]  BLUE_NUM_48_7  (3906B used, 190B free)
+ *   Sector 442  [0x1BA000 – 0x1BAFFF]  BLUE_NUM_48_8  (3906B used, 190B free)
+ *   Sector 443  [0x1BB000 – 0x1BBFFF]  BLUE_NUM_48_9  (3906B used, 190B free)
+ *   Sector 444  [0x1BC000 – 0x1BCFFF]  ORANGE_NUM_48_0  (3906B used, 190B free)
+ *   Sector 445  [0x1BD000 – 0x1BDFFF]  ORANGE_NUM_48_1  (3906B used, 190B free)
+ *   Sector 446  [0x1BE000 – 0x1BEFFF]  ORANGE_NUM_48_2  (3906B used, 190B free)
+ *   Sector 447  [0x1BF000 – 0x1BFFFF]  ORANGE_NUM_48_3  (3906B used, 190B free)
+ *   Sector 448  [0x1C0000 – 0x1C0FFF]  ORANGE_NUM_48_4  (3906B used, 190B free)
+ *   Sector 449  [0x1C1000 – 0x1C1FFF]  ORANGE_NUM_48_5  (3906B used, 190B free)
+ *   Sector 450  [0x1C2000 – 0x1C2FFF]  ORANGE_NUM_48_6  (3906B used, 190B free)
+ *   Sector 451  [0x1C3000 – 0x1C3FFF]  ORANGE_NUM_48_7  (3906B used, 190B free)
+ *   Sector 452  [0x1C4000 – 0x1C4FFF]  ORANGE_NUM_48_8  (3906B used, 190B free)
+ *   Sector 453  [0x1C5000 – 0x1C5FFF]  ORANGE_NUM_48_9  (3906B used, 190B free)
+ *   Sector 454  [0x1C6000 – 0x1C6FFF]  X_166102A_1C_16  (3538B used, 558B free)
+ *   Sector 455  [0x1C7000 – 0x1C7FFF]  FREE  (3266B used, 830B free)
+ *   Sector 456  [0x1C8000 – 0x1C8FFF]  TIME_FAKE  (2706B used, 1390B free)
+ *   Sector 457  [0x1C9000 – 0x1C9FFF]  RUN_TIME  (2166B used, 1930B free)
+ *   Sector 458  [0x1CA000 – 0x1CAFFF]  BAT_TMP  (2114B used, 1982B free)
+ *   Sector 459  [0x1CB000 – 0x1CBFFF]  CYCLE_INDEX  (2114B used, 1982B free)
+ *   Sector 460  [0x1CC000 – 0x1CCFFF]  MAX_CAP  (2114B used, 1982B free)
+ *   Sector 461  [0x1CD000 – 0x1CDFFF]  BAT_NUM  (2106B used, 1990B free)
+ *   Sector 462  [0x1CE000 – 0x1CEFFF]  CHARGING_BLUE_DOWN_0001  (2082B used, 2014B free)
+ *   Sector 463  [0x1CF000 – 0x1CFFFF]  CHARGING_BLUE_DOWN_0002  (2082B used, 2014B free)
+ *   Sector 464  [0x1D0000 – 0x1D0FFF]  CHARGING_BLUE_DOWN_0003  (2082B used, 2014B free)
+ *   Sector 465  [0x1D1000 – 0x1D1FFF]  CHARGING_BLUE_DOWN_0004  (2082B used, 2014B free)
+ *   Sector 466  [0x1D2000 – 0x1D2FFF]  CHARGING_BLUE_DOWN_0005  (2082B used, 2014B free)
+ *   Sector 467  [0x1D3000 – 0x1D3FFF]  CHARGING_BLUE_DOWN_0006  (2082B used, 2014B free)
+ *   Sector 468  [0x1D4000 – 0x1D4FFF]  CHARGING_BLUE_DOWN_0007  (2082B used, 2014B free)
+ *   Sector 469  [0x1D5000 – 0x1D5FFF]  CHARGING_BLUE_DOWN_0008  (2082B used, 2014B free)
+ *   Sector 470  [0x1D6000 – 0x1D6FFF]  CHARGING_BLUE_DOWN_0009  (2082B used, 2014B free)
+ *   Sector 471  [0x1D7000 – 0x1D7FFF]  CHARGING_BLUE_DOWN_0010  (2082B used, 2014B free)
+ *   Sector 472  [0x1D8000 – 0x1D8FFF]  CHARGING_BLUE_DOWN_0011  (2082B used, 2014B free)
+ *   Sector 473  [0x1D9000 – 0x1D9FFF]  CHARGING_BLUE_DOWN_0012  (2082B used, 2014B free)
+ *   Sector 474  [0x1DA000 – 0x1DAFFF]  CHARGING_BLUE_DOWN_0013  (2082B used, 2014B free)
+ *   Sector 475  [0x1DB000 – 0x1DBFFF]  CHARGING_BLUE_DOWN_0014  (2082B used, 2014B free)
+ *   Sector 476  [0x1DC000 – 0x1DCFFF]  CHARGING_BLUE_DOWN_0015  (2082B used, 2014B free)
+ *   Sector 477  [0x1DD000 – 0x1DDFFF]  CHARGING_BLUE_DOWN_0016  (2082B used, 2014B free)
+ *   Sector 478  [0x1DE000 – 0x1DEFFF]  CHARGING_BLUE_DOWN_0017  (2082B used, 2014B free)
+ *   Sector 479  [0x1DF000 – 0x1DFFFF]  CHARGING_BLUE_DOWN_0018  (2082B used, 2014B free)
+ *   Sector 480  [0x1E0000 – 0x1E0FFF]  CHARGING_BLUE_DOWN_0019  (2082B used, 2014B free)
+ *   Sector 481  [0x1E1000 – 0x1E1FFF]  CHARGING_BLUE_DOWN_0020  (2082B used, 2014B free)
+ *   Sector 482  [0x1E2000 – 0x1E2FFF]  CHARGING_BLUE_DOWN_0021  (2082B used, 2014B free)
+ *   Sector 483  [0x1E3000 – 0x1E3FFF]  CHARGING_BLUE_DOWN_0022  (2082B used, 2014B free)
+ *   Sector 484  [0x1E4000 – 0x1E4FFF]  CHARGING_BLUE_DOWN_0023  (2082B used, 2014B free)
+ *   Sector 485  [0x1E5000 – 0x1E5FFF]  CHARGING_BLUE_DOWN_0024  (2082B used, 2014B free)
+ *   Sector 486  [0x1E6000 – 0x1E6FFF]  CHARGING_BLUE_DOWN_0025  (2082B used, 2014B free)
+ *   Sector 487  [0x1E7000 – 0x1E7FFF]  CHARGING_BLUE_UP_0001  (2082B used, 2014B free)
+ *   Sector 488  [0x1E8000 – 0x1E8FFF]  CHARGING_BLUE_UP_0002  (2082B used, 2014B free)
+ *   Sector 489  [0x1E9000 – 0x1E9FFF]  CHARGING_BLUE_UP_0003  (2082B used, 2014B free)
+ *   Sector 490  [0x1EA000 – 0x1EAFFF]  CHARGING_BLUE_UP_0004  (2082B used, 2014B free)
+ *   Sector 491  [0x1EB000 – 0x1EBFFF]  CHARGING_BLUE_UP_0005  (2082B used, 2014B free)
+ *   Sector 492  [0x1EC000 – 0x1ECFFF]  CHARGING_BLUE_UP_0006  (2082B used, 2014B free)
+ *   Sector 493  [0x1ED000 – 0x1EDFFF]  CHARGING_BLUE_UP_0007  (2082B used, 2014B free)
+ *   Sector 494  [0x1EE000 – 0x1EEFFF]  CHARGING_BLUE_UP_0008  (2082B used, 2014B free)
+ *   Sector 495  [0x1EF000 – 0x1EFFFF]  CHARGING_BLUE_UP_0009  (2082B used, 2014B free)
+ *   Sector 496  [0x1F0000 – 0x1F0FFF]  CHARGING_BLUE_UP_0010  (2082B used, 2014B free)
+ *   Sector 497  [0x1F1000 – 0x1F1FFF]  CHARGING_BLUE_UP_0011  (2082B used, 2014B free)
+ *   Sector 498  [0x1F2000 – 0x1F2FFF]  CHARGING_BLUE_UP_0012  (2082B used, 2014B free)
+ *   Sector 499  [0x1F3000 – 0x1F3FFF]  CHARGING_BLUE_UP_0013  (2082B used, 2014B free)
+ *   Sector 500  [0x1F4000 – 0x1F4FFF]  CHARGING_BLUE_UP_0014  (2082B used, 2014B free)
+ *   Sector 501  [0x1F5000 – 0x1F5FFF]  CHARGING_BLUE_UP_0015  (2082B used, 2014B free)
+ *   Sector 502  [0x1F6000 – 0x1F6FFF]  CHARGING_BLUE_UP_0016  (2082B used, 2014B free)
+ *   Sector 503  [0x1F7000 – 0x1F7FFF]  CHARGING_BLUE_UP_0017  (2082B used, 2014B free)
+ *   Sector 504  [0x1F8000 – 0x1F8FFF]  CHARGING_BLUE_UP_0018  (2082B used, 2014B free)
+ *   Sector 505  [0x1F9000 – 0x1F9FFF]  CHARGING_BLUE_UP_0019  (2082B used, 2014B free)
+ *   Sector 506  [0x1FA000 – 0x1FAFFF]  CHARGING_BLUE_UP_0020  (2082B used, 2014B free)
+ *   Sector 507  [0x1FB000 – 0x1FBFFF]  CHARGING_BLUE_UP_0021  (2082B used, 2014B free)
+ *   Sector 508  [0x1FC000 – 0x1FCFFF]  CHARGING_BLUE_UP_0022  (2082B used, 2014B free)
+ *   Sector 509  [0x1FD000 – 0x1FDFFF]  CHARGING_BLUE_UP_0023  (2082B used, 2014B free)
+ *   Sector 510  [0x1FE000 – 0x1FEFFF]  CHARGING_BLUE_UP_0024  (2082B used, 2014B free)
+ *   Sector 511  [0x1FF000 – 0x1FFFFF]  CHARGING_BLUE_UP_0025, BAR_PROGRESS_0001  (4068B used, 28B free)
+ *   Sector 512  [0x200000 – 0x200FFF]  BAR_PROGRESS_0002, BAR_PROGRESS_0003  (3972B used, 124B free)
+ *   Sector 513  [0x201000 – 0x201FFF]  BAR_PROGRESS_0004, BAR_PROGRESS_0005  (3972B used, 124B free)
+ *   Sector 514  [0x202000 – 0x202FFF]  BAR_PROGRESS_0006, BAR_PROGRESS_0007  (3972B used, 124B free)
+ *   Sector 515  [0x203000 – 0x203FFF]  BAR_PROGRESS_0008, BAR_PROGRESS_0009  (3972B used, 124B free)
+ *   Sector 516  [0x204000 – 0x204FFF]  BAR_PROGRESS_0010, BAR_PROGRESS_0011  (3972B used, 124B free)
+ *   Sector 517  [0x205000 – 0x205FFF]  BAR_PROGRESS_0012, BAR_PROGRESS_0013  (3972B used, 124B free)
+ *   Sector 518  [0x206000 – 0x206FFF]  BAR_PROGRESS_0014, BAR_PROGRESS_0015  (3972B used, 124B free)
+ *   Sector 519  [0x207000 – 0x207FFF]  BAR_PROGRESS_0016, BAR_PROGRESS_0017  (3972B used, 124B free)
+ *   Sector 520  [0x208000 – 0x208FFF]  BAR_PROGRESS_0018, BAR_PROGRESS_0019  (3972B used, 124B free)
+ *   Sector 521  [0x209000 – 0x209FFF]  BAR_PROGRESS_0020, BAR_PROGRESS_0021  (3972B used, 124B free)
+ *   Sector 522  [0x20A000 – 0x20AFFF]  BAR_PROGRESS_0022, BAR_PROGRESS_0023  (3972B used, 124B free)
+ *   Sector 523  [0x20B000 – 0x20BFFF]  BAR_PROGRESS_0024, BAR_PROGRESS_0025  (3972B used, 124B free)
+ *   Sector 524  [0x20C000 – 0x20CFFF]  BAR_PROGRESS_0026, BAR_PROGRESS_0027  (3972B used, 124B free)
+ *   Sector 525  [0x20D000 – 0x20DFFF]  BAR_PROGRESS_0028, BAR_PROGRESS_0029  (3972B used, 124B free)
+ *   Sector 526  [0x20E000 – 0x20EFFF]  BAR_PROGRESS_0030, BAR_PROGRESS_0031  (3972B used, 124B free)
+ *   Sector 527  [0x20F000 – 0x20FFFF]  BAR_PROGRESS_0032, BAR_PROGRESS_0033  (3972B used, 124B free)
+ *   Sector 528  [0x210000 – 0x210FFF]  BAR_PROGRESS_0034, BAR_PROGRESS_0035  (3972B used, 124B free)
+ *   Sector 529  [0x211000 – 0x211FFF]  BAR_PROGRESS_0036, BAR_PROGRESS_0037  (3972B used, 124B free)
+ *   Sector 530  [0x212000 – 0x212FFF]  BAR_PROGRESS_0038, BAR_PROGRESS_0039  (3972B used, 124B free)
+ *   Sector 531  [0x213000 – 0x213FFF]  BAR_PROGRESS_0040, BAR_PROGRESS_0041  (3972B used, 124B free)
+ *   Sector 532  [0x214000 – 0x214FFF]  BAR_PROGRESS_0042, BAR_PROGRESS_0043  (3972B used, 124B free)
+ *   Sector 533  [0x215000 – 0x215FFF]  BAR_PROGRESS_0044, BAR_PROGRESS_0045  (3972B used, 124B free)
+ *   Sector 534  [0x216000 – 0x216FFF]  BAR_PROGRESS_0046, BAR_PROGRESS_0047  (3972B used, 124B free)
+ *   Sector 535  [0x217000 – 0x217FFF]  BAR_PROGRESS_0048, BAR_PROGRESS_0049  (3972B used, 124B free)
+ *   Sector 536  [0x218000 – 0x218FFF]  BAR_PROGRESS_0050, BAR_PROGRESS_0051  (3972B used, 124B free)
+ *   Sector 537  [0x219000 – 0x219FFF]  BAR_PROGRESS_0052, BAR_PROGRESS_0053  (3972B used, 124B free)
+ *   Sector 538  [0x21A000 – 0x21AFFF]  BAR_PROGRESS_0054, BAR_PROGRESS_0055  (3972B used, 124B free)
+ *   Sector 539  [0x21B000 – 0x21BFFF]  BAR_PROGRESS_0056, BAR_PROGRESS_0057  (3972B used, 124B free)
+ *   Sector 540  [0x21C000 – 0x21CFFF]  BAR_PROGRESS_0058, BAR_PROGRESS_0059  (3972B used, 124B free)
+ *   Sector 541  [0x21D000 – 0x21DFFF]  BAR_PROGRESS_0060, BAR_PROGRESS_0061  (3972B used, 124B free)
+ *   Sector 542  [0x21E000 – 0x21EFFF]  BAR_PROGRESS_0062, BAR_PROGRESS_0063  (3972B used, 124B free)
+ *   Sector 543  [0x21F000 – 0x21FFFF]  BAR_PROGRESS_0064, BAR_PROGRESS_0065  (3972B used, 124B free)
+ *   Sector 544  [0x220000 – 0x220FFF]  BAR_PROGRESS_0066, BAR_PROGRESS_0067  (3972B used, 124B free)
+ *   Sector 545  [0x221000 – 0x221FFF]  BAR_PROGRESS_0068, BAR_PROGRESS_0069  (3972B used, 124B free)
+ *   Sector 546  [0x222000 – 0x222FFF]  BAR_PROGRESS_0070, BAR_PROGRESS_0071  (3972B used, 124B free)
+ *   Sector 547  [0x223000 – 0x223FFF]  BAR_PROGRESS_0072, BAR_PROGRESS_0073  (3972B used, 124B free)
+ *   Sector 548  [0x224000 – 0x224FFF]  BAR_PROGRESS_0074, BAR_PROGRESS_0075  (3972B used, 124B free)
+ *   Sector 549  [0x225000 – 0x225FFF]  BAR_PROGRESS_0076, BAR_PROGRESS_0077  (3972B used, 124B free)
+ *   Sector 550  [0x226000 – 0x226FFF]  BAR_PROGRESS_0078, BAR_PROGRESS_0079  (3972B used, 124B free)
+ *   Sector 551  [0x227000 – 0x227FFF]  BAR_PROGRESS_0080, BAR_PROGRESS_0081  (3972B used, 124B free)
+ *   Sector 552  [0x228000 – 0x228FFF]  BAR_PROGRESS_0082, BAR_PROGRESS_0083  (3972B used, 124B free)
+ *   Sector 553  [0x229000 – 0x229FFF]  BAR_PROGRESS_0084, BAR_PROGRESS_0085  (3972B used, 124B free)
+ *   Sector 554  [0x22A000 – 0x22AFFF]  BAR_PROGRESS_0086, BAR_PROGRESS_0087  (3972B used, 124B free)
+ *   Sector 555  [0x22B000 – 0x22BFFF]  BAR_PROGRESS_0088, BAR_PROGRESS_0089  (3972B used, 124B free)
+ *   Sector 556  [0x22C000 – 0x22CFFF]  BAR_PROGRESS_0090, BAR_PROGRESS_0091  (3972B used, 124B free)
+ *   Sector 557  [0x22D000 – 0x22DFFF]  BAR_PROGRESS_0092, BAR_PROGRESS_0093  (3972B used, 124B free)
+ *   Sector 558  [0x22E000 – 0x22EFFF]  BAR_PROGRESS_0094, BAR_PROGRESS_0095  (3972B used, 124B free)
+ *   Sector 559  [0x22F000 – 0x22FFFF]  BAR_PROGRESS_0096, BAR_PROGRESS_0097  (3972B used, 124B free)
+ *   Sector 560  [0x230000 – 0x230FFF]  BAR_PROGRESS_0098, BAR_PROGRESS_0099  (3972B used, 124B free)
+ *   Sector 561  [0x231000 – 0x231FFF]  BAR_PROGRESS_0100, NUM_40_0  (3972B used, 124B free)
+ *   Sector 562  [0x232000 – 0x232FFF]  NUM_40_1, NUM_40_2  (3972B used, 124B free)
+ *   Sector 563  [0x233000 – 0x233FFF]  NUM_40_3, NUM_40_4  (3972B used, 124B free)
+ *   Sector 564  [0x234000 – 0x234FFF]  NUM_40_5, NUM_40_6  (3972B used, 124B free)
+ *   Sector 565  [0x235000 – 0x235FFF]  NUM_40_7, NUM_40_8  (3972B used, 124B free)
+ *   Sector 566  [0x236000 – 0x236FFF]  NUM_40_9, NUM_32_0  (3332B used, 764B free)
+ *   Sector 567  [0x237000 – 0x237FFF]  NUM_32_1, NUM_32_2, NUM_32_3  (4038B used, 58B free)
+ *   Sector 568  [0x238000 – 0x238FFF]  NUM_32_4, NUM_32_5, NUM_32_6  (4038B used, 58B free)
+ *   Sector 569  [0x239000 – 0x239FFF]  NUM_32_7, NUM_32_8, NUM_32_9  (4038B used, 58B free)
+ *   Sector 570  [0x23A000 – 0x23AFFF]  BATTERY, CHARGING_BLUE, CHARGING_ORANGE  (3654B used, 442B free)
+ *   Sector 571  [0x23B000 – 0x23BFFF]  TIME, PERCENT_BLUE, PERCENT_ORANG  (3654B used, 442B free)
+ *   Sector 572  [0x23C000 – 0x23CFFF]  TYPE_C, USB, USB_1, USB_2  (3720B used, 376B free)
+ *   Sector 573  [0x23D000 – 0x23DFFF]  USB_3, CHARGING_ORANGE_DOWN_0001, CHARGING_ORANGE_DOWN_0002, CHARGING_ORANGE_DOWN_0003, CHARGING_ORANGE_DOWN_0004  (3722B used, 374B free)
+ *   Sector 574  [0x23E000 – 0x23EFFF]  CHARGING_ORANGE_DOWN_0005, CHARGING_ORANGE_DOWN_0006, CHARGING_ORANGE_DOWN_0007, CHARGING_ORANGE_DOWN_0008, CHARGING_ORANGE_DOWN_0009  (3690B used, 406B free)
+ *   Sector 575  [0x23F000 – 0x23FFFF]  CHARGING_ORANGE_DOWN_0010, CHARGING_ORANGE_DOWN_0011, CHARGING_ORANGE_DOWN_0012, CHARGING_ORANGE_DOWN_0013, CHARGING_ORANGE_DOWN_0014  (3690B used, 406B free)
+ *   Sector 576  [0x240000 – 0x240FFF]  CHARGING_ORANGE_DOWN_0015, CHARGING_ORANGE_DOWN_0016, CHARGING_ORANGE_DOWN_0017, CHARGING_ORANGE_DOWN_0018, CHARGING_ORANGE_DOWN_0019  (3690B used, 406B free)
+ *   Sector 577  [0x241000 – 0x241FFF]  CHARGING_ORANGE_DOWN_0020, CHARGING_ORANGE_DOWN_0021, CHARGING_ORANGE_DOWN_0022, CHARGING_ORANGE_DOWN_0023, CHARGING_ORANGE_DOWN_0024  (3690B used, 406B free)
+ *   Sector 578  [0x242000 – 0x242FFF]  CHARGING_ORANGE_DOWN_0025, CHARGING_ORANGE_UP_0001, CHARGING_ORANGE_UP_0002, CHARGING_ORANGE_UP_0003, CHARGING_ORANGE_UP_0004  (3690B used, 406B free)
+ *   Sector 579  [0x243000 – 0x243FFF]  CHARGING_ORANGE_UP_0005, CHARGING_ORANGE_UP_0006, CHARGING_ORANGE_UP_0007, CHARGING_ORANGE_UP_0008, CHARGING_ORANGE_UP_0009  (3690B used, 406B free)
+ *   Sector 580  [0x244000 – 0x244FFF]  CHARGING_ORANGE_UP_0010, CHARGING_ORANGE_UP_0011, CHARGING_ORANGE_UP_0012, CHARGING_ORANGE_UP_0013, CHARGING_ORANGE_UP_0014  (3690B used, 406B free)
+ *   Sector 581  [0x245000 – 0x245FFF]  CHARGING_ORANGE_UP_0015, CHARGING_ORANGE_UP_0016, CHARGING_ORANGE_UP_0017, CHARGING_ORANGE_UP_0018, CHARGING_ORANGE_UP_0019  (3690B used, 406B free)
+ *   Sector 582  [0x246000 – 0x246FFF]  CHARGING_ORANGE_UP_0020, CHARGING_ORANGE_UP_0021, CHARGING_ORANGE_UP_0022, CHARGING_ORANGE_UP_0023, CHARGING_ORANGE_UP_0024  (3690B used, 406B free)
+ *   Sector 583  [0x247000 – 0x247FFF]  CHARGING_ORANGE_UP_0025, NUM_24_0, NUM_24_1, NUM_24_2, NUM_24_3  (3690B used, 406B free)
+ *   Sector 584  [0x248000 – 0x248FFF]  NUM_24_4, NUM_24_5, NUM_24_6, NUM_24_7, NUM_24_8  (3690B used, 406B free)
+ *   Sector 585  [0x249000 – 0x249FFF]  NUM_24_9, NUM_24, CI, DEGREE, PERCENT_SMALL, POWER_W  (3692B used, 404B free)
+ *   Sector 586  [0x24A000 – 0x24AFFF]  W, C, G, M, O, Q, A, B, D, H  (3924B used, 172B free)
+ *   Sector 587  [0x24B000 – 0x24BFFF]  K, N, P, R, S, T, U, V, X, Y, Z  (3894B used, 202B free)
+ *   Sector 588  [0x24C000 – 0x24CFFF]  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, , E, F  (3978B used, 118B free)
+ *   Sector 589  [0x24D000 – 0x24DFFF]  J, L, I  (822B used, 3274B free)
  */
 
 #ifndef __FLASH_IMAGE_ADDR_H__
 #define __FLASH_IMAGE_ADDR_H__
 
-#define FLASH_ADDR_SHORT_CIRCUIT         (0x00000000 + 0x0000)
-#define FLASH_SIZE_SHORT_CIRCUIT         12866
-#define FLASH_ADDR_TEMP_BLUE             (0x00000000 + 0x4000)
-#define FLASH_SIZE_TEMP_BLUE             12866
-#define FLASH_ADDR_TEMP_ORANGE           (0x00000000 + 0x8000)
-#define FLASH_SIZE_TEMP_ORANGE           12866
-#define FLASH_ADDR_VOLTAGE_BLUE          (0x00000000 + 0xC000)
-#define FLASH_SIZE_VOLTAGE_BLUE          12866
-#define FLASH_ADDR_VOLTAGE_ORANGE        (0x00000000 + 0x10000)
-#define FLASH_SIZE_VOLTAGE_ORANGE        12866
-#define FLASH_ADDR_OVER_CURRENT          (0x00000000 + 0x14000)
-#define FLASH_SIZE_OVER_CURRENT          12866
-#define FLASH_ADDR_CHARGING_BLUE_0001    (0x00000000 + 0x18000)
-#define FLASH_SIZE_CHARGING_BLUE_0001    7746
-#define FLASH_ADDR_CHARGING_BLUE_0002    (0x00000000 + 0x1A000)
-#define FLASH_SIZE_CHARGING_BLUE_0002    7746
-#define FLASH_ADDR_CHARGING_BLUE_0003    (0x00000000 + 0x1C000)
-#define FLASH_SIZE_CHARGING_BLUE_0003    7746
-#define FLASH_ADDR_CHARGING_BLUE_0004    (0x00000000 + 0x1E000)
-#define FLASH_SIZE_CHARGING_BLUE_0004    7746
-#define FLASH_ADDR_CHARGING_BLUE_0005    (0x00000000 + 0x20000)
-#define FLASH_SIZE_CHARGING_BLUE_0005    7746
-#define FLASH_ADDR_CHARGING_BLUE_0006    (0x00000000 + 0x22000)
-#define FLASH_SIZE_CHARGING_BLUE_0006    7746
-#define FLASH_ADDR_CHARGING_BLUE_0007    (0x00000000 + 0x24000)
-#define FLASH_SIZE_CHARGING_BLUE_0007    7746
-#define FLASH_ADDR_CHARGING_BLUE_0008    (0x00000000 + 0x26000)
-#define FLASH_SIZE_CHARGING_BLUE_0008    7746
-#define FLASH_ADDR_CHARGING_BLUE_0009    (0x00000000 + 0x28000)
-#define FLASH_SIZE_CHARGING_BLUE_0009    7746
-#define FLASH_ADDR_CHARGING_BLUE_0010    (0x00000000 + 0x2A000)
-#define FLASH_SIZE_CHARGING_BLUE_0010    7746
-#define FLASH_ADDR_CHARGING_BLUE_0011    (0x00000000 + 0x2C000)
-#define FLASH_SIZE_CHARGING_BLUE_0011    7746
-#define FLASH_ADDR_CHARGING_BLUE_0012    (0x00000000 + 0x2E000)
-#define FLASH_SIZE_CHARGING_BLUE_0012    7746
-#define FLASH_ADDR_CHARGING_BLUE_0013    (0x00000000 + 0x30000)
-#define FLASH_SIZE_CHARGING_BLUE_0013    7746
-#define FLASH_ADDR_CHARGING_BLUE_0014    (0x00000000 + 0x32000)
-#define FLASH_SIZE_CHARGING_BLUE_0014    7746
-#define FLASH_ADDR_CHARGING_BLUE_0015    (0x00000000 + 0x34000)
-#define FLASH_SIZE_CHARGING_BLUE_0015    7746
-#define FLASH_ADDR_CHARGING_BLUE_0016    (0x00000000 + 0x36000)
-#define FLASH_SIZE_CHARGING_BLUE_0016    7746
-#define FLASH_ADDR_CHARGING_BLUE_0017    (0x00000000 + 0x38000)
-#define FLASH_SIZE_CHARGING_BLUE_0017    7746
-#define FLASH_ADDR_CHARGING_BLUE_0018    (0x00000000 + 0x3A000)
-#define FLASH_SIZE_CHARGING_BLUE_0018    7746
-#define FLASH_ADDR_CHARGING_BLUE_0019    (0x00000000 + 0x3C000)
-#define FLASH_SIZE_CHARGING_BLUE_0019    7746
-#define FLASH_ADDR_CHARGING_BLUE_0020    (0x00000000 + 0x3E000)
-#define FLASH_SIZE_CHARGING_BLUE_0020    7746
-#define FLASH_ADDR_CHARGING_BLUE_0021    (0x00000000 + 0x40000)
-#define FLASH_SIZE_CHARGING_BLUE_0021    7746
-#define FLASH_ADDR_CHARGING_BLUE_0022    (0x00000000 + 0x42000)
-#define FLASH_SIZE_CHARGING_BLUE_0022    7746
-#define FLASH_ADDR_CHARGING_BLUE_0023    (0x00000000 + 0x44000)
-#define FLASH_SIZE_CHARGING_BLUE_0023    7746
-#define FLASH_ADDR_CHARGING_BLUE_0024    (0x00000000 + 0x46000)
-#define FLASH_SIZE_CHARGING_BLUE_0024    7746
-#define FLASH_ADDR_CHARGING_BLUE_0025    (0x00000000 + 0x48000)
-#define FLASH_SIZE_CHARGING_BLUE_0025    7746
-#define FLASH_ADDR_CHARGING_ORANGE_0001  (0x00000000 + 0x4A000)
-#define FLASH_SIZE_CHARGING_ORANGE_0001  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0002  (0x00000000 + 0x4C000)
-#define FLASH_SIZE_CHARGING_ORANGE_0002  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0003  (0x00000000 + 0x4E000)
-#define FLASH_SIZE_CHARGING_ORANGE_0003  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0004  (0x00000000 + 0x50000)
-#define FLASH_SIZE_CHARGING_ORANGE_0004  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0005  (0x00000000 + 0x52000)
-#define FLASH_SIZE_CHARGING_ORANGE_0005  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0006  (0x00000000 + 0x54000)
-#define FLASH_SIZE_CHARGING_ORANGE_0006  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0007  (0x00000000 + 0x56000)
-#define FLASH_SIZE_CHARGING_ORANGE_0007  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0008  (0x00000000 + 0x58000)
-#define FLASH_SIZE_CHARGING_ORANGE_0008  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0009  (0x00000000 + 0x5A000)
-#define FLASH_SIZE_CHARGING_ORANGE_0009  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0010  (0x00000000 + 0x5C000)
-#define FLASH_SIZE_CHARGING_ORANGE_0010  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0011  (0x00000000 + 0x5E000)
-#define FLASH_SIZE_CHARGING_ORANGE_0011  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0012  (0x00000000 + 0x60000)
-#define FLASH_SIZE_CHARGING_ORANGE_0012  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0013  (0x00000000 + 0x62000)
-#define FLASH_SIZE_CHARGING_ORANGE_0013  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0014  (0x00000000 + 0x64000)
-#define FLASH_SIZE_CHARGING_ORANGE_0014  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0015  (0x00000000 + 0x66000)
-#define FLASH_SIZE_CHARGING_ORANGE_0015  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0016  (0x00000000 + 0x68000)
-#define FLASH_SIZE_CHARGING_ORANGE_0016  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0017  (0x00000000 + 0x6A000)
-#define FLASH_SIZE_CHARGING_ORANGE_0017  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0018  (0x00000000 + 0x6C000)
-#define FLASH_SIZE_CHARGING_ORANGE_0018  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0019  (0x00000000 + 0x6E000)
-#define FLASH_SIZE_CHARGING_ORANGE_0019  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0020  (0x00000000 + 0x70000)
-#define FLASH_SIZE_CHARGING_ORANGE_0020  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0021  (0x00000000 + 0x72000)
-#define FLASH_SIZE_CHARGING_ORANGE_0021  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0022  (0x00000000 + 0x74000)
-#define FLASH_SIZE_CHARGING_ORANGE_0022  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0023  (0x00000000 + 0x76000)
-#define FLASH_SIZE_CHARGING_ORANGE_0023  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0024  (0x00000000 + 0x78000)
-#define FLASH_SIZE_CHARGING_ORANGE_0024  7746
-#define FLASH_ADDR_CHARGING_ORANGE_0025  (0x00000000 + 0x7A000)
-#define FLASH_SIZE_CHARGING_ORANGE_0025  7746
-#define FLASH_ADDR_BLUE_NUM_64_0         (0x00000000 + 0x7C000)
-#define FLASH_SIZE_BLUE_NUM_64_0         5186
-#define FLASH_ADDR_BLUE_NUM_64_1         (0x00000000 + 0x7E000)
-#define FLASH_SIZE_BLUE_NUM_64_1         5186
-#define FLASH_ADDR_BLUE_NUM_64_2         (0x00000000 + 0x80000)
-#define FLASH_SIZE_BLUE_NUM_64_2         5186
-#define FLASH_ADDR_BLUE_NUM_64_3         (0x00000000 + 0x82000)
-#define FLASH_SIZE_BLUE_NUM_64_3         5186
-#define FLASH_ADDR_BLUE_NUM_64_4         (0x00000000 + 0x84000)
-#define FLASH_SIZE_BLUE_NUM_64_4         5186
-#define FLASH_ADDR_BLUE_NUM_64_5         (0x00000000 + 0x86000)
-#define FLASH_SIZE_BLUE_NUM_64_5         5186
-#define FLASH_ADDR_BLUE_NUM_64_6         (0x00000000 + 0x88000)
-#define FLASH_SIZE_BLUE_NUM_64_6         5186
-#define FLASH_ADDR_BLUE_NUM_64_7         (0x00000000 + 0x8A000)
-#define FLASH_SIZE_BLUE_NUM_64_7         5186
-#define FLASH_ADDR_BLUE_NUM_64_8         (0x00000000 + 0x8C000)
-#define FLASH_SIZE_BLUE_NUM_64_8         5186
-#define FLASH_ADDR_BLUE_NUM_64_9         (0x00000000 + 0x8E000)
-#define FLASH_SIZE_BLUE_NUM_64_9         5186
-#define FLASH_ADDR_ORANGE_NUM_64_0       (0x00000000 + 0x90000)
-#define FLASH_SIZE_ORANGE_NUM_64_0       5186
-#define FLASH_ADDR_ORANGE_NUM_64_1       (0x00000000 + 0x92000)
-#define FLASH_SIZE_ORANGE_NUM_64_1       5186
-#define FLASH_ADDR_ORANGE_NUM_64_2       (0x00000000 + 0x94000)
-#define FLASH_SIZE_ORANGE_NUM_64_2       5186
-#define FLASH_ADDR_ORANGE_NUM_64_3       (0x00000000 + 0x96000)
-#define FLASH_SIZE_ORANGE_NUM_64_3       5186
-#define FLASH_ADDR_ORANGE_NUM_64_4       (0x00000000 + 0x98000)
-#define FLASH_SIZE_ORANGE_NUM_64_4       5186
-#define FLASH_ADDR_ORANGE_NUM_64_5       (0x00000000 + 0x9A000)
-#define FLASH_SIZE_ORANGE_NUM_64_5       5186
-#define FLASH_ADDR_ORANGE_NUM_64_6       (0x00000000 + 0x9C000)
-#define FLASH_SIZE_ORANGE_NUM_64_6       5186
-#define FLASH_ADDR_ORANGE_NUM_64_7       (0x00000000 + 0x9E000)
-#define FLASH_SIZE_ORANGE_NUM_64_7       5186
-#define FLASH_ADDR_ORANGE_NUM_64_8       (0x00000000 + 0xA0000)
-#define FLASH_SIZE_ORANGE_NUM_64_8       5186
-#define FLASH_ADDR_ORANGE_NUM_64_9       (0x00000000 + 0xA2000)
-#define FLASH_SIZE_ORANGE_NUM_64_9       5186
-#define FLASH_ADDR_FREE                  (0x00000000 + 0xA4000)
-#define FLASH_SIZE_FREE                  3266
-#define FLASH_ADDR_TYPE_C                (0x00000000 + 0xA5000)
-#define FLASH_SIZE_TYPE_C                2114
-#define FLASH_ADDR_USB                   (0x00000000 + 0xA6000)
-#define FLASH_SIZE_USB                   2114
-#define FLASH_ADDR_NUM_40_0              (0x00000000 + 0xA7000)
-#define FLASH_SIZE_NUM_40_0              1986
-#define FLASH_ADDR_NUM_40_1              (0x00000000 + 0xA77C2)
-#define FLASH_SIZE_NUM_40_1              1986
-#define FLASH_ADDR_NUM_40_2              (0x00000000 + 0xA8000)
-#define FLASH_SIZE_NUM_40_2              1986
-#define FLASH_ADDR_NUM_40_3              (0x00000000 + 0xA87C2)
-#define FLASH_SIZE_NUM_40_3              1986
-#define FLASH_ADDR_NUM_40_4              (0x00000000 + 0xA9000)
-#define FLASH_SIZE_NUM_40_4              1986
-#define FLASH_ADDR_NUM_40_5              (0x00000000 + 0xA97C2)
-#define FLASH_SIZE_NUM_40_5              1986
-#define FLASH_ADDR_NUM_40_6              (0x00000000 + 0xAA000)
-#define FLASH_SIZE_NUM_40_6              1986
-#define FLASH_ADDR_NUM_40_7              (0x00000000 + 0xAA7C2)
-#define FLASH_SIZE_NUM_40_7              1986
-#define FLASH_ADDR_NUM_40_8              (0x00000000 + 0xAB000)
-#define FLASH_SIZE_NUM_40_8              1986
-#define FLASH_ADDR_NUM_40_9              (0x00000000 + 0xAB7C2)
-#define FLASH_SIZE_NUM_40_9              1986
-#define FLASH_ADDR_NUM_32_0              (0x00000000 + 0xAC000)
-#define FLASH_SIZE_NUM_32_0              1346
-#define FLASH_ADDR_NUM_32_1              (0x00000000 + 0xAC542)
-#define FLASH_SIZE_NUM_32_1              1346
-#define FLASH_ADDR_NUM_32_2              (0x00000000 + 0xACA84)
-#define FLASH_SIZE_NUM_32_2              1346
-#define FLASH_ADDR_NUM_32_3              (0x00000000 + 0xAD000)
-#define FLASH_SIZE_NUM_32_3              1346
-#define FLASH_ADDR_NUM_32_4              (0x00000000 + 0xAD542)
-#define FLASH_SIZE_NUM_32_4              1346
-#define FLASH_ADDR_NUM_32_5              (0x00000000 + 0xADA84)
-#define FLASH_SIZE_NUM_32_5              1346
-#define FLASH_ADDR_NUM_32_6              (0x00000000 + 0xAE000)
-#define FLASH_SIZE_NUM_32_6              1346
-#define FLASH_ADDR_NUM_32_7              (0x00000000 + 0xAE542)
-#define FLASH_SIZE_NUM_32_7              1346
-#define FLASH_ADDR_NUM_32_8              (0x00000000 + 0xAEA84)
-#define FLASH_SIZE_NUM_32_8              1346
-#define FLASH_ADDR_NUM_32_9              (0x00000000 + 0xAF000)
-#define FLASH_SIZE_NUM_32_9              1346
-#define FLASH_ADDR_BATTERY               (0x00000000 + 0xAF542)
-#define FLASH_SIZE_BATTERY               1218
-#define FLASH_ADDR_CHARGING_BLUE         (0x00000000 + 0xAFA04)
-#define FLASH_SIZE_CHARGING_BLUE         1218
-#define FLASH_ADDR_CHARGING_ORANGE       (0x00000000 + 0xB0000)
-#define FLASH_SIZE_CHARGING_ORANGE       1218
-#define FLASH_ADDR_TIME                  (0x00000000 + 0xB04C2)
-#define FLASH_SIZE_TIME                  1218
-#define FLASH_ADDR_PERCENT_BLUE          (0x00000000 + 0xB0984)
-#define FLASH_SIZE_PERCENT_BLUE          1218
-#define FLASH_ADDR_PERCENT_ORANG         (0x00000000 + 0xB1000)
-#define FLASH_SIZE_PERCENT_ORANG         1218
-#define FLASH_ADDR_A                     (0x00000000 + 0xB14C2)
-#define FLASH_SIZE_A                     770
-#define FLASH_ADDR_C_1                   (0x00000000 + 0xB17C4)
-#define FLASH_SIZE_C_1                   770
-#define FLASH_ADDR_C_2                   (0x00000000 + 0xB1AC6)
-#define FLASH_SIZE_C_2                   770
-#define FLASH_ADDR_NUM_24_0              (0x00000000 + 0xB2000)
-#define FLASH_SIZE_NUM_24_0              738
-#define FLASH_ADDR_NUM_24_1              (0x00000000 + 0xB22E2)
-#define FLASH_SIZE_NUM_24_1              738
-#define FLASH_ADDR_NUM_24_2              (0x00000000 + 0xB25C4)
-#define FLASH_SIZE_NUM_24_2              738
-#define FLASH_ADDR_NUM_24_3              (0x00000000 + 0xB28A6)
-#define FLASH_SIZE_NUM_24_3              738
-#define FLASH_ADDR_NUM_24_4              (0x00000000 + 0xB2B88)
-#define FLASH_SIZE_NUM_24_4              738
-#define FLASH_ADDR_NUM_24_5              (0x00000000 + 0xB3000)
-#define FLASH_SIZE_NUM_24_5              738
-#define FLASH_ADDR_NUM_24_6              (0x00000000 + 0xB32E2)
-#define FLASH_SIZE_NUM_24_6              738
-#define FLASH_ADDR_NUM_24_7              (0x00000000 + 0xB35C4)
-#define FLASH_SIZE_NUM_24_7              738
-#define FLASH_ADDR_NUM_24_8              (0x00000000 + 0xB38A6)
-#define FLASH_SIZE_NUM_24_8              738
-#define FLASH_ADDR_NUM_24_9              (0x00000000 + 0xB3B88)
-#define FLASH_SIZE_NUM_24_9              738
-#define FLASH_ADDR_NUM_24                (0x00000000 + 0xB4000)
-#define FLASH_SIZE_NUM_24                642
-#define FLASH_ADDR_CI                    (0x00000000 + 0xB4282)
-#define FLASH_SIZE_CI                    578
-#define FLASH_ADDR_DEGREE                (0x00000000 + 0xB44C4)
-#define FLASH_SIZE_DEGREE                578
-#define FLASH_ADDR_W                     (0x00000000 + 0xB4706)
-#define FLASH_SIZE_W                     578
-#define FLASH_ADDR_PERCENT_SMALL         (0x00000000 + 0xB4948)
-#define FLASH_SIZE_PERCENT_SMALL         578
+#define FLASH_ADDR_CIRCUIT_PROTECTION_TEXT    (0x00000000 + 0x0000)
+#define FLASH_SIZE_CIRCUIT_PROTECTION_TEXT    22146
+#define FLASH_ADDR_HIGH_TMP_TEXT              (0x00000000 + 0x6000)
+#define FLASH_SIZE_HIGH_TMP_TEXT              22146
+#define FLASH_ADDR_LOW_TMP_TEXT               (0x00000000 + 0xC000)
+#define FLASH_SIZE_LOW_TMP_TEXT               22146
+#define FLASH_ADDR_CIRCUIT_PROTECTION         (0x00000000 + 0x12000)
+#define FLASH_SIZE_CIRCUIT_PROTECTION         12866
+#define FLASH_ADDR_TEMP_BLUE                  (0x00000000 + 0x16000)
+#define FLASH_SIZE_TEMP_BLUE                  12866
+#define FLASH_ADDR_TEMP_ORANGE                (0x00000000 + 0x1A000)
+#define FLASH_SIZE_TEMP_ORANGE                12866
+#define FLASH_ADDR_OVER_CURRENT               (0x00000000 + 0x1E000)
+#define FLASH_SIZE_OVER_CURRENT               12866
+#define FLASH_ADDR_BLUR_DOWN_0001             (0x00000000 + 0x22000)
+#define FLASH_SIZE_BLUR_DOWN_0001             6786
+#define FLASH_ADDR_BLUR_DOWN_0002             (0x00000000 + 0x24000)
+#define FLASH_SIZE_BLUR_DOWN_0002             6786
+#define FLASH_ADDR_BLUR_DOWN_0003             (0x00000000 + 0x26000)
+#define FLASH_SIZE_BLUR_DOWN_0003             6786
+#define FLASH_ADDR_BLUR_DOWN_0004             (0x00000000 + 0x28000)
+#define FLASH_SIZE_BLUR_DOWN_0004             6786
+#define FLASH_ADDR_BLUR_DOWN_0005             (0x00000000 + 0x2A000)
+#define FLASH_SIZE_BLUR_DOWN_0005             6786
+#define FLASH_ADDR_BLUR_DOWN_0006             (0x00000000 + 0x2C000)
+#define FLASH_SIZE_BLUR_DOWN_0006             6786
+#define FLASH_ADDR_BLUR_DOWN_0007             (0x00000000 + 0x2E000)
+#define FLASH_SIZE_BLUR_DOWN_0007             6786
+#define FLASH_ADDR_BLUR_DOWN_0008             (0x00000000 + 0x30000)
+#define FLASH_SIZE_BLUR_DOWN_0008             6786
+#define FLASH_ADDR_BLUR_DOWN_0009             (0x00000000 + 0x32000)
+#define FLASH_SIZE_BLUR_DOWN_0009             6786
+#define FLASH_ADDR_BLUR_DOWN_0010             (0x00000000 + 0x34000)
+#define FLASH_SIZE_BLUR_DOWN_0010             6786
+#define FLASH_ADDR_BLUR_DOWN_0011             (0x00000000 + 0x36000)
+#define FLASH_SIZE_BLUR_DOWN_0011             6786
+#define FLASH_ADDR_BLUR_DOWN_0012             (0x00000000 + 0x38000)
+#define FLASH_SIZE_BLUR_DOWN_0012             6786
+#define FLASH_ADDR_BLUR_DOWN_0013             (0x00000000 + 0x3A000)
+#define FLASH_SIZE_BLUR_DOWN_0013             6786
+#define FLASH_ADDR_BLUR_DOWN_0014             (0x00000000 + 0x3C000)
+#define FLASH_SIZE_BLUR_DOWN_0014             6786
+#define FLASH_ADDR_BLUR_DOWN_0015             (0x00000000 + 0x3E000)
+#define FLASH_SIZE_BLUR_DOWN_0015             6786
+#define FLASH_ADDR_BLUR_DOWN_0016             (0x00000000 + 0x40000)
+#define FLASH_SIZE_BLUR_DOWN_0016             6786
+#define FLASH_ADDR_BLUR_DOWN_0017             (0x00000000 + 0x42000)
+#define FLASH_SIZE_BLUR_DOWN_0017             6786
+#define FLASH_ADDR_BLUR_DOWN_0018             (0x00000000 + 0x44000)
+#define FLASH_SIZE_BLUR_DOWN_0018             6786
+#define FLASH_ADDR_BLUR_DOWN_0019             (0x00000000 + 0x46000)
+#define FLASH_SIZE_BLUR_DOWN_0019             6786
+#define FLASH_ADDR_BLUR_DOWN_0020             (0x00000000 + 0x48000)
+#define FLASH_SIZE_BLUR_DOWN_0020             6786
+#define FLASH_ADDR_BLUR_DOWN_0021             (0x00000000 + 0x4A000)
+#define FLASH_SIZE_BLUR_DOWN_0021             6786
+#define FLASH_ADDR_BLUR_DOWN_0022             (0x00000000 + 0x4C000)
+#define FLASH_SIZE_BLUR_DOWN_0022             6786
+#define FLASH_ADDR_BLUR_DOWN_0023             (0x00000000 + 0x4E000)
+#define FLASH_SIZE_BLUR_DOWN_0023             6786
+#define FLASH_ADDR_BLUR_DOWN_0024             (0x00000000 + 0x50000)
+#define FLASH_SIZE_BLUR_DOWN_0024             6786
+#define FLASH_ADDR_BLUR_DOWN_0025             (0x00000000 + 0x52000)
+#define FLASH_SIZE_BLUR_DOWN_0025             6786
+#define FLASH_ADDR_BLUR_DOWN_0026             (0x00000000 + 0x54000)
+#define FLASH_SIZE_BLUR_DOWN_0026             6786
+#define FLASH_ADDR_BLUR_DOWN_0027             (0x00000000 + 0x56000)
+#define FLASH_SIZE_BLUR_DOWN_0027             6786
+#define FLASH_ADDR_BLUR_DOWN_0028             (0x00000000 + 0x58000)
+#define FLASH_SIZE_BLUR_DOWN_0028             6786
+#define FLASH_ADDR_BLUR_DOWN_0029             (0x00000000 + 0x5A000)
+#define FLASH_SIZE_BLUR_DOWN_0029             6786
+#define FLASH_ADDR_BLUR_DOWN_0030             (0x00000000 + 0x5C000)
+#define FLASH_SIZE_BLUR_DOWN_0030             6786
+#define FLASH_ADDR_BLUR_DOWN_0031             (0x00000000 + 0x5E000)
+#define FLASH_SIZE_BLUR_DOWN_0031             6786
+#define FLASH_ADDR_BLUR_DOWN_0032             (0x00000000 + 0x60000)
+#define FLASH_SIZE_BLUR_DOWN_0032             6786
+#define FLASH_ADDR_BLUR_DOWN_0033             (0x00000000 + 0x62000)
+#define FLASH_SIZE_BLUR_DOWN_0033             6786
+#define FLASH_ADDR_BLUR_DOWN_0034             (0x00000000 + 0x64000)
+#define FLASH_SIZE_BLUR_DOWN_0034             6786
+#define FLASH_ADDR_BLUR_DOWN_0035             (0x00000000 + 0x66000)
+#define FLASH_SIZE_BLUR_DOWN_0035             6786
+#define FLASH_ADDR_BLUR_DOWN_0036             (0x00000000 + 0x68000)
+#define FLASH_SIZE_BLUR_DOWN_0036             6786
+#define FLASH_ADDR_BLUR_DOWN_0037             (0x00000000 + 0x6A000)
+#define FLASH_SIZE_BLUR_DOWN_0037             6786
+#define FLASH_ADDR_BLUR_DOWN_0038             (0x00000000 + 0x6C000)
+#define FLASH_SIZE_BLUR_DOWN_0038             6786
+#define FLASH_ADDR_BLUR_DOWN_0039             (0x00000000 + 0x6E000)
+#define FLASH_SIZE_BLUR_DOWN_0039             6786
+#define FLASH_ADDR_BLUR_DOWN_0040             (0x00000000 + 0x70000)
+#define FLASH_SIZE_BLUR_DOWN_0040             6786
+#define FLASH_ADDR_BLUR_DOWN_0041             (0x00000000 + 0x72000)
+#define FLASH_SIZE_BLUR_DOWN_0041             6786
+#define FLASH_ADDR_BLUR_DOWN_0042             (0x00000000 + 0x74000)
+#define FLASH_SIZE_BLUR_DOWN_0042             6786
+#define FLASH_ADDR_BLUR_DOWN_0043             (0x00000000 + 0x76000)
+#define FLASH_SIZE_BLUR_DOWN_0043             6786
+#define FLASH_ADDR_BLUR_DOWN_0044             (0x00000000 + 0x78000)
+#define FLASH_SIZE_BLUR_DOWN_0044             6786
+#define FLASH_ADDR_BLUR_DOWN_0045             (0x00000000 + 0x7A000)
+#define FLASH_SIZE_BLUR_DOWN_0045             6786
+#define FLASH_ADDR_BLUR_DOWN_0046             (0x00000000 + 0x7C000)
+#define FLASH_SIZE_BLUR_DOWN_0046             6786
+#define FLASH_ADDR_BLUR_DOWN_0047             (0x00000000 + 0x7E000)
+#define FLASH_SIZE_BLUR_DOWN_0047             6786
+#define FLASH_ADDR_BLUR_DOWN_0048             (0x00000000 + 0x80000)
+#define FLASH_SIZE_BLUR_DOWN_0048             6786
+#define FLASH_ADDR_BLUR_DOWN_0049             (0x00000000 + 0x82000)
+#define FLASH_SIZE_BLUR_DOWN_0049             6786
+#define FLASH_ADDR_BLUR_DOWN_0050             (0x00000000 + 0x84000)
+#define FLASH_SIZE_BLUR_DOWN_0050             6786
+#define FLASH_ADDR_BLUR_DOWN_0051             (0x00000000 + 0x86000)
+#define FLASH_SIZE_BLUR_DOWN_0051             6786
+#define FLASH_ADDR_BLUR_DOWN_0052             (0x00000000 + 0x88000)
+#define FLASH_SIZE_BLUR_DOWN_0052             6786
+#define FLASH_ADDR_BLUR_DOWN_0053             (0x00000000 + 0x8A000)
+#define FLASH_SIZE_BLUR_DOWN_0053             6786
+#define FLASH_ADDR_BLUR_DOWN_0054             (0x00000000 + 0x8C000)
+#define FLASH_SIZE_BLUR_DOWN_0054             6786
+#define FLASH_ADDR_BLUR_DOWN_0055             (0x00000000 + 0x8E000)
+#define FLASH_SIZE_BLUR_DOWN_0055             6786
+#define FLASH_ADDR_BLUR_DOWN_0056             (0x00000000 + 0x90000)
+#define FLASH_SIZE_BLUR_DOWN_0056             6786
+#define FLASH_ADDR_BLUR_DOWN_0057             (0x00000000 + 0x92000)
+#define FLASH_SIZE_BLUR_DOWN_0057             6786
+#define FLASH_ADDR_BLUR_DOWN_0058             (0x00000000 + 0x94000)
+#define FLASH_SIZE_BLUR_DOWN_0058             6786
+#define FLASH_ADDR_BLUR_DOWN_0059             (0x00000000 + 0x96000)
+#define FLASH_SIZE_BLUR_DOWN_0059             6786
+#define FLASH_ADDR_BLUR_DOWN_0060             (0x00000000 + 0x98000)
+#define FLASH_SIZE_BLUR_DOWN_0060             6786
+#define FLASH_ADDR_BLUR_DOWN_0061             (0x00000000 + 0x9A000)
+#define FLASH_SIZE_BLUR_DOWN_0061             6786
+#define FLASH_ADDR_BLUR_DOWN_0062             (0x00000000 + 0x9C000)
+#define FLASH_SIZE_BLUR_DOWN_0062             6786
+#define FLASH_ADDR_BLUR_DOWN_0063             (0x00000000 + 0x9E000)
+#define FLASH_SIZE_BLUR_DOWN_0063             6786
+#define FLASH_ADDR_BLUR_DOWN_0064             (0x00000000 + 0xA0000)
+#define FLASH_SIZE_BLUR_DOWN_0064             6786
+#define FLASH_ADDR_BLUR_DOWN_0065             (0x00000000 + 0xA2000)
+#define FLASH_SIZE_BLUR_DOWN_0065             6786
+#define FLASH_ADDR_BLUR_DOWN_0066             (0x00000000 + 0xA4000)
+#define FLASH_SIZE_BLUR_DOWN_0066             6786
+#define FLASH_ADDR_BLUR_DOWN_0067             (0x00000000 + 0xA6000)
+#define FLASH_SIZE_BLUR_DOWN_0067             6786
+#define FLASH_ADDR_BLUR_DOWN_0068             (0x00000000 + 0xA8000)
+#define FLASH_SIZE_BLUR_DOWN_0068             6786
+#define FLASH_ADDR_BLUR_DOWN_0069             (0x00000000 + 0xAA000)
+#define FLASH_SIZE_BLUR_DOWN_0069             6786
+#define FLASH_ADDR_BLUR_DOWN_0070             (0x00000000 + 0xAC000)
+#define FLASH_SIZE_BLUR_DOWN_0070             6786
+#define FLASH_ADDR_BLUR_DOWN_0071             (0x00000000 + 0xAE000)
+#define FLASH_SIZE_BLUR_DOWN_0071             6786
+#define FLASH_ADDR_BLUR_DOWN_0072             (0x00000000 + 0xB0000)
+#define FLASH_SIZE_BLUR_DOWN_0072             6786
+#define FLASH_ADDR_BLUR_DOWN_0073             (0x00000000 + 0xB2000)
+#define FLASH_SIZE_BLUR_DOWN_0073             6786
+#define FLASH_ADDR_BLUR_DOWN_0074             (0x00000000 + 0xB4000)
+#define FLASH_SIZE_BLUR_DOWN_0074             6786
+#define FLASH_ADDR_BLUR_DOWN_0075             (0x00000000 + 0xB6000)
+#define FLASH_SIZE_BLUR_DOWN_0075             6786
+#define FLASH_ADDR_BLUR_DOWN_0076             (0x00000000 + 0xB8000)
+#define FLASH_SIZE_BLUR_DOWN_0076             6786
+#define FLASH_ADDR_BLUR_DOWN_0077             (0x00000000 + 0xBA000)
+#define FLASH_SIZE_BLUR_DOWN_0077             6786
+#define FLASH_ADDR_BLUR_DOWN_0078             (0x00000000 + 0xBC000)
+#define FLASH_SIZE_BLUR_DOWN_0078             6786
+#define FLASH_ADDR_BLUR_DOWN_0079             (0x00000000 + 0xBE000)
+#define FLASH_SIZE_BLUR_DOWN_0079             6786
+#define FLASH_ADDR_BLUR_DOWN_0080             (0x00000000 + 0xC0000)
+#define FLASH_SIZE_BLUR_DOWN_0080             6786
+#define FLASH_ADDR_BLUR_DOWN_0081             (0x00000000 + 0xC2000)
+#define FLASH_SIZE_BLUR_DOWN_0081             6786
+#define FLASH_ADDR_BLUR_DOWN_0082             (0x00000000 + 0xC4000)
+#define FLASH_SIZE_BLUR_DOWN_0082             6786
+#define FLASH_ADDR_BLUR_DOWN_0083             (0x00000000 + 0xC6000)
+#define FLASH_SIZE_BLUR_DOWN_0083             6786
+#define FLASH_ADDR_BLUR_DOWN_0084             (0x00000000 + 0xC8000)
+#define FLASH_SIZE_BLUR_DOWN_0084             6786
+#define FLASH_ADDR_BLUR_DOWN_0085             (0x00000000 + 0xCA000)
+#define FLASH_SIZE_BLUR_DOWN_0085             6786
+#define FLASH_ADDR_BLUR_DOWN_0086             (0x00000000 + 0xCC000)
+#define FLASH_SIZE_BLUR_DOWN_0086             6786
+#define FLASH_ADDR_BLUR_DOWN_0087             (0x00000000 + 0xCE000)
+#define FLASH_SIZE_BLUR_DOWN_0087             6786
+#define FLASH_ADDR_BLUR_DOWN_0088             (0x00000000 + 0xD0000)
+#define FLASH_SIZE_BLUR_DOWN_0088             6786
+#define FLASH_ADDR_BLUR_DOWN_0089             (0x00000000 + 0xD2000)
+#define FLASH_SIZE_BLUR_DOWN_0089             6786
+#define FLASH_ADDR_BLUR_DOWN_0090             (0x00000000 + 0xD4000)
+#define FLASH_SIZE_BLUR_DOWN_0090             6786
+#define FLASH_ADDR_BLUR_DOWN_0091             (0x00000000 + 0xD6000)
+#define FLASH_SIZE_BLUR_DOWN_0091             6786
+#define FLASH_ADDR_BLUR_DOWN_0092             (0x00000000 + 0xD8000)
+#define FLASH_SIZE_BLUR_DOWN_0092             6786
+#define FLASH_ADDR_BLUR_DOWN_0093             (0x00000000 + 0xDA000)
+#define FLASH_SIZE_BLUR_DOWN_0093             6786
+#define FLASH_ADDR_BLUR_DOWN_0094             (0x00000000 + 0xDC000)
+#define FLASH_SIZE_BLUR_DOWN_0094             6786
+#define FLASH_ADDR_BLUR_DOWN_0095             (0x00000000 + 0xDE000)
+#define FLASH_SIZE_BLUR_DOWN_0095             6786
+#define FLASH_ADDR_BLUR_DOWN_0096             (0x00000000 + 0xE0000)
+#define FLASH_SIZE_BLUR_DOWN_0096             6786
+#define FLASH_ADDR_BLUR_DOWN_0097             (0x00000000 + 0xE2000)
+#define FLASH_SIZE_BLUR_DOWN_0097             6786
+#define FLASH_ADDR_BLUR_DOWN_0098             (0x00000000 + 0xE4000)
+#define FLASH_SIZE_BLUR_DOWN_0098             6786
+#define FLASH_ADDR_BLUR_DOWN_0099             (0x00000000 + 0xE6000)
+#define FLASH_SIZE_BLUR_DOWN_0099             6786
+#define FLASH_ADDR_BLUR_DOWN_0100             (0x00000000 + 0xE8000)
+#define FLASH_SIZE_BLUR_DOWN_0100             6786
+#define FLASH_ADDR_BLUR_UP_0001               (0x00000000 + 0xEA000)
+#define FLASH_SIZE_BLUR_UP_0001               6786
+#define FLASH_ADDR_BLUR_UP_0002               (0x00000000 + 0xEC000)
+#define FLASH_SIZE_BLUR_UP_0002               6786
+#define FLASH_ADDR_BLUR_UP_0003               (0x00000000 + 0xEE000)
+#define FLASH_SIZE_BLUR_UP_0003               6786
+#define FLASH_ADDR_BLUR_UP_0004               (0x00000000 + 0xF0000)
+#define FLASH_SIZE_BLUR_UP_0004               6786
+#define FLASH_ADDR_BLUR_UP_0005               (0x00000000 + 0xF2000)
+#define FLASH_SIZE_BLUR_UP_0005               6786
+#define FLASH_ADDR_BLUR_UP_0006               (0x00000000 + 0xF4000)
+#define FLASH_SIZE_BLUR_UP_0006               6786
+#define FLASH_ADDR_BLUR_UP_0007               (0x00000000 + 0xF6000)
+#define FLASH_SIZE_BLUR_UP_0007               6786
+#define FLASH_ADDR_BLUR_UP_0008               (0x00000000 + 0xF8000)
+#define FLASH_SIZE_BLUR_UP_0008               6786
+#define FLASH_ADDR_BLUR_UP_0009               (0x00000000 + 0xFA000)
+#define FLASH_SIZE_BLUR_UP_0009               6786
+#define FLASH_ADDR_BLUR_UP_0010               (0x00000000 + 0xFC000)
+#define FLASH_SIZE_BLUR_UP_0010               6786
+#define FLASH_ADDR_BLUR_UP_0011               (0x00000000 + 0xFE000)
+#define FLASH_SIZE_BLUR_UP_0011               6786
+#define FLASH_ADDR_BLUR_UP_0012               (0x00000000 + 0x100000)
+#define FLASH_SIZE_BLUR_UP_0012               6786
+#define FLASH_ADDR_BLUR_UP_0013               (0x00000000 + 0x102000)
+#define FLASH_SIZE_BLUR_UP_0013               6786
+#define FLASH_ADDR_BLUR_UP_0014               (0x00000000 + 0x104000)
+#define FLASH_SIZE_BLUR_UP_0014               6786
+#define FLASH_ADDR_BLUR_UP_0015               (0x00000000 + 0x106000)
+#define FLASH_SIZE_BLUR_UP_0015               6786
+#define FLASH_ADDR_BLUR_UP_0016               (0x00000000 + 0x108000)
+#define FLASH_SIZE_BLUR_UP_0016               6786
+#define FLASH_ADDR_BLUR_UP_0017               (0x00000000 + 0x10A000)
+#define FLASH_SIZE_BLUR_UP_0017               6786
+#define FLASH_ADDR_BLUR_UP_0018               (0x00000000 + 0x10C000)
+#define FLASH_SIZE_BLUR_UP_0018               6786
+#define FLASH_ADDR_BLUR_UP_0019               (0x00000000 + 0x10E000)
+#define FLASH_SIZE_BLUR_UP_0019               6786
+#define FLASH_ADDR_BLUR_UP_0020               (0x00000000 + 0x110000)
+#define FLASH_SIZE_BLUR_UP_0020               6786
+#define FLASH_ADDR_BLUR_UP_0021               (0x00000000 + 0x112000)
+#define FLASH_SIZE_BLUR_UP_0021               6786
+#define FLASH_ADDR_BLUR_UP_0022               (0x00000000 + 0x114000)
+#define FLASH_SIZE_BLUR_UP_0022               6786
+#define FLASH_ADDR_BLUR_UP_0023               (0x00000000 + 0x116000)
+#define FLASH_SIZE_BLUR_UP_0023               6786
+#define FLASH_ADDR_BLUR_UP_0024               (0x00000000 + 0x118000)
+#define FLASH_SIZE_BLUR_UP_0024               6786
+#define FLASH_ADDR_BLUR_UP_0025               (0x00000000 + 0x11A000)
+#define FLASH_SIZE_BLUR_UP_0025               6786
+#define FLASH_ADDR_BLUR_UP_0026               (0x00000000 + 0x11C000)
+#define FLASH_SIZE_BLUR_UP_0026               6786
+#define FLASH_ADDR_BLUR_UP_0027               (0x00000000 + 0x11E000)
+#define FLASH_SIZE_BLUR_UP_0027               6786
+#define FLASH_ADDR_BLUR_UP_0028               (0x00000000 + 0x120000)
+#define FLASH_SIZE_BLUR_UP_0028               6786
+#define FLASH_ADDR_BLUR_UP_0029               (0x00000000 + 0x122000)
+#define FLASH_SIZE_BLUR_UP_0029               6786
+#define FLASH_ADDR_BLUR_UP_0030               (0x00000000 + 0x124000)
+#define FLASH_SIZE_BLUR_UP_0030               6786
+#define FLASH_ADDR_BLUR_UP_0031               (0x00000000 + 0x126000)
+#define FLASH_SIZE_BLUR_UP_0031               6786
+#define FLASH_ADDR_BLUR_UP_0032               (0x00000000 + 0x128000)
+#define FLASH_SIZE_BLUR_UP_0032               6786
+#define FLASH_ADDR_BLUR_UP_0033               (0x00000000 + 0x12A000)
+#define FLASH_SIZE_BLUR_UP_0033               6786
+#define FLASH_ADDR_BLUR_UP_0034               (0x00000000 + 0x12C000)
+#define FLASH_SIZE_BLUR_UP_0034               6786
+#define FLASH_ADDR_BLUR_UP_0035               (0x00000000 + 0x12E000)
+#define FLASH_SIZE_BLUR_UP_0035               6786
+#define FLASH_ADDR_BLUR_UP_0036               (0x00000000 + 0x130000)
+#define FLASH_SIZE_BLUR_UP_0036               6786
+#define FLASH_ADDR_BLUR_UP_0037               (0x00000000 + 0x132000)
+#define FLASH_SIZE_BLUR_UP_0037               6786
+#define FLASH_ADDR_BLUR_UP_0038               (0x00000000 + 0x134000)
+#define FLASH_SIZE_BLUR_UP_0038               6786
+#define FLASH_ADDR_BLUR_UP_0039               (0x00000000 + 0x136000)
+#define FLASH_SIZE_BLUR_UP_0039               6786
+#define FLASH_ADDR_BLUR_UP_0040               (0x00000000 + 0x138000)
+#define FLASH_SIZE_BLUR_UP_0040               6786
+#define FLASH_ADDR_BLUR_UP_0041               (0x00000000 + 0x13A000)
+#define FLASH_SIZE_BLUR_UP_0041               6786
+#define FLASH_ADDR_BLUR_UP_0042               (0x00000000 + 0x13C000)
+#define FLASH_SIZE_BLUR_UP_0042               6786
+#define FLASH_ADDR_BLUR_UP_0043               (0x00000000 + 0x13E000)
+#define FLASH_SIZE_BLUR_UP_0043               6786
+#define FLASH_ADDR_BLUR_UP_0044               (0x00000000 + 0x140000)
+#define FLASH_SIZE_BLUR_UP_0044               6786
+#define FLASH_ADDR_BLUR_UP_0045               (0x00000000 + 0x142000)
+#define FLASH_SIZE_BLUR_UP_0045               6786
+#define FLASH_ADDR_BLUR_UP_0046               (0x00000000 + 0x144000)
+#define FLASH_SIZE_BLUR_UP_0046               6786
+#define FLASH_ADDR_BLUR_UP_0047               (0x00000000 + 0x146000)
+#define FLASH_SIZE_BLUR_UP_0047               6786
+#define FLASH_ADDR_BLUR_UP_0048               (0x00000000 + 0x148000)
+#define FLASH_SIZE_BLUR_UP_0048               6786
+#define FLASH_ADDR_BLUR_UP_0049               (0x00000000 + 0x14A000)
+#define FLASH_SIZE_BLUR_UP_0049               6786
+#define FLASH_ADDR_BLUR_UP_0050               (0x00000000 + 0x14C000)
+#define FLASH_SIZE_BLUR_UP_0050               6786
+#define FLASH_ADDR_BLUR_UP_0051               (0x00000000 + 0x14E000)
+#define FLASH_SIZE_BLUR_UP_0051               6786
+#define FLASH_ADDR_BLUR_UP_0052               (0x00000000 + 0x150000)
+#define FLASH_SIZE_BLUR_UP_0052               6786
+#define FLASH_ADDR_BLUR_UP_0053               (0x00000000 + 0x152000)
+#define FLASH_SIZE_BLUR_UP_0053               6786
+#define FLASH_ADDR_BLUR_UP_0054               (0x00000000 + 0x154000)
+#define FLASH_SIZE_BLUR_UP_0054               6786
+#define FLASH_ADDR_BLUR_UP_0055               (0x00000000 + 0x156000)
+#define FLASH_SIZE_BLUR_UP_0055               6786
+#define FLASH_ADDR_BLUR_UP_0056               (0x00000000 + 0x158000)
+#define FLASH_SIZE_BLUR_UP_0056               6786
+#define FLASH_ADDR_BLUR_UP_0057               (0x00000000 + 0x15A000)
+#define FLASH_SIZE_BLUR_UP_0057               6786
+#define FLASH_ADDR_BLUR_UP_0058               (0x00000000 + 0x15C000)
+#define FLASH_SIZE_BLUR_UP_0058               6786
+#define FLASH_ADDR_BLUR_UP_0059               (0x00000000 + 0x15E000)
+#define FLASH_SIZE_BLUR_UP_0059               6786
+#define FLASH_ADDR_BLUR_UP_0060               (0x00000000 + 0x160000)
+#define FLASH_SIZE_BLUR_UP_0060               6786
+#define FLASH_ADDR_BLUR_UP_0061               (0x00000000 + 0x162000)
+#define FLASH_SIZE_BLUR_UP_0061               6786
+#define FLASH_ADDR_BLUR_UP_0062               (0x00000000 + 0x164000)
+#define FLASH_SIZE_BLUR_UP_0062               6786
+#define FLASH_ADDR_BLUR_UP_0063               (0x00000000 + 0x166000)
+#define FLASH_SIZE_BLUR_UP_0063               6786
+#define FLASH_ADDR_BLUR_UP_0064               (0x00000000 + 0x168000)
+#define FLASH_SIZE_BLUR_UP_0064               6786
+#define FLASH_ADDR_BLUR_UP_0065               (0x00000000 + 0x16A000)
+#define FLASH_SIZE_BLUR_UP_0065               6786
+#define FLASH_ADDR_BLUR_UP_0066               (0x00000000 + 0x16C000)
+#define FLASH_SIZE_BLUR_UP_0066               6786
+#define FLASH_ADDR_BLUR_UP_0067               (0x00000000 + 0x16E000)
+#define FLASH_SIZE_BLUR_UP_0067               6786
+#define FLASH_ADDR_BLUR_UP_0068               (0x00000000 + 0x170000)
+#define FLASH_SIZE_BLUR_UP_0068               6786
+#define FLASH_ADDR_BLUR_UP_0069               (0x00000000 + 0x172000)
+#define FLASH_SIZE_BLUR_UP_0069               6786
+#define FLASH_ADDR_BLUR_UP_0070               (0x00000000 + 0x174000)
+#define FLASH_SIZE_BLUR_UP_0070               6786
+#define FLASH_ADDR_BLUR_UP_0071               (0x00000000 + 0x176000)
+#define FLASH_SIZE_BLUR_UP_0071               6786
+#define FLASH_ADDR_BLUR_UP_0072               (0x00000000 + 0x178000)
+#define FLASH_SIZE_BLUR_UP_0072               6786
+#define FLASH_ADDR_BLUR_UP_0073               (0x00000000 + 0x17A000)
+#define FLASH_SIZE_BLUR_UP_0073               6786
+#define FLASH_ADDR_BLUR_UP_0074               (0x00000000 + 0x17C000)
+#define FLASH_SIZE_BLUR_UP_0074               6786
+#define FLASH_ADDR_BLUR_UP_0075               (0x00000000 + 0x17E000)
+#define FLASH_SIZE_BLUR_UP_0075               6786
+#define FLASH_ADDR_BLUR_UP_0076               (0x00000000 + 0x180000)
+#define FLASH_SIZE_BLUR_UP_0076               6786
+#define FLASH_ADDR_BLUR_UP_0077               (0x00000000 + 0x182000)
+#define FLASH_SIZE_BLUR_UP_0077               6786
+#define FLASH_ADDR_BLUR_UP_0078               (0x00000000 + 0x184000)
+#define FLASH_SIZE_BLUR_UP_0078               6786
+#define FLASH_ADDR_BLUR_UP_0079               (0x00000000 + 0x186000)
+#define FLASH_SIZE_BLUR_UP_0079               6786
+#define FLASH_ADDR_BLUR_UP_0080               (0x00000000 + 0x188000)
+#define FLASH_SIZE_BLUR_UP_0080               6786
+#define FLASH_ADDR_BLUR_UP_0081               (0x00000000 + 0x18A000)
+#define FLASH_SIZE_BLUR_UP_0081               6786
+#define FLASH_ADDR_BLUR_UP_0082               (0x00000000 + 0x18C000)
+#define FLASH_SIZE_BLUR_UP_0082               6786
+#define FLASH_ADDR_BLUR_UP_0083               (0x00000000 + 0x18E000)
+#define FLASH_SIZE_BLUR_UP_0083               6786
+#define FLASH_ADDR_BLUR_UP_0084               (0x00000000 + 0x190000)
+#define FLASH_SIZE_BLUR_UP_0084               6786
+#define FLASH_ADDR_BLUR_UP_0085               (0x00000000 + 0x192000)
+#define FLASH_SIZE_BLUR_UP_0085               6786
+#define FLASH_ADDR_BLUR_UP_0086               (0x00000000 + 0x194000)
+#define FLASH_SIZE_BLUR_UP_0086               6786
+#define FLASH_ADDR_BLUR_UP_0087               (0x00000000 + 0x196000)
+#define FLASH_SIZE_BLUR_UP_0087               6786
+#define FLASH_ADDR_BLUR_UP_0088               (0x00000000 + 0x198000)
+#define FLASH_SIZE_BLUR_UP_0088               6786
+#define FLASH_ADDR_BLUR_UP_0089               (0x00000000 + 0x19A000)
+#define FLASH_SIZE_BLUR_UP_0089               6786
+#define FLASH_ADDR_BLUR_UP_0090               (0x00000000 + 0x19C000)
+#define FLASH_SIZE_BLUR_UP_0090               6786
+#define FLASH_ADDR_BLUR_UP_0091               (0x00000000 + 0x19E000)
+#define FLASH_SIZE_BLUR_UP_0091               6786
+#define FLASH_ADDR_BLUR_UP_0092               (0x00000000 + 0x1A0000)
+#define FLASH_SIZE_BLUR_UP_0092               6786
+#define FLASH_ADDR_BLUR_UP_0093               (0x00000000 + 0x1A2000)
+#define FLASH_SIZE_BLUR_UP_0093               6786
+#define FLASH_ADDR_BLUR_UP_0094               (0x00000000 + 0x1A4000)
+#define FLASH_SIZE_BLUR_UP_0094               6786
+#define FLASH_ADDR_BLUR_UP_0095               (0x00000000 + 0x1A6000)
+#define FLASH_SIZE_BLUR_UP_0095               6786
+#define FLASH_ADDR_BLUR_UP_0096               (0x00000000 + 0x1A8000)
+#define FLASH_SIZE_BLUR_UP_0096               6786
+#define FLASH_ADDR_BLUR_UP_0097               (0x00000000 + 0x1AA000)
+#define FLASH_SIZE_BLUR_UP_0097               6786
+#define FLASH_ADDR_BLUR_UP_0098               (0x00000000 + 0x1AC000)
+#define FLASH_SIZE_BLUR_UP_0098               6786
+#define FLASH_ADDR_BLUR_UP_0099               (0x00000000 + 0x1AE000)
+#define FLASH_SIZE_BLUR_UP_0099               6786
+#define FLASH_ADDR_BLUR_UP_0100               (0x00000000 + 0x1B0000)
+#define FLASH_SIZE_BLUR_UP_0100               6786
+#define FLASH_ADDR_BLUE_NUM_48_0              (0x00000000 + 0x1B2000)
+#define FLASH_SIZE_BLUE_NUM_48_0              3906
+#define FLASH_ADDR_BLUE_NUM_48_1              (0x00000000 + 0x1B3000)
+#define FLASH_SIZE_BLUE_NUM_48_1              3906
+#define FLASH_ADDR_BLUE_NUM_48_2              (0x00000000 + 0x1B4000)
+#define FLASH_SIZE_BLUE_NUM_48_2              3906
+#define FLASH_ADDR_BLUE_NUM_48_3              (0x00000000 + 0x1B5000)
+#define FLASH_SIZE_BLUE_NUM_48_3              3906
+#define FLASH_ADDR_BLUE_NUM_48_4              (0x00000000 + 0x1B6000)
+#define FLASH_SIZE_BLUE_NUM_48_4              3906
+#define FLASH_ADDR_BLUE_NUM_48_5              (0x00000000 + 0x1B7000)
+#define FLASH_SIZE_BLUE_NUM_48_5              3906
+#define FLASH_ADDR_BLUE_NUM_48_6              (0x00000000 + 0x1B8000)
+#define FLASH_SIZE_BLUE_NUM_48_6              3906
+#define FLASH_ADDR_BLUE_NUM_48_7              (0x00000000 + 0x1B9000)
+#define FLASH_SIZE_BLUE_NUM_48_7              3906
+#define FLASH_ADDR_BLUE_NUM_48_8              (0x00000000 + 0x1BA000)
+#define FLASH_SIZE_BLUE_NUM_48_8              3906
+#define FLASH_ADDR_BLUE_NUM_48_9              (0x00000000 + 0x1BB000)
+#define FLASH_SIZE_BLUE_NUM_48_9              3906
+#define FLASH_ADDR_ORANGE_NUM_48_0            (0x00000000 + 0x1BC000)
+#define FLASH_SIZE_ORANGE_NUM_48_0            3906
+#define FLASH_ADDR_ORANGE_NUM_48_1            (0x00000000 + 0x1BD000)
+#define FLASH_SIZE_ORANGE_NUM_48_1            3906
+#define FLASH_ADDR_ORANGE_NUM_48_2            (0x00000000 + 0x1BE000)
+#define FLASH_SIZE_ORANGE_NUM_48_2            3906
+#define FLASH_ADDR_ORANGE_NUM_48_3            (0x00000000 + 0x1BF000)
+#define FLASH_SIZE_ORANGE_NUM_48_3            3906
+#define FLASH_ADDR_ORANGE_NUM_48_4            (0x00000000 + 0x1C0000)
+#define FLASH_SIZE_ORANGE_NUM_48_4            3906
+#define FLASH_ADDR_ORANGE_NUM_48_5            (0x00000000 + 0x1C1000)
+#define FLASH_SIZE_ORANGE_NUM_48_5            3906
+#define FLASH_ADDR_ORANGE_NUM_48_6            (0x00000000 + 0x1C2000)
+#define FLASH_SIZE_ORANGE_NUM_48_6            3906
+#define FLASH_ADDR_ORANGE_NUM_48_7            (0x00000000 + 0x1C3000)
+#define FLASH_SIZE_ORANGE_NUM_48_7            3906
+#define FLASH_ADDR_ORANGE_NUM_48_8            (0x00000000 + 0x1C4000)
+#define FLASH_SIZE_ORANGE_NUM_48_8            3906
+#define FLASH_ADDR_ORANGE_NUM_48_9            (0x00000000 + 0x1C5000)
+#define FLASH_SIZE_ORANGE_NUM_48_9            3906
+#define FLASH_ADDR_X_166102A_1C_16            (0x00000000 + 0x1C6000)
+#define FLASH_SIZE_X_166102A_1C_16            3538
+#define FLASH_ADDR_FREE                       (0x00000000 + 0x1C7000)
+#define FLASH_SIZE_FREE                       3266
+#define FLASH_ADDR_TIME_FAKE                  (0x00000000 + 0x1C8000)
+#define FLASH_SIZE_TIME_FAKE                  2706
+#define FLASH_ADDR_RUN_TIME                   (0x00000000 + 0x1C9000)
+#define FLASH_SIZE_RUN_TIME                   2166
+#define FLASH_ADDR_BAT_TMP                    (0x00000000 + 0x1CA000)
+#define FLASH_SIZE_BAT_TMP                    2114
+#define FLASH_ADDR_CYCLE_INDEX                (0x00000000 + 0x1CB000)
+#define FLASH_SIZE_CYCLE_INDEX                2114
+#define FLASH_ADDR_MAX_CAP                    (0x00000000 + 0x1CC000)
+#define FLASH_SIZE_MAX_CAP                    2114
+#define FLASH_ADDR_BAT_NUM                    (0x00000000 + 0x1CD000)
+#define FLASH_SIZE_BAT_NUM                    2106
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0001    (0x00000000 + 0x1CE000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0001    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0002    (0x00000000 + 0x1CF000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0002    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0003    (0x00000000 + 0x1D0000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0003    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0004    (0x00000000 + 0x1D1000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0004    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0005    (0x00000000 + 0x1D2000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0005    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0006    (0x00000000 + 0x1D3000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0006    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0007    (0x00000000 + 0x1D4000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0007    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0008    (0x00000000 + 0x1D5000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0008    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0009    (0x00000000 + 0x1D6000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0009    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0010    (0x00000000 + 0x1D7000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0010    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0011    (0x00000000 + 0x1D8000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0011    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0012    (0x00000000 + 0x1D9000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0012    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0013    (0x00000000 + 0x1DA000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0013    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0014    (0x00000000 + 0x1DB000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0014    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0015    (0x00000000 + 0x1DC000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0015    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0016    (0x00000000 + 0x1DD000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0016    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0017    (0x00000000 + 0x1DE000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0017    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0018    (0x00000000 + 0x1DF000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0018    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0019    (0x00000000 + 0x1E0000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0019    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0020    (0x00000000 + 0x1E1000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0020    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0021    (0x00000000 + 0x1E2000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0021    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0022    (0x00000000 + 0x1E3000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0022    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0023    (0x00000000 + 0x1E4000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0023    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0024    (0x00000000 + 0x1E5000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0024    2082
+#define FLASH_ADDR_CHARGING_BLUE_DOWN_0025    (0x00000000 + 0x1E6000)
+#define FLASH_SIZE_CHARGING_BLUE_DOWN_0025    2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0001      (0x00000000 + 0x1E7000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0001      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0002      (0x00000000 + 0x1E8000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0002      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0003      (0x00000000 + 0x1E9000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0003      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0004      (0x00000000 + 0x1EA000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0004      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0005      (0x00000000 + 0x1EB000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0005      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0006      (0x00000000 + 0x1EC000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0006      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0007      (0x00000000 + 0x1ED000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0007      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0008      (0x00000000 + 0x1EE000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0008      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0009      (0x00000000 + 0x1EF000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0009      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0010      (0x00000000 + 0x1F0000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0010      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0011      (0x00000000 + 0x1F1000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0011      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0012      (0x00000000 + 0x1F2000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0012      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0013      (0x00000000 + 0x1F3000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0013      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0014      (0x00000000 + 0x1F4000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0014      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0015      (0x00000000 + 0x1F5000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0015      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0016      (0x00000000 + 0x1F6000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0016      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0017      (0x00000000 + 0x1F7000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0017      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0018      (0x00000000 + 0x1F8000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0018      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0019      (0x00000000 + 0x1F9000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0019      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0020      (0x00000000 + 0x1FA000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0020      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0021      (0x00000000 + 0x1FB000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0021      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0022      (0x00000000 + 0x1FC000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0022      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0023      (0x00000000 + 0x1FD000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0023      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0024      (0x00000000 + 0x1FE000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0024      2082
+#define FLASH_ADDR_CHARGING_BLUE_UP_0025      (0x00000000 + 0x1FF000)
+#define FLASH_SIZE_CHARGING_BLUE_UP_0025      2082
+#define FLASH_ADDR_BAR_PROGRESS_0001          (0x00000000 + 0x1FF822)
+#define FLASH_SIZE_BAR_PROGRESS_0001          1986
+#define FLASH_ADDR_BAR_PROGRESS_0002          (0x00000000 + 0x200000)
+#define FLASH_SIZE_BAR_PROGRESS_0002          1986
+#define FLASH_ADDR_BAR_PROGRESS_0003          (0x00000000 + 0x2007C2)
+#define FLASH_SIZE_BAR_PROGRESS_0003          1986
+#define FLASH_ADDR_BAR_PROGRESS_0004          (0x00000000 + 0x201000)
+#define FLASH_SIZE_BAR_PROGRESS_0004          1986
+#define FLASH_ADDR_BAR_PROGRESS_0005          (0x00000000 + 0x2017C2)
+#define FLASH_SIZE_BAR_PROGRESS_0005          1986
+#define FLASH_ADDR_BAR_PROGRESS_0006          (0x00000000 + 0x202000)
+#define FLASH_SIZE_BAR_PROGRESS_0006          1986
+#define FLASH_ADDR_BAR_PROGRESS_0007          (0x00000000 + 0x2027C2)
+#define FLASH_SIZE_BAR_PROGRESS_0007          1986
+#define FLASH_ADDR_BAR_PROGRESS_0008          (0x00000000 + 0x203000)
+#define FLASH_SIZE_BAR_PROGRESS_0008          1986
+#define FLASH_ADDR_BAR_PROGRESS_0009          (0x00000000 + 0x2037C2)
+#define FLASH_SIZE_BAR_PROGRESS_0009          1986
+#define FLASH_ADDR_BAR_PROGRESS_0010          (0x00000000 + 0x204000)
+#define FLASH_SIZE_BAR_PROGRESS_0010          1986
+#define FLASH_ADDR_BAR_PROGRESS_0011          (0x00000000 + 0x2047C2)
+#define FLASH_SIZE_BAR_PROGRESS_0011          1986
+#define FLASH_ADDR_BAR_PROGRESS_0012          (0x00000000 + 0x205000)
+#define FLASH_SIZE_BAR_PROGRESS_0012          1986
+#define FLASH_ADDR_BAR_PROGRESS_0013          (0x00000000 + 0x2057C2)
+#define FLASH_SIZE_BAR_PROGRESS_0013          1986
+#define FLASH_ADDR_BAR_PROGRESS_0014          (0x00000000 + 0x206000)
+#define FLASH_SIZE_BAR_PROGRESS_0014          1986
+#define FLASH_ADDR_BAR_PROGRESS_0015          (0x00000000 + 0x2067C2)
+#define FLASH_SIZE_BAR_PROGRESS_0015          1986
+#define FLASH_ADDR_BAR_PROGRESS_0016          (0x00000000 + 0x207000)
+#define FLASH_SIZE_BAR_PROGRESS_0016          1986
+#define FLASH_ADDR_BAR_PROGRESS_0017          (0x00000000 + 0x2077C2)
+#define FLASH_SIZE_BAR_PROGRESS_0017          1986
+#define FLASH_ADDR_BAR_PROGRESS_0018          (0x00000000 + 0x208000)
+#define FLASH_SIZE_BAR_PROGRESS_0018          1986
+#define FLASH_ADDR_BAR_PROGRESS_0019          (0x00000000 + 0x2087C2)
+#define FLASH_SIZE_BAR_PROGRESS_0019          1986
+#define FLASH_ADDR_BAR_PROGRESS_0020          (0x00000000 + 0x209000)
+#define FLASH_SIZE_BAR_PROGRESS_0020          1986
+#define FLASH_ADDR_BAR_PROGRESS_0021          (0x00000000 + 0x2097C2)
+#define FLASH_SIZE_BAR_PROGRESS_0021          1986
+#define FLASH_ADDR_BAR_PROGRESS_0022          (0x00000000 + 0x20A000)
+#define FLASH_SIZE_BAR_PROGRESS_0022          1986
+#define FLASH_ADDR_BAR_PROGRESS_0023          (0x00000000 + 0x20A7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0023          1986
+#define FLASH_ADDR_BAR_PROGRESS_0024          (0x00000000 + 0x20B000)
+#define FLASH_SIZE_BAR_PROGRESS_0024          1986
+#define FLASH_ADDR_BAR_PROGRESS_0025          (0x00000000 + 0x20B7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0025          1986
+#define FLASH_ADDR_BAR_PROGRESS_0026          (0x00000000 + 0x20C000)
+#define FLASH_SIZE_BAR_PROGRESS_0026          1986
+#define FLASH_ADDR_BAR_PROGRESS_0027          (0x00000000 + 0x20C7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0027          1986
+#define FLASH_ADDR_BAR_PROGRESS_0028          (0x00000000 + 0x20D000)
+#define FLASH_SIZE_BAR_PROGRESS_0028          1986
+#define FLASH_ADDR_BAR_PROGRESS_0029          (0x00000000 + 0x20D7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0029          1986
+#define FLASH_ADDR_BAR_PROGRESS_0030          (0x00000000 + 0x20E000)
+#define FLASH_SIZE_BAR_PROGRESS_0030          1986
+#define FLASH_ADDR_BAR_PROGRESS_0031          (0x00000000 + 0x20E7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0031          1986
+#define FLASH_ADDR_BAR_PROGRESS_0032          (0x00000000 + 0x20F000)
+#define FLASH_SIZE_BAR_PROGRESS_0032          1986
+#define FLASH_ADDR_BAR_PROGRESS_0033          (0x00000000 + 0x20F7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0033          1986
+#define FLASH_ADDR_BAR_PROGRESS_0034          (0x00000000 + 0x210000)
+#define FLASH_SIZE_BAR_PROGRESS_0034          1986
+#define FLASH_ADDR_BAR_PROGRESS_0035          (0x00000000 + 0x2107C2)
+#define FLASH_SIZE_BAR_PROGRESS_0035          1986
+#define FLASH_ADDR_BAR_PROGRESS_0036          (0x00000000 + 0x211000)
+#define FLASH_SIZE_BAR_PROGRESS_0036          1986
+#define FLASH_ADDR_BAR_PROGRESS_0037          (0x00000000 + 0x2117C2)
+#define FLASH_SIZE_BAR_PROGRESS_0037          1986
+#define FLASH_ADDR_BAR_PROGRESS_0038          (0x00000000 + 0x212000)
+#define FLASH_SIZE_BAR_PROGRESS_0038          1986
+#define FLASH_ADDR_BAR_PROGRESS_0039          (0x00000000 + 0x2127C2)
+#define FLASH_SIZE_BAR_PROGRESS_0039          1986
+#define FLASH_ADDR_BAR_PROGRESS_0040          (0x00000000 + 0x213000)
+#define FLASH_SIZE_BAR_PROGRESS_0040          1986
+#define FLASH_ADDR_BAR_PROGRESS_0041          (0x00000000 + 0x2137C2)
+#define FLASH_SIZE_BAR_PROGRESS_0041          1986
+#define FLASH_ADDR_BAR_PROGRESS_0042          (0x00000000 + 0x214000)
+#define FLASH_SIZE_BAR_PROGRESS_0042          1986
+#define FLASH_ADDR_BAR_PROGRESS_0043          (0x00000000 + 0x2147C2)
+#define FLASH_SIZE_BAR_PROGRESS_0043          1986
+#define FLASH_ADDR_BAR_PROGRESS_0044          (0x00000000 + 0x215000)
+#define FLASH_SIZE_BAR_PROGRESS_0044          1986
+#define FLASH_ADDR_BAR_PROGRESS_0045          (0x00000000 + 0x2157C2)
+#define FLASH_SIZE_BAR_PROGRESS_0045          1986
+#define FLASH_ADDR_BAR_PROGRESS_0046          (0x00000000 + 0x216000)
+#define FLASH_SIZE_BAR_PROGRESS_0046          1986
+#define FLASH_ADDR_BAR_PROGRESS_0047          (0x00000000 + 0x2167C2)
+#define FLASH_SIZE_BAR_PROGRESS_0047          1986
+#define FLASH_ADDR_BAR_PROGRESS_0048          (0x00000000 + 0x217000)
+#define FLASH_SIZE_BAR_PROGRESS_0048          1986
+#define FLASH_ADDR_BAR_PROGRESS_0049          (0x00000000 + 0x2177C2)
+#define FLASH_SIZE_BAR_PROGRESS_0049          1986
+#define FLASH_ADDR_BAR_PROGRESS_0050          (0x00000000 + 0x218000)
+#define FLASH_SIZE_BAR_PROGRESS_0050          1986
+#define FLASH_ADDR_BAR_PROGRESS_0051          (0x00000000 + 0x2187C2)
+#define FLASH_SIZE_BAR_PROGRESS_0051          1986
+#define FLASH_ADDR_BAR_PROGRESS_0052          (0x00000000 + 0x219000)
+#define FLASH_SIZE_BAR_PROGRESS_0052          1986
+#define FLASH_ADDR_BAR_PROGRESS_0053          (0x00000000 + 0x2197C2)
+#define FLASH_SIZE_BAR_PROGRESS_0053          1986
+#define FLASH_ADDR_BAR_PROGRESS_0054          (0x00000000 + 0x21A000)
+#define FLASH_SIZE_BAR_PROGRESS_0054          1986
+#define FLASH_ADDR_BAR_PROGRESS_0055          (0x00000000 + 0x21A7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0055          1986
+#define FLASH_ADDR_BAR_PROGRESS_0056          (0x00000000 + 0x21B000)
+#define FLASH_SIZE_BAR_PROGRESS_0056          1986
+#define FLASH_ADDR_BAR_PROGRESS_0057          (0x00000000 + 0x21B7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0057          1986
+#define FLASH_ADDR_BAR_PROGRESS_0058          (0x00000000 + 0x21C000)
+#define FLASH_SIZE_BAR_PROGRESS_0058          1986
+#define FLASH_ADDR_BAR_PROGRESS_0059          (0x00000000 + 0x21C7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0059          1986
+#define FLASH_ADDR_BAR_PROGRESS_0060          (0x00000000 + 0x21D000)
+#define FLASH_SIZE_BAR_PROGRESS_0060          1986
+#define FLASH_ADDR_BAR_PROGRESS_0061          (0x00000000 + 0x21D7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0061          1986
+#define FLASH_ADDR_BAR_PROGRESS_0062          (0x00000000 + 0x21E000)
+#define FLASH_SIZE_BAR_PROGRESS_0062          1986
+#define FLASH_ADDR_BAR_PROGRESS_0063          (0x00000000 + 0x21E7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0063          1986
+#define FLASH_ADDR_BAR_PROGRESS_0064          (0x00000000 + 0x21F000)
+#define FLASH_SIZE_BAR_PROGRESS_0064          1986
+#define FLASH_ADDR_BAR_PROGRESS_0065          (0x00000000 + 0x21F7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0065          1986
+#define FLASH_ADDR_BAR_PROGRESS_0066          (0x00000000 + 0x220000)
+#define FLASH_SIZE_BAR_PROGRESS_0066          1986
+#define FLASH_ADDR_BAR_PROGRESS_0067          (0x00000000 + 0x2207C2)
+#define FLASH_SIZE_BAR_PROGRESS_0067          1986
+#define FLASH_ADDR_BAR_PROGRESS_0068          (0x00000000 + 0x221000)
+#define FLASH_SIZE_BAR_PROGRESS_0068          1986
+#define FLASH_ADDR_BAR_PROGRESS_0069          (0x00000000 + 0x2217C2)
+#define FLASH_SIZE_BAR_PROGRESS_0069          1986
+#define FLASH_ADDR_BAR_PROGRESS_0070          (0x00000000 + 0x222000)
+#define FLASH_SIZE_BAR_PROGRESS_0070          1986
+#define FLASH_ADDR_BAR_PROGRESS_0071          (0x00000000 + 0x2227C2)
+#define FLASH_SIZE_BAR_PROGRESS_0071          1986
+#define FLASH_ADDR_BAR_PROGRESS_0072          (0x00000000 + 0x223000)
+#define FLASH_SIZE_BAR_PROGRESS_0072          1986
+#define FLASH_ADDR_BAR_PROGRESS_0073          (0x00000000 + 0x2237C2)
+#define FLASH_SIZE_BAR_PROGRESS_0073          1986
+#define FLASH_ADDR_BAR_PROGRESS_0074          (0x00000000 + 0x224000)
+#define FLASH_SIZE_BAR_PROGRESS_0074          1986
+#define FLASH_ADDR_BAR_PROGRESS_0075          (0x00000000 + 0x2247C2)
+#define FLASH_SIZE_BAR_PROGRESS_0075          1986
+#define FLASH_ADDR_BAR_PROGRESS_0076          (0x00000000 + 0x225000)
+#define FLASH_SIZE_BAR_PROGRESS_0076          1986
+#define FLASH_ADDR_BAR_PROGRESS_0077          (0x00000000 + 0x2257C2)
+#define FLASH_SIZE_BAR_PROGRESS_0077          1986
+#define FLASH_ADDR_BAR_PROGRESS_0078          (0x00000000 + 0x226000)
+#define FLASH_SIZE_BAR_PROGRESS_0078          1986
+#define FLASH_ADDR_BAR_PROGRESS_0079          (0x00000000 + 0x2267C2)
+#define FLASH_SIZE_BAR_PROGRESS_0079          1986
+#define FLASH_ADDR_BAR_PROGRESS_0080          (0x00000000 + 0x227000)
+#define FLASH_SIZE_BAR_PROGRESS_0080          1986
+#define FLASH_ADDR_BAR_PROGRESS_0081          (0x00000000 + 0x2277C2)
+#define FLASH_SIZE_BAR_PROGRESS_0081          1986
+#define FLASH_ADDR_BAR_PROGRESS_0082          (0x00000000 + 0x228000)
+#define FLASH_SIZE_BAR_PROGRESS_0082          1986
+#define FLASH_ADDR_BAR_PROGRESS_0083          (0x00000000 + 0x2287C2)
+#define FLASH_SIZE_BAR_PROGRESS_0083          1986
+#define FLASH_ADDR_BAR_PROGRESS_0084          (0x00000000 + 0x229000)
+#define FLASH_SIZE_BAR_PROGRESS_0084          1986
+#define FLASH_ADDR_BAR_PROGRESS_0085          (0x00000000 + 0x2297C2)
+#define FLASH_SIZE_BAR_PROGRESS_0085          1986
+#define FLASH_ADDR_BAR_PROGRESS_0086          (0x00000000 + 0x22A000)
+#define FLASH_SIZE_BAR_PROGRESS_0086          1986
+#define FLASH_ADDR_BAR_PROGRESS_0087          (0x00000000 + 0x22A7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0087          1986
+#define FLASH_ADDR_BAR_PROGRESS_0088          (0x00000000 + 0x22B000)
+#define FLASH_SIZE_BAR_PROGRESS_0088          1986
+#define FLASH_ADDR_BAR_PROGRESS_0089          (0x00000000 + 0x22B7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0089          1986
+#define FLASH_ADDR_BAR_PROGRESS_0090          (0x00000000 + 0x22C000)
+#define FLASH_SIZE_BAR_PROGRESS_0090          1986
+#define FLASH_ADDR_BAR_PROGRESS_0091          (0x00000000 + 0x22C7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0091          1986
+#define FLASH_ADDR_BAR_PROGRESS_0092          (0x00000000 + 0x22D000)
+#define FLASH_SIZE_BAR_PROGRESS_0092          1986
+#define FLASH_ADDR_BAR_PROGRESS_0093          (0x00000000 + 0x22D7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0093          1986
+#define FLASH_ADDR_BAR_PROGRESS_0094          (0x00000000 + 0x22E000)
+#define FLASH_SIZE_BAR_PROGRESS_0094          1986
+#define FLASH_ADDR_BAR_PROGRESS_0095          (0x00000000 + 0x22E7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0095          1986
+#define FLASH_ADDR_BAR_PROGRESS_0096          (0x00000000 + 0x22F000)
+#define FLASH_SIZE_BAR_PROGRESS_0096          1986
+#define FLASH_ADDR_BAR_PROGRESS_0097          (0x00000000 + 0x22F7C2)
+#define FLASH_SIZE_BAR_PROGRESS_0097          1986
+#define FLASH_ADDR_BAR_PROGRESS_0098          (0x00000000 + 0x230000)
+#define FLASH_SIZE_BAR_PROGRESS_0098          1986
+#define FLASH_ADDR_BAR_PROGRESS_0099          (0x00000000 + 0x2307C2)
+#define FLASH_SIZE_BAR_PROGRESS_0099          1986
+#define FLASH_ADDR_BAR_PROGRESS_0100          (0x00000000 + 0x231000)
+#define FLASH_SIZE_BAR_PROGRESS_0100          1986
+#define FLASH_ADDR_NUM_40_0                   (0x00000000 + 0x2317C2)
+#define FLASH_SIZE_NUM_40_0                   1986
+#define FLASH_ADDR_NUM_40_1                   (0x00000000 + 0x232000)
+#define FLASH_SIZE_NUM_40_1                   1986
+#define FLASH_ADDR_NUM_40_2                   (0x00000000 + 0x2327C2)
+#define FLASH_SIZE_NUM_40_2                   1986
+#define FLASH_ADDR_NUM_40_3                   (0x00000000 + 0x233000)
+#define FLASH_SIZE_NUM_40_3                   1986
+#define FLASH_ADDR_NUM_40_4                   (0x00000000 + 0x2337C2)
+#define FLASH_SIZE_NUM_40_4                   1986
+#define FLASH_ADDR_NUM_40_5                   (0x00000000 + 0x234000)
+#define FLASH_SIZE_NUM_40_5                   1986
+#define FLASH_ADDR_NUM_40_6                   (0x00000000 + 0x2347C2)
+#define FLASH_SIZE_NUM_40_6                   1986
+#define FLASH_ADDR_NUM_40_7                   (0x00000000 + 0x235000)
+#define FLASH_SIZE_NUM_40_7                   1986
+#define FLASH_ADDR_NUM_40_8                   (0x00000000 + 0x2357C2)
+#define FLASH_SIZE_NUM_40_8                   1986
+#define FLASH_ADDR_NUM_40_9                   (0x00000000 + 0x236000)
+#define FLASH_SIZE_NUM_40_9                   1986
+#define FLASH_ADDR_NUM_32_0                   (0x00000000 + 0x2367C2)
+#define FLASH_SIZE_NUM_32_0                   1346
+#define FLASH_ADDR_NUM_32_1                   (0x00000000 + 0x237000)
+#define FLASH_SIZE_NUM_32_1                   1346
+#define FLASH_ADDR_NUM_32_2                   (0x00000000 + 0x237542)
+#define FLASH_SIZE_NUM_32_2                   1346
+#define FLASH_ADDR_NUM_32_3                   (0x00000000 + 0x237A84)
+#define FLASH_SIZE_NUM_32_3                   1346
+#define FLASH_ADDR_NUM_32_4                   (0x00000000 + 0x238000)
+#define FLASH_SIZE_NUM_32_4                   1346
+#define FLASH_ADDR_NUM_32_5                   (0x00000000 + 0x238542)
+#define FLASH_SIZE_NUM_32_5                   1346
+#define FLASH_ADDR_NUM_32_6                   (0x00000000 + 0x238A84)
+#define FLASH_SIZE_NUM_32_6                   1346
+#define FLASH_ADDR_NUM_32_7                   (0x00000000 + 0x239000)
+#define FLASH_SIZE_NUM_32_7                   1346
+#define FLASH_ADDR_NUM_32_8                   (0x00000000 + 0x239542)
+#define FLASH_SIZE_NUM_32_8                   1346
+#define FLASH_ADDR_NUM_32_9                   (0x00000000 + 0x239A84)
+#define FLASH_SIZE_NUM_32_9                   1346
+#define FLASH_ADDR_BATTERY                    (0x00000000 + 0x23A000)
+#define FLASH_SIZE_BATTERY                    1218
+#define FLASH_ADDR_CHARGING_BLUE              (0x00000000 + 0x23A4C2)
+#define FLASH_SIZE_CHARGING_BLUE              1218
+#define FLASH_ADDR_CHARGING_ORANGE            (0x00000000 + 0x23A984)
+#define FLASH_SIZE_CHARGING_ORANGE            1218
+#define FLASH_ADDR_TIME                       (0x00000000 + 0x23B000)
+#define FLASH_SIZE_TIME                       1218
+#define FLASH_ADDR_PERCENT_BLUE               (0x00000000 + 0x23B4C2)
+#define FLASH_SIZE_PERCENT_BLUE               1218
+#define FLASH_ADDR_PERCENT_ORANG              (0x00000000 + 0x23B984)
+#define FLASH_SIZE_PERCENT_ORANG              1218
+#define FLASH_ADDR_TYPE_C                     (0x00000000 + 0x23C000)
+#define FLASH_SIZE_TYPE_C                     1090
+#define FLASH_ADDR_USB                        (0x00000000 + 0x23C442)
+#define FLASH_SIZE_USB                        1090
+#define FLASH_ADDR_USB_1                      (0x00000000 + 0x23C884)
+#define FLASH_SIZE_USB_1                      770
+#define FLASH_ADDR_USB_2                      (0x00000000 + 0x23CB86)
+#define FLASH_SIZE_USB_2                      770
+#define FLASH_ADDR_USB_3                      (0x00000000 + 0x23D000)
+#define FLASH_SIZE_USB_3                      770
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0001  (0x00000000 + 0x23D302)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0001  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0002  (0x00000000 + 0x23D5E4)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0002  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0003  (0x00000000 + 0x23D8C6)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0003  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0004  (0x00000000 + 0x23DBA8)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0004  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0005  (0x00000000 + 0x23E000)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0005  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0006  (0x00000000 + 0x23E2E2)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0006  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0007  (0x00000000 + 0x23E5C4)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0007  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0008  (0x00000000 + 0x23E8A6)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0008  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0009  (0x00000000 + 0x23EB88)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0009  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0010  (0x00000000 + 0x23F000)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0010  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0011  (0x00000000 + 0x23F2E2)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0011  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0012  (0x00000000 + 0x23F5C4)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0012  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0013  (0x00000000 + 0x23F8A6)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0013  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0014  (0x00000000 + 0x23FB88)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0014  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0015  (0x00000000 + 0x240000)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0015  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0016  (0x00000000 + 0x2402E2)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0016  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0017  (0x00000000 + 0x2405C4)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0017  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0018  (0x00000000 + 0x2408A6)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0018  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0019  (0x00000000 + 0x240B88)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0019  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0020  (0x00000000 + 0x241000)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0020  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0021  (0x00000000 + 0x2412E2)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0021  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0022  (0x00000000 + 0x2415C4)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0022  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0023  (0x00000000 + 0x2418A6)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0023  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0024  (0x00000000 + 0x241B88)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0024  738
+#define FLASH_ADDR_CHARGING_ORANGE_DOWN_0025  (0x00000000 + 0x242000)
+#define FLASH_SIZE_CHARGING_ORANGE_DOWN_0025  738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0001    (0x00000000 + 0x2422E2)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0001    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0002    (0x00000000 + 0x2425C4)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0002    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0003    (0x00000000 + 0x2428A6)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0003    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0004    (0x00000000 + 0x242B88)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0004    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0005    (0x00000000 + 0x243000)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0005    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0006    (0x00000000 + 0x2432E2)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0006    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0007    (0x00000000 + 0x2435C4)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0007    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0008    (0x00000000 + 0x2438A6)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0008    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0009    (0x00000000 + 0x243B88)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0009    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0010    (0x00000000 + 0x244000)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0010    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0011    (0x00000000 + 0x2442E2)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0011    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0012    (0x00000000 + 0x2445C4)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0012    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0013    (0x00000000 + 0x2448A6)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0013    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0014    (0x00000000 + 0x244B88)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0014    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0015    (0x00000000 + 0x245000)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0015    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0016    (0x00000000 + 0x2452E2)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0016    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0017    (0x00000000 + 0x2455C4)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0017    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0018    (0x00000000 + 0x2458A6)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0018    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0019    (0x00000000 + 0x245B88)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0019    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0020    (0x00000000 + 0x246000)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0020    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0021    (0x00000000 + 0x2462E2)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0021    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0022    (0x00000000 + 0x2465C4)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0022    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0023    (0x00000000 + 0x2468A6)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0023    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0024    (0x00000000 + 0x246B88)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0024    738
+#define FLASH_ADDR_CHARGING_ORANGE_UP_0025    (0x00000000 + 0x247000)
+#define FLASH_SIZE_CHARGING_ORANGE_UP_0025    738
+#define FLASH_ADDR_NUM_24_0                   (0x00000000 + 0x2472E2)
+#define FLASH_SIZE_NUM_24_0                   738
+#define FLASH_ADDR_NUM_24_1                   (0x00000000 + 0x2475C4)
+#define FLASH_SIZE_NUM_24_1                   738
+#define FLASH_ADDR_NUM_24_2                   (0x00000000 + 0x2478A6)
+#define FLASH_SIZE_NUM_24_2                   738
+#define FLASH_ADDR_NUM_24_3                   (0x00000000 + 0x247B88)
+#define FLASH_SIZE_NUM_24_3                   738
+#define FLASH_ADDR_NUM_24_4                   (0x00000000 + 0x248000)
+#define FLASH_SIZE_NUM_24_4                   738
+#define FLASH_ADDR_NUM_24_5                   (0x00000000 + 0x2482E2)
+#define FLASH_SIZE_NUM_24_5                   738
+#define FLASH_ADDR_NUM_24_6                   (0x00000000 + 0x2485C4)
+#define FLASH_SIZE_NUM_24_6                   738
+#define FLASH_ADDR_NUM_24_7                   (0x00000000 + 0x2488A6)
+#define FLASH_SIZE_NUM_24_7                   738
+#define FLASH_ADDR_NUM_24_8                   (0x00000000 + 0x248B88)
+#define FLASH_SIZE_NUM_24_8                   738
+#define FLASH_ADDR_NUM_24_9                   (0x00000000 + 0x249000)
+#define FLASH_SIZE_NUM_24_9                   738
+#define FLASH_ADDR_NUM_24                     (0x00000000 + 0x2492E2)
+#define FLASH_SIZE_NUM_24                     642
+#define FLASH_ADDR_CI                         (0x00000000 + 0x249564)
+#define FLASH_SIZE_CI                         578
+#define FLASH_ADDR_DEGREE                     (0x00000000 + 0x2497A6)
+#define FLASH_SIZE_DEGREE                     578
+#define FLASH_ADDR_PERCENT_SMALL              (0x00000000 + 0x2499E8)
+#define FLASH_SIZE_PERCENT_SMALL              578
+#define FLASH_ADDR_POWER_W                    (0x00000000 + 0x249C2A)
+#define FLASH_SIZE_POWER_W                    578
+#define FLASH_ADDR_W                          (0x00000000 + 0x24A000)
+#define FLASH_SIZE_W                          498
+#define FLASH_ADDR_C                          (0x00000000 + 0x24A1F2)
+#define FLASH_SIZE_C                          402
+#define FLASH_ADDR_G                          (0x00000000 + 0x24A384)
+#define FLASH_SIZE_G                          402
+#define FLASH_ADDR_M                          (0x00000000 + 0x24A516)
+#define FLASH_SIZE_M                          402
+#define FLASH_ADDR_O                          (0x00000000 + 0x24A6A8)
+#define FLASH_SIZE_O                          402
+#define FLASH_ADDR_Q                          (0x00000000 + 0x24A83A)
+#define FLASH_SIZE_Q                          402
+#define FLASH_ADDR_A                          (0x00000000 + 0x24A9CC)
+#define FLASH_SIZE_A                          354
+#define FLASH_ADDR_B                          (0x00000000 + 0x24AB2E)
+#define FLASH_SIZE_B                          354
+#define FLASH_ADDR_D                          (0x00000000 + 0x24AC90)
+#define FLASH_SIZE_D                          354
+#define FLASH_ADDR_H                          (0x00000000 + 0x24ADF2)
+#define FLASH_SIZE_H                          354
+#define FLASH_ADDR_K                          (0x00000000 + 0x24B000)
+#define FLASH_SIZE_K                          354
+#define FLASH_ADDR_N                          (0x00000000 + 0x24B162)
+#define FLASH_SIZE_N                          354
+#define FLASH_ADDR_P                          (0x00000000 + 0x24B2C4)
+#define FLASH_SIZE_P                          354
+#define FLASH_ADDR_R                          (0x00000000 + 0x24B426)
+#define FLASH_SIZE_R                          354
+#define FLASH_ADDR_S                          (0x00000000 + 0x24B588)
+#define FLASH_SIZE_S                          354
+#define FLASH_ADDR_T                          (0x00000000 + 0x24B6EA)
+#define FLASH_SIZE_T                          354
+#define FLASH_ADDR_U                          (0x00000000 + 0x24B84C)
+#define FLASH_SIZE_U                          354
+#define FLASH_ADDR_V                          (0x00000000 + 0x24B9AE)
+#define FLASH_SIZE_V                          354
+#define FLASH_ADDR_X                          (0x00000000 + 0x24BB10)
+#define FLASH_SIZE_X                          354
+#define FLASH_ADDR_Y                          (0x00000000 + 0x24BC72)
+#define FLASH_SIZE_Y                          354
+#define FLASH_ADDR_Z                          (0x00000000 + 0x24BDD4)
+#define FLASH_SIZE_Z                          354
+#define FLASH_ADDR_0                          (0x00000000 + 0x24C000)
+#define FLASH_SIZE_0                          306
+#define FLASH_ADDR_1                          (0x00000000 + 0x24C132)
+#define FLASH_SIZE_1                          306
+#define FLASH_ADDR_2                          (0x00000000 + 0x24C264)
+#define FLASH_SIZE_2                          306
+#define FLASH_ADDR_3                          (0x00000000 + 0x24C396)
+#define FLASH_SIZE_3                          306
+#define FLASH_ADDR_4                          (0x00000000 + 0x24C4C8)
+#define FLASH_SIZE_4                          306
+#define FLASH_ADDR_5                          (0x00000000 + 0x24C5FA)
+#define FLASH_SIZE_5                          306
+#define FLASH_ADDR_6                          (0x00000000 + 0x24C72C)
+#define FLASH_SIZE_6                          306
+#define FLASH_ADDR_7                          (0x00000000 + 0x24C85E)
+#define FLASH_SIZE_7                          306
+#define FLASH_ADDR_8                          (0x00000000 + 0x24C990)
+#define FLASH_SIZE_8                          306
+#define FLASH_ADDR_9                          (0x00000000 + 0x24CAC2)
+#define FLASH_SIZE_9                          306
+#define FLASH_ADDR_                           (0x00000000 + 0x24CBF4)
+#define FLASH_SIZE_                           306
+#define FLASH_ADDR_E                          (0x00000000 + 0x24CD26)
+#define FLASH_SIZE_E                          306
+#define FLASH_ADDR_F                          (0x00000000 + 0x24CE58)
+#define FLASH_SIZE_F                          306
+#define FLASH_ADDR_J                          (0x00000000 + 0x24D000)
+#define FLASH_SIZE_J                          306
+#define FLASH_ADDR_L                          (0x00000000 + 0x24D132)
+#define FLASH_SIZE_L                          306
+#define FLASH_ADDR_I                          (0x00000000 + 0x24D264)
+#define FLASH_SIZE_I                          210
 
 #endif /* __FLASH_IMAGE_ADDR_H__ */

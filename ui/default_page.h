@@ -2,25 +2,31 @@
 #define __DEFAULT_PAGE_H__
 
 #include "global_define.h"
+#include "ui.h"
 #include "stdbool.h"
 
-typedef struct
+typedef enum
 {
-	uint8_t bat_power;
-    bool is_charge;
-    bool usb_c1_is_use;
-    uint8_t usb_c1_power;
-    bool usb_c2_is_use;
-    uint8_t usb_c2_power;
-    bool usb_a_is_use;
-    uint8_t usb_a_power;
-    uint16_t count_down;
-} default_page_t;
+	TYPE_C1_IMG = 0,
+	C1_IMG,
+	TYPE_C2_IMG = 1,
+	C2_IMG,
+	USB_A_IMG = 2,
+	A_IMG,
+} default_img_e;
 
-extern default_page_t default_page;
+typedef enum
+{
+	C1_POWER,
+	C2_POWER,
+	A_POWER,
+} power_e;
+
 
 void default_page_init(void);
 void start_change_anima(bool is_charge);
 void anima_erase_area(int x, int y, int w, int h);
+void default_page_show_power(power_e port, uint8_t power_value, uint8_t status);
+void default_page_updata(void);
 
 #endif

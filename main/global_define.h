@@ -9,11 +9,23 @@
 #include "flash.h"
 #include "lcd.h"
 #include "ui.h"
-#include "iic.h"
-#include "timer.h"
+#include "sw_i2c.h"
+#include "cw1573.h"
 
+#include "sw_i2c_gen.h"
+#include "timer.h"
+#include "key.h"
+#include "i2c_slave.h"
+#include "uart_upgrade.h"
+#include "usart.h"
+
+#include "ui.h"
+#include "bar_progress.h"
 #include "flash_image_addr.h"
 #include "default_page.h"
+#include "hint_page.h"
+#include "information_page.h"
+#include "digit_16.h"
 
 #endif
 

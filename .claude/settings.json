@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"E:/project/TKW_HX/ES32_SDK/ES32_SDK-V1.31/Projects/ES32F010x/Examples_MD/I2C/\")",
+      "Read(//e/project/TKW_HX/ES32_SDK/ES32_SDK-V1.31/Projects/ES32F010x/Examples_MD/I2C/**)",
+      "Read(//c/Users/Lenovo/xwechat_files/wxid_dfyaxfz6gbqz22_d540/msg/file/2026-05/**)",
+      "Read(//e/project/TKW_HX/ES32_SDK/ES32_SDK-V1.31/Projects/ES32F010x/Examples_MD/**)",
+      "Read(//e/project/TKW_HX/ES32_SDK/ES32_SDK-V1.31/**)"
+    ],
+    "additionalDirectories": [
+      "e:\\project\\TKW_HX\\ES32F0100_PWR_844_20260508\\prj"
+    ]
+  }
+}
