@@ -121,7 +121,8 @@ void AD16C4T_CC_Handler(void)
 	// 	md_timer_clear_cc4_interrupt_flag_ch4ccic(AD16C4T);
 	// }
 }
-
+#define DEBUG_EN
+#ifndef DEBUG_EN
 /**
   * @brief  USART1 interrupt handler — RXNE: store byte into ring buffer
   */
@@ -140,5 +141,6 @@ void USART1_Handler(void)
 			usart_rx_tail = (usart_rx_tail + 1) % USART_RX_BUF_SIZE;
 	}
 }
+#endif /* !DEBUG_EN */
 
 

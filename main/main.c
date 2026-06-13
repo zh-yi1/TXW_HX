@@ -1,5 +1,6 @@
 #include "main.h"
-
+#include <stdio.h>
+#define DEBUG_EN
 static void sys_init(void);
 
 int main()
@@ -17,12 +18,15 @@ int main()
 		}
 
 		/* ---- 产测协议处理 (USART1) ---- */
+#ifndef DEBUG_EN
 		prod_test_proc();
+#endif /* !DEBUG_EN */
 
 		cw1573_proc();
 		i2c_slave_proc();
 		key_proc();
 		ui_proc();
+
 	}
 }
 
@@ -61,7 +65,10 @@ static void sys_init(void)
 	// timer_init();
 
 	//产测模块初始化
+#ifndef DEBUG_EN
 	prod_test_init();
+	printf("Hello World!\n");
+#endif /* !DEBUG_EN */
 }
 
 void SystemInit(void){}

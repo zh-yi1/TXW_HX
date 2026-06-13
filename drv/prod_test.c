@@ -11,6 +11,10 @@
 
 #include "prod_test.h"
 
+#define DEBUG_EN
+
+#ifndef DEBUG_EN
+
 /* ========================================================================== */
 /*  模块级全局变量                                                           */
 /* ========================================================================== */
@@ -568,3 +572,6 @@ void prod_test_proc(void)
 
     if (pt_rt.state == PT_NG_LOCK)    pt_proc_ng_lock();
 }
+
+#endif /* !DEBUG_EN */
+

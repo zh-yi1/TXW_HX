@@ -3,14 +3,21 @@
  * @file    usart.c
  * @brief   USART1 driver — interrupt-based receive, blocking send
  *
- * @note    Ported from ES32_SDK USART Example (01_send_recv_it).
- *          Ring buffer for RX (ISR-driven), polling for TX.
+ * @note    Two modes controlled by DEBUG_EN (in md_conf.h):
+ *            DEBUG_EN defined   → printf 重定向到 USART1，其他功能关闭
+ *            DEBUG_EN undefined → 产测协议模式（ring buffer RX + 收发函数）
  *          Pins: PB0=RX (AF7), PB1=TX (AF7).
  *
  **********************************************************************************
  */
 
 #include "usart.h"
+#include <stdio.h>
+#define DEBUG_EN
+/* ========================================================================== */
+/*  非调试模式：产测协议 (ring buffer + 收发 + ISR)                            */
+/* ========================================================================== */
+#ifndef DEBUG_EN
 
 /* ---- Ring buffer (written by ISR, read by application) ---- */
 volatile uint8_t  usart_rx_buf[USART_RX_BUF_SIZE];
@@ -19,10 +26,6 @@ volatile uint16_t usart_rx_tail = 0;
 
 /* ---- Private ---- */
 static md_usart_init_t usart_cfg;
-
-/* ========================================================================== */
-/*  Static helpers                                                           */
-/* ========================================================================== */
 
 /**
   * @brief  Configure USART1 GPIO pins (PB0=RX, PB1=TX, AF7).
@@ -53,13 +56,8 @@ static void usart_pin_init(void)
     md_gpio_init(USART1_RX_PORT, USART1_RX_PIN, &gpio);
 }
 
-/* ========================================================================== */
-/*  Public API                                                               */
-/* ========================================================================== */
-
 /**
-  * @brief  Initialize USART1: pins, baud rate (default 115200), 8N1, RXNE interrupt.
-  * @param  baud: baud rate (e.g. 115200, 9600)
+  * @brief  Initialize USART1: pins, baud rate, 8N1, RXNE interrupt.
   */
 void usart_init(uint32_t baud)
 {
@@ -95,8 +93,6 @@ void usart_send_byte(uint8_t data)
 
 /**
   * @brief  Send a buffer (blocking).
-  * @param  data: pointer to buffer
-  * @param  len: number of bytes
   */
 void usart_send_bytes(const uint8_t *data, uint16_t len)
 {
@@ -143,3 +139,61 @@ uint16_t usart_recv_available(void)
 {
     return (usart_rx_head - usart_rx_tail + USART_RX_BUF_SIZE) % USART_RX_BUF_SIZE;
 }
+
+#endif /* !DEBUG_EN */
+
+
+/* ========================================================================== */
+/*  调试模式：printf 重定向 (仅 TX，无 RX，无 ISR)                              */
+/* ========================================================================== */
+#ifdef DEBUG_EN
+
+static md_usart_init_t usart_cfg_dbg;
+
+/**
+  * @brief  Configure USART1 TX pin only (PB1, AF7).
+  */
+static void usart_pin_init_tx(void)
+{
+    md_gpio_init_t gpio;
+
+    md_gpio_init_struct(&gpio);
+    gpio.mode = MD_GPIO_MODE_OUTPUT;
+    gpio.odos = MD_GPIO_PUSH_PULL;
+    gpio.pupd = MD_GPIO_PUSH_UP;
+    gpio.odrv = MD_GPIO_OUT_DRIVE_NORMAL;
+    gpio.flt  = MD_GPIO_FILTER_DISABLE;
+    gpio.type = MD_GPIO_TYPE_CMOS;
+    gpio.func = USART1_GPIO_FUNC;
+    md_gpio_init(USART1_TX_PORT, USART1_TX_PIN, &gpio);
+}
+
+/**
+  * @brief  Initialize USART1 TX-only (no RX, no interrupt).
+  */
+void usart_init(uint32_t baud)
+{
+    usart_pin_init_tx();
+
+    md_usart_init_struct(&usart_cfg_dbg);
+    usart_cfg_dbg.baud        = baud;
+    usart_cfg_dbg.word_length = MD_USART_WORD_LENGTH_8B;
+    usart_cfg_dbg.stop_bits   = MD_USART_STOP_BITS_1;
+    usart_cfg_dbg.parity      = MD_USART_PARITY_NONE;
+    usart_cfg_dbg.fctl        = MD_USART_HW_FLOW_CTL_NONE;
+    usart_cfg_dbg.mode        = MD_USART_MODE_TX;
+
+    md_usart_init(USART1, &usart_cfg_dbg);
+}
+
+/**
+  * @brief  fputc — MicroLIB printf 重定向到 USART1 TX
+  */
+int fputc(int c, FILE *f)
+{
+    while (!md_usart_is_active_flag_txemp(USART1));
+    md_usart_send_data8(USART1, (uint8_t)c);
+    return c;
+}
+
+#endif /* DEBUG_EN */
