@@ -173,6 +173,7 @@ void key_single_click_cb(void)
 
 	/* 设置按键事件 bit0: 单击 (写入影子缓冲, 由 i2c_slave_proc 原子交换) */
 	key_event_buf |= 0x01;
+	printf("Wake up from sleep\n");
 }
 
 void key_double_click_cb(void)

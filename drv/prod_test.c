@@ -17,16 +17,16 @@
 /*  模块级全局变量                                                           */
 /* ========================================================================== */
 
-static prod_test_rt_t   pt_rt;      /* 运行时状态 */
-static prod_test_data_t pt_data;    /* 名词解释全部数据 (先填测试值, 后续接真实数据) */
+static prod_test_rt_t pt_rt;     /* 运行时状态 */
+static prod_test_data_t pt_data; /* 名词解释全部数据 (先填测试值, 后续接真实数据) */
 
 /* ---- 帧解析器 ---- */
 static frame_parse_state_t frame_state = FRAME_WAIT_AA;
-static uint8_t  frame_buf[PT_FRAME_MAX_PARAMS + 4];
-static uint8_t  frame_idx;
-static uint8_t  frame_len;
-static uint8_t  frame_cmd;
-static uint8_t  frame_param_cnt;
+static uint8_t frame_buf[PT_FRAME_MAX_PARAMS + 4];
+static uint8_t frame_idx;
+static uint8_t frame_len;
+static uint8_t frame_cmd;
+static uint8_t frame_param_cnt;
 
 /* ---- 前向声明 ---- */
 static void pt_report_all(void);
@@ -40,40 +40,42 @@ static void pt_fill_test_values(void)
     memset(pt_data.unlock_sign, 0, PT_UNLOCK_KEY_LEN);
 
     /* SN + BAT_SN (初始值, 不等同于写入值) */
-    memcpy(pt_data.sn,     "000000000000", sizeof("000000000000"));
-    memcpy(pt_data.bat_sn, "BAT00000000",   sizeof("BAT00000000"));
+    memcpy(pt_data.sn, "000000000000", sizeof("000000000000"));
+    memcpy(pt_data.bat_sn, "BAT00000000", sizeof("BAT00000000"));
 
     /* UID (模拟测试值: 123456789ABCDEF0) */
-    { uint8_t tmp[8] = {0x12,0x34,0x56,0x78,0x9A,0xBC,0xDE,0xF0};
-      memcpy(pt_data.uid, tmp, PT_UID_LEN); }
+    {
+        uint8_t tmp[8] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0};
+        memcpy(pt_data.uid, tmp, PT_UID_LEN);
+    }
 
     /* 实时数据 */
     pt_data.vbat_mv = 15000;
-    pt_data.soc      = 85;
-    pt_data.temp     = 28;
-    pt_data.bat_r    = 35;
-    pt_data.bat_r0   = 30;
-    pt_data.cycle_u  = 105;
-    pt_data.cycle_a  = 125;
+    pt_data.soc = 85;
+    pt_data.temp = 28;
+    pt_data.bat_r = 35;
+    pt_data.bat_r0 = 30;
+    pt_data.cycle_u = 105;
+    pt_data.cycle_a = 125;
 
     /* VER + MODEL + MFG */
     pt_data.ver_major = 1;
     pt_data.ver_minor = 0;
     pt_data.ver_patch = 0;
-    memcpy(pt_data.model,  "PW", sizeof("PW"));
-    memcpy(pt_data.mfg,    "SZ", sizeof("SZ"));
+    memcpy(pt_data.model, "PW", sizeof("PW"));
+    memcpy(pt_data.mfg, "SZ", sizeof("SZ"));
     memset(pt_data.mfg_date, 0, 6);
 
     /* ---- 异常记录 ---- */
-    pt_data.ovp      = 0;
-    pt_data.ovp_max  = 0;
-    pt_data.otp      = 0;
-    pt_data.otp_max  = 0;
+    pt_data.ovp = 0;
+    pt_data.ovp_max = 0;
+    pt_data.otp = 0;
+    pt_data.otp_max = 0;
     memset(pt_data.err_time, 0, 6);
-    pt_data.err_cnt  = 0;
-    pt_data.r_err    = 0;
-    pt_data.uid_err  = 0;
-    pt_data.liq_cnt  = 0;
+    pt_data.err_cnt = 0;
+    pt_data.r_err = 0;
+    pt_data.uid_err = 0;
+    pt_data.liq_cnt = 0;
 }
 
 /* ========================================================================== */
@@ -129,14 +131,19 @@ static void pt_send_kv_u32(const char *key, uint32_t val)
     char buf[12];
     uint8_t pos = 0, i;
 
-    if (val == 0) {
+    if (val == 0)
+    {
         buf[pos++] = '0';
-    } else {
-        while (val > 0 && pos < 11) {
+    }
+    else
+    {
+        while (val > 0 && pos < 11)
+        {
             buf[pos++] = '0' + (val % 10);
             val /= 10;
         }
-        for (i = 0; i < pos / 2; i++) {
+        for (i = 0; i < pos / 2; i++)
+        {
             char tmp = buf[i];
             buf[i] = buf[pos - 1 - i];
             buf[pos - 1 - i] = tmp;
@@ -144,26 +151,27 @@ static void pt_send_kv_u32(const char *key, uint32_t val)
     }
     buf[pos] = '\0';
 
-    if (key && key[0] != '\0') {
-        usart_send_string(key);
-        usart_send_byte('=');
+    if (key && key[0] != '\0')
+    {
+        LOGI(key);
+        LOGI('=');
     }
-    usart_send_string(buf);
-    usart_send_string("\r\n");
+    LOGI(buf);
+    LOGI("\r\n");
 }
 
 static void pt_send_kv_str(const char *key, const char *val)
 {
-    usart_send_string(key);
-    usart_send_byte('=');
-    usart_send_string(val);
-    usart_send_string("\r\n");
+    LOGI(key);
+    LOGI('=');
+    LOGI(val);
+    LOGI("\r\n");
 }
 
 static void pt_send_line(const char *str)
 {
-    usart_send_string(str);
-    usart_send_string("\r\n");
+    LOGI(str);
+    LOGI("\r\n");
 }
 
 /**
@@ -173,57 +181,71 @@ static void pt_send_val_fixed2(int32_t val_hundredths)
 {
     uint32_t v = (val_hundredths < 0) ? (uint32_t)(-val_hundredths) : (uint32_t)val_hundredths;
     uint32_t int_part = v / 100;
-    uint8_t  frac     = (uint8_t)(v % 100);
+    uint8_t frac = (uint8_t)(v % 100);
     char buf[12];
     uint8_t pos = 0, i;
 
-    if (val_hundredths < 0) usart_send_byte('-');
+    if (val_hundredths < 0)
+        LOGI('-');
 
-    if (int_part == 0) {
+    if (int_part == 0)
+    {
         buf[pos++] = '0';
-    } else {
+    }
+    else
+    {
         uint32_t n = int_part;
-        while (n > 0 && pos < 11) { buf[pos++] = '0' + (n % 10); n /= 10; }
-        for (i = 0; i < pos / 2; i++) {
-            char tmp = buf[i]; buf[i] = buf[pos - 1 - i]; buf[pos - 1 - i] = tmp;
+        while (n > 0 && pos < 11)
+        {
+            buf[pos++] = '0' + (n % 10);
+            n /= 10;
+        }
+        for (i = 0; i < pos / 2; i++)
+        {
+            char tmp = buf[i];
+            buf[i] = buf[pos - 1 - i];
+            buf[pos - 1 - i] = tmp;
         }
     }
-    for (i = 0; i < pos; i++) usart_send_byte(buf[i]);
+    for (i = 0; i < pos; i++)
+        LOGI(buf[i]);
 
-    usart_send_byte('.');
-    usart_send_byte('0' + (frac / 10));
-    usart_send_byte('0' + (frac % 10));
+    LOGI('.');
+    LOGI('0' + (frac / 10));
+    LOGI('0' + (frac % 10));
 }
 
 static void pt_send_kv_fixed2(const char *key, int32_t val_hundredths)
 {
-    usart_send_string(key);
-    usart_send_byte('=');
+    LOGI(key);
+    LOGI('=');
     pt_send_val_fixed2(val_hundredths);
-    usart_send_string("\r\n");
+    LOGI("\r\n");
 }
 
 static void pt_send_uid_hex(const uint8_t *uid, uint8_t len)
 {
     uint8_t i;
-    usart_send_string("UID=");
-    for (i = 0; i < len; i++) {
-        usart_send_byte(pt_nibble_to_hex(uid[i] >> 4));
-        usart_send_byte(pt_nibble_to_hex(uid[i] & 0x0F));
+    LOGI("UID=");
+    for (i = 0; i < len; i++)
+    {
+        LOGI(pt_nibble_to_hex(uid[i] >> 4));
+        LOGI(pt_nibble_to_hex(uid[i] & 0x0F));
     }
-    usart_send_string("\r\n");
+    LOGI("\r\n");
 }
 
 static void pt_send_kv_bcd_time(const char *key, const uint8_t *bcd, uint8_t bcd_len)
 {
     uint8_t i;
-    usart_send_string(key);
-    usart_send_byte('=');
-    for (i = 0; i < bcd_len; i++) {
-        usart_send_byte(pt_nibble_to_hex(bcd[i] >> 4));
-        usart_send_byte(pt_nibble_to_hex(bcd[i] & 0x0F));
+    LOGI(key);
+    LOGI('=');
+    for (i = 0; i < bcd_len; i++)
+    {
+        LOGI(pt_nibble_to_hex(bcd[i] >> 4));
+        LOGI(pt_nibble_to_hex(bcd[i] & 0x0F));
     }
-    usart_send_string("\r\n");
+    LOGI("\r\n");
 }
 
 /* ========================================================================== */
@@ -235,12 +257,13 @@ static void pt_report_all(void)
     uint8_t i;
 
     /* 0. 加密签名: 64位哈希 (MCU_UID+密钥, 8字节十六进制) */
-    usart_send_string("UNLOCK_SIGN=");
-    for (i = 0; i < PT_UNLOCK_KEY_LEN; i++) {
-        usart_send_byte(pt_nibble_to_hex(pt_data.unlock_sign[i] >> 4));
-        usart_send_byte(pt_nibble_to_hex(pt_data.unlock_sign[i] & 0x0F));
+    LOGI("UNLOCK_SIGN=");
+    for (i = 0; i < PT_UNLOCK_KEY_LEN; i++)
+    {
+        LOGI(pt_nibble_to_hex(pt_data.unlock_sign[i] >> 4));
+        LOGI(pt_nibble_to_hex(pt_data.unlock_sign[i] & 0x0F));
     }
-    usart_send_string("\r\n");
+    LOGI("\r\n");
 
     /* 1.  SN: 整机序列号 */
     pt_send_kv_str("SN", pt_data.sn);
@@ -273,13 +296,13 @@ static void pt_report_all(void)
     pt_send_kv_u32("CYCLE_A", pt_data.cycle_a);
 
     /* 11. VER: 固件版本 VX.X.X */
-    usart_send_string("VER=V");
-    usart_send_byte('0' + pt_data.ver_major);
-    usart_send_byte('.');
-    usart_send_byte('0' + pt_data.ver_minor);
-    usart_send_byte('.');
-    usart_send_byte('0' + pt_data.ver_patch);
-    usart_send_string("\r\n");
+    LOGI("VER=V");
+    LOGI('0' + pt_data.ver_major);
+    LOGI('.');
+    LOGI('0' + pt_data.ver_minor);
+    LOGI('.');
+    LOGI('0' + pt_data.ver_patch);
+    LOGI("\r\n");
 
     /* 12. MODEL: 产品型号编码 */
     pt_send_kv_str("MODEL", pt_data.model);
@@ -373,14 +396,19 @@ static void pt_handle_unlock(const uint8_t *params, uint8_t len)
 {
     uint32_t unlock_code;
 
-    if (pt_rt.state != PT_TEST_MODE) { pt_send_line("ERR=NOT_IN_TEST"); return; }
-    if (len < 8)                     { pt_send_line("ERR=UNLOCK_FAIL"); return; }
+    if (pt_rt.state != PT_TEST_MODE)
+    {
+        pt_send_line("ERR=NOT_IN_TEST");
+        return;
+    }
+    if (len < 8)
+    {
+        pt_send_line("ERR=UNLOCK_FAIL");
+        return;
+    }
 
     /* 大端序解析: 上位机发送 MSB first */
-    unlock_code = ((uint32_t)params[0] << 24)
-                | ((uint32_t)params[1] << 16)
-                | ((uint32_t)params[2] << 8)
-                | ((uint32_t)params[3]);
+    unlock_code = ((uint32_t)params[0] << 24) | ((uint32_t)params[1] << 16) | ((uint32_t)params[2] << 8) | ((uint32_t)params[3]);
 
     if (CheckUnlock(pt_data.uid, PT_UID_LEN, unlock_code))
     {
@@ -399,9 +427,14 @@ static void pt_handle_unlock(const uint8_t *params, uint8_t len)
 
 static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
 {
-    if (!pt_rt.unlocked) { pt_send_line("ERR=NOT_UNLOCKED"); return; }
+    if (!pt_rt.unlocked)
+    {
+        pt_send_line("ERR=NOT_UNLOCKED");
+        return;
+    }
 
-    if (len > PT_SN_LEN) len = PT_SN_LEN;
+    if (len > PT_SN_LEN)
+        len = PT_SN_LEN;
     memset(pt_data.sn, 0, sizeof(pt_data.sn));
     memcpy(pt_data.sn, params, len);
     pt_data.sn[len] = '\0';
@@ -412,9 +445,14 @@ static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
 
 static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
 {
-    if (!pt_rt.unlocked) { pt_send_line("ERR=NOT_UNLOCKED"); return; }
+    if (!pt_rt.unlocked)
+    {
+        pt_send_line("ERR=NOT_UNLOCKED");
+        return;
+    }
 
-    if (len > PT_BAT_SN_LEN) len = PT_BAT_SN_LEN;
+    if (len > PT_BAT_SN_LEN)
+        len = PT_BAT_SN_LEN;
     memset(pt_data.bat_sn, 0, sizeof(pt_data.bat_sn));
     memcpy(pt_data.bat_sn, params, len);
     pt_data.bat_sn[len] = '\0';
@@ -425,28 +463,36 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
 
 static void pt_handle_sync_time(const uint8_t *params, uint8_t len)
 {
-    if (!pt_rt.unlocked) { pt_send_line("ERR=NOT_UNLOCKED"); return; }
-    if (len < 6)         { pt_send_line("ERR=DATE_FAIL");    return; }
+    if (!pt_rt.unlocked)
+    {
+        pt_send_line("ERR=NOT_UNLOCKED");
+        return;
+    }
+    if (len < 6)
+    {
+        pt_send_line("ERR=DATE_FAIL");
+        return;
+    }
 
     memcpy(pt_data.mfg_date, params, 6);
 
     /* TODO: 写 Flash */
 
     /* 上行: DATE=20YYMMDDHHMMSS */
-    usart_send_string("DATE=20");
-    usart_send_byte(pt_nibble_to_hex(params[0] >> 4));
-    usart_send_byte(pt_nibble_to_hex(params[0] & 0x0F));
-    usart_send_byte(pt_nibble_to_hex(params[1] >> 4));
-    usart_send_byte(pt_nibble_to_hex(params[1] & 0x0F));
-    usart_send_byte(pt_nibble_to_hex(params[2] >> 4));
-    usart_send_byte(pt_nibble_to_hex(params[2] & 0x0F));
-    usart_send_byte(pt_nibble_to_hex(params[3] >> 4));
-    usart_send_byte(pt_nibble_to_hex(params[3] & 0x0F));
-    usart_send_byte(pt_nibble_to_hex(params[4] >> 4));
-    usart_send_byte(pt_nibble_to_hex(params[4] & 0x0F));
-    usart_send_byte(pt_nibble_to_hex(params[5] >> 4));
-    usart_send_byte(pt_nibble_to_hex(params[5] & 0x0F));
-    usart_send_string("\r\n");
+    LOGI("DATE=20");
+    LOGI(pt_nibble_to_hex(params[0] >> 4));
+    LOGI(pt_nibble_to_hex(params[0] & 0x0F));
+    LOGI(pt_nibble_to_hex(params[1] >> 4));
+    LOGI(pt_nibble_to_hex(params[1] & 0x0F));
+    LOGI(pt_nibble_to_hex(params[2] >> 4));
+    LOGI(pt_nibble_to_hex(params[2] & 0x0F));
+    LOGI(pt_nibble_to_hex(params[3] >> 4));
+    LOGI(pt_nibble_to_hex(params[3] & 0x0F));
+    LOGI(pt_nibble_to_hex(params[4] >> 4));
+    LOGI(pt_nibble_to_hex(params[4] & 0x0F));
+    LOGI(pt_nibble_to_hex(params[5] >> 4));
+    LOGI(pt_nibble_to_hex(params[5] & 0x0F));
+    LOGI("\r\n");
 }
 
 /* ========================================================================== */
@@ -457,12 +503,25 @@ static void pt_dispatch_frame(uint8_t cmd, const uint8_t *params, uint8_t param_
 {
     switch (cmd)
     {
-    case PT_CMD_MODE_CTRL:     if (param_len >= 1) pt_handle_mode_ctrl(params[0]); break;
-    case PT_CMD_UNLOCK:        pt_handle_unlock(params, param_len);               break;
-    case PT_CMD_WRITE_SN:      pt_handle_write_sn(params, param_len);             break;
-    case PT_CMD_WRITE_BAT_SN:  pt_handle_write_bat_sn(params, param_len);          break;
-    case PT_CMD_SYNC_TIME:     pt_handle_sync_time(params, param_len);            break;
-    default:                   pt_send_line("ERR=UNKNOWN_CMD");                   break;
+    case PT_CMD_MODE_CTRL:
+        if (param_len >= 1)
+            pt_handle_mode_ctrl(params[0]);
+        break;
+    case PT_CMD_UNLOCK:
+        pt_handle_unlock(params, param_len);
+        break;
+    case PT_CMD_WRITE_SN:
+        pt_handle_write_sn(params, param_len);
+        break;
+    case PT_CMD_WRITE_BAT_SN:
+        pt_handle_write_bat_sn(params, param_len);
+        break;
+    case PT_CMD_SYNC_TIME:
+        pt_handle_sync_time(params, param_len);
+        break;
+    default:
+        pt_send_line("ERR=UNKNOWN_CMD");
+        break;
     }
 }
 
@@ -473,7 +532,8 @@ static void pt_dispatch_frame(uint8_t cmd, const uint8_t *params, uint8_t param_
 static uint8_t pt_calc_checksum(const uint8_t *data, uint8_t len)
 {
     uint8_t sum = 0, i;
-    for (i = 0; i < len; i++) sum += data[i];
+    for (i = 0; i < len; i++)
+        sum += data[i];
     return sum & 0xFF;
 }
 
@@ -486,25 +546,47 @@ static void pt_parse_byte(uint8_t byte)
     switch (frame_state)
     {
     case FRAME_WAIT_AA:
-        if (byte == PT_FRAME_HEADER1) { frame_buf[0] = byte; frame_idx = 1; frame_state = FRAME_WAIT_55; }
+        if (byte == PT_FRAME_HEADER1)
+        {
+            frame_buf[0] = byte;
+            frame_idx = 1;
+            frame_state = FRAME_WAIT_55;
+        }
         break;
     case FRAME_WAIT_55:
-        if (byte == PT_FRAME_HEADER2) { frame_buf[1] = byte; frame_idx = 2; frame_state = FRAME_WAIT_LEN; }
-        else                         { frame_state = FRAME_WAIT_AA; }
+        if (byte == PT_FRAME_HEADER2)
+        {
+            frame_buf[1] = byte;
+            frame_idx = 2;
+            frame_state = FRAME_WAIT_LEN;
+        }
+        else
+        {
+            frame_state = FRAME_WAIT_AA;
+        }
         break;
     case FRAME_WAIT_LEN:
         frame_len = byte;
-        if (frame_len < 3 || frame_len > (PT_FRAME_MAX_PARAMS + 4)) { frame_state = FRAME_WAIT_AA; break; }
-        frame_buf[2] = byte; frame_idx = 3; frame_state = FRAME_WAIT_CMD;
+        if (frame_len < 3 || frame_len > (PT_FRAME_MAX_PARAMS + 4))
+        {
+            frame_state = FRAME_WAIT_AA;
+            break;
+        }
+        frame_buf[2] = byte;
+        frame_idx = 3;
+        frame_state = FRAME_WAIT_CMD;
         break;
     case FRAME_WAIT_CMD:
-        frame_cmd = byte; frame_buf[3] = byte; frame_idx = 4;
+        frame_cmd = byte;
+        frame_buf[3] = byte;
+        frame_idx = 4;
         frame_param_cnt = frame_len - 4;
         frame_state = (frame_param_cnt > 0) ? FRAME_WAIT_PARAMS : FRAME_WAIT_CKSUM;
         break;
     case FRAME_WAIT_PARAMS:
         frame_buf[frame_idx++] = byte;
-        if (frame_idx >= (uint8_t)(4 + frame_param_cnt)) frame_state = FRAME_WAIT_CKSUM;
+        if (frame_idx >= (uint8_t)(4 + frame_param_cnt))
+            frame_state = FRAME_WAIT_CKSUM;
         break;
     case FRAME_WAIT_CKSUM:
         if (byte == pt_calc_checksum(frame_buf, frame_len))
@@ -525,13 +607,15 @@ static void pt_proc_ng_lock(void)
 {
     uint32_t now = md_get_tick();
 
-    if ((now - pt_rt.ng_lock_tick) >= 500) {
+    if ((now - pt_rt.ng_lock_tick) >= 500)
+    {
         pt_rt.ng_lock_tick = now;
         pt_rt.ng_led_toggle = !pt_rt.ng_led_toggle;
         /* TODO: 控制 LED GPIO */
     }
 
-    if (ui_data.is_charge) {
+    if (ui_data.is_charge)
+    {
         pt_rt.state = PT_IDLE;
         pt_rt.unlocked = 0;
         pt_rt.ng_led_toggle = 0;
@@ -563,13 +647,14 @@ void prod_test_proc(void)
 {
     uint8_t byte;
 
-    while (usart_recv_available()) {
+    while (usart_recv_available())
+    {
         byte = usart_recv_byte();
         pt_parse_byte(byte);
     }
 
-    if (pt_rt.state == PT_NG_LOCK)    pt_proc_ng_lock();
+    if (pt_rt.state == PT_NG_LOCK)
+        pt_proc_ng_lock();
 }
 
 #endif /* !DEBUG_EN */
-

@@ -4,6 +4,7 @@
 
 #define FLASH_WRITE_ENABLE	0x06
 #define FLASH_ERASE			0x20	// 4KB
+#define FLASH_ERASE_256     0x81	// 256B
 #define FLASH_PROGRAM		0x02	// 256B
 #define FLASH_READ			0x03
 #define FLASH_ID			0x9F
@@ -16,11 +17,19 @@ md_status_t flash_sector_erase(uint32_t addr)
 	uint8_t cmd_buf[4];
 	uint8_t i = 0U;
 
- 	// cmd_buf[0] = FLASH_Block_ERASE;
-	cmd_buf[0] = FLASH_ERASE;		  //Flash sector erase command
-	cmd_buf[1] = (addr >> 16) & 0xff; //24 bit Flash address
-	cmd_buf[2] = (addr >> 8) & 0xff;
-	cmd_buf[3] = addr & 0xff;
+	cmd_buf[0] = FLASH_ERASE_256;	  // 256B 页擦除
+
+	if (cmd_buf[0] == FLASH_ERASE_256) {
+		/* 0x81 地址格式: 2字节页地址 + 1字节 dummy */
+		uint16_t page = (uint16_t)(addr >> 8);  /* addr / 256 */
+		cmd_buf[1] = (page >> 8) & 0xff;
+		cmd_buf[2] = page & 0xff;
+		cmd_buf[3] = 0x00;                     /* dummy byte */
+	} else {
+		cmd_buf[1] = (addr >> 16) & 0xff;      /* 标准 3字节地址 */
+		cmd_buf[2] = (addr >> 8) & 0xff;
+		cmd_buf[3] = addr & 0xff;
+	}
 
 	/*Choose lower, the selected Flash*/
 	FLASH_CS_CLR();
@@ -66,6 +75,8 @@ md_status_t flash_sector_erase(uint32_t addr)
 	}
 
 	FLASH_CS_SET();
+
+	LCD_CS_LOW();   /* 恢复 LCD 片选 */
 
 	return MD_OK;
 }
@@ -142,6 +153,10 @@ md_status_t flash_write(uint32_t addr, unsigned char *buf, uint16_t size)
 
 	FLASH_CS_SET();
 
+	flash_wait_unbusy();  /* 等 Flash 内部写入完成 */
+
+	LCD_CS_LOW();         /* 恢复 LCD 片选 */
+
 	return MD_OK;
 }
 
@@ -160,7 +175,6 @@ md_status_t flash_read(uint32_t addr, unsigned char *buf, uint16_t size)
 	cmd_buf[3] = addr & 0xff;
 
 	FLASH_CS_CLR(); /*Choose lower, the selected Flash*/
-	LCD_CS_HIGH();
 	for (i = 0; i < sizeof(cmd_buf); i++) /*Send the editor & reader instructions and Flash address three bytes*/
 	{
 		md_spi_set_data_reg(FLASH_SPI, (uint8_t)cmd_buf[i]);
@@ -195,6 +209,7 @@ md_status_t flash_read(uint32_t addr, unsigned char *buf, uint16_t size)
 	}
 
 	FLASH_CS_SET();
+	LCD_CS_LOW();   /* 恢复 LCD 片选 */
 
 	return MD_OK;
 }
@@ -216,7 +231,6 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
 	cmd_buf[3] = addr & 0xff;
 
 	FLASH_CS_CLR();
-	LCD_CS_HIGH();
 
 	/* Send command + 3-byte address by polling */
 	for (i = 0; i < sizeof(cmd_buf); i++)
@@ -273,6 +287,7 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
 	spi_dma_rx_config.interrupt = rx_int_save;
 
 	FLASH_CS_SET();
+	LCD_CS_LOW();   /* 恢复 LCD 片选 */
 	return MD_OK;
 }
 
@@ -371,6 +386,7 @@ uint32_t flash_read_id(void)
 	}
 
 	FLASH_CS_SET();
+	LCD_CS_LOW();   /* 恢复 LCD 片选 */
 
 	return ((flash_id[0] << 16) | (flash_id[1] << 8) | (flash_id[2])); /*Manufacturer ID flash_id [0] and device ID flash_id [1]*/
 }
@@ -388,6 +404,10 @@ void flash_read_buf(uint32_t addr, uint8_t* read_buf, uint16_t size)
 	{
 		flash_wait_unbusy();
 	}
+
+	LCD_CS_LOW();   /* flash_wait_unbusy 拉高了 LCD_CS，恢复 */
+
+	return;
 }
 
 

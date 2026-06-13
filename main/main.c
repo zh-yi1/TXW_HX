@@ -1,6 +1,7 @@
 #include "main.h"
 
 static void sys_init(void);
+static uint8_t flash_test_done = 0;
 
 int main()
 {
@@ -20,6 +21,13 @@ int main()
 #ifndef DEBUG_EN
 		prod_test_proc();
 #endif /* !DEBUG_EN */
+
+		/* Flash 测试: 上电 2 秒后执行一次 */
+		if (!flash_test_done && md_get_tick() > 2000) {
+			flash_test_done = 1;
+			flash_test_run();
+			flash_test_done = 0;
+		}
 
 		cw1573_proc();
 		i2c_slave_proc();
