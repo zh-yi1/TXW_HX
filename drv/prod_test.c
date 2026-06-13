@@ -37,9 +37,9 @@ static void pt_fill_test_values(void)
     /* 加密签名 */
     memset(pt_data.unlock_sign, 0, PT_UNLOCK_KEY_LEN);
 
-    /* SN + BAT_SN */
-    memcpy(pt_data.sn,     "000000000001", sizeof("000000000001"));
-    memcpy(pt_data.bat_sn, "ATL00000009;ATL00000010", sizeof("ATL00000009;ATL00000010"));
+    /* SN + BAT_SN (初始值, 不等同于写入值) */
+    memcpy(pt_data.sn,     "000000000000", sizeof("000000000000"));
+    memcpy(pt_data.bat_sn, "BAT00000000",   sizeof("BAT00000000"));
 
     /* UID (模拟测试值: 123456789ABCDEF0) */
     { uint8_t tmp[8] = {0x12,0x34,0x56,0x78,0x9A,0xBC,0xDE,0xF0};
@@ -384,7 +384,7 @@ static void pt_handle_unlock(const uint8_t *params, uint8_t len)
     {
         pt_rt.unlocked = 1;
         pt_rt.state = PT_UNLOCKED;
-        pt_rt.unlock_deadline = md_get_tick() + 300000;  /* 5分钟超时 */
+        /* 解锁持续有效, 直至掉电或OK退出 */
         /* 存储解锁签名 */
         memcpy(pt_data.unlock_sign, params, PT_UNLOCK_KEY_LEN);
         pt_send_line("ACK=OK");
@@ -536,14 +536,6 @@ static void pt_proc_ng_lock(void)
     }
 }
 
-static void pt_check_unlock_timeout(void)
-{
-    if (pt_rt.unlocked && (md_get_tick() - pt_rt.unlock_deadline) < 0x80000000UL) {
-        pt_rt.unlocked = 0;
-        pt_rt.state = PT_TEST_MODE;
-    }
-}
-
 /* ========================================================================== */
 /*  公开 API                                                                 */
 /* ========================================================================== */
@@ -575,5 +567,4 @@ void prod_test_proc(void)
     }
 
     if (pt_rt.state == PT_NG_LOCK)    pt_proc_ng_lock();
-    if (pt_rt.state == PT_UNLOCKED)   pt_check_unlock_timeout();
 }
