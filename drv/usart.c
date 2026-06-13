@@ -17,7 +17,6 @@
 /* ========================================================================== */
 /*  非调试模式：产测协议 (ring buffer + 收发 + ISR)                            */
 /* ========================================================================== */
-#ifndef DEBUG_EN
 
 /* ---- Ring buffer (written by ISR, read by application) ---- */
 volatile uint8_t  usart_rx_buf[USART_RX_BUF_SIZE];

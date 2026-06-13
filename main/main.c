@@ -1,6 +1,5 @@
 #include "main.h"
 #include <stdio.h>
-#define DEBUG_EN
 static void sys_init(void);
 
 int main()
