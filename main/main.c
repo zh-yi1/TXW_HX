@@ -1,5 +1,5 @@
 #include "main.h"
-#include <stdio.h>
+
 static void sys_init(void);
 
 int main()
@@ -65,8 +65,9 @@ static void sys_init(void)
 	//产测模块初始化
 #ifndef DEBUG_EN
 	prod_test_init();
-	printf("Hello World!\n");
 #endif /* !DEBUG_EN */
+
+	LOGI("Hello World!\n");
 }
 
 void SystemInit(void){}
