@@ -25,7 +25,6 @@ int main()
 		i2c_slave_proc();
 		key_proc();
 		ui_proc();
-
 	}
 }
 
