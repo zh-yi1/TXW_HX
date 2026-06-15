@@ -36,25 +36,24 @@
  *  │                                │
  *  │  ... 预留 ...                   │
  *  │                                │
- *  ├─────────────────────────────────┤ +0x3000  ← FLASH_OFFS_ABNORMAL_FIXED
- *  │  ■ 异常记录固定区 (8KB)          │
- *  │    32 块 × 256B                │
- *  │    每块 16 条, 每条 16B         │
- *  │    共 512 条, 环形覆盖           │
- *  │    每小时提交最差值到此区         │
+ *  ├─────────────────────────────────┤ +0x3000  ← FLASH_OFFS_ABNORMAL_VOLTAGE
+ *  │  ■ 电压异常固定区 (7 × 256B)     │
+ *  │    每条 16B, 每块 16 条          │
+ *  │    共 112 条, 限存 100 条        │
+ *  │    存满即停, 不覆盖               │
+ *  ├─────────────────────────────────┤ +0x3700  ← FLASH_OFFS_ABNORMAL_TEMPERATURE
+ *  │  ■ 温度异常固定区 (7 × 256B)     │
+ *  │    每条 16B, 每块 16 条          │
+ *  │    共 112 条, 限存 100 条        │
+ *  │    存满即停, 不覆盖               │
  *  │                                │
- *  ├─────────────────────────────────┤ +0x7000  ← FLASH_OFFS_ABNORMAL_SCRATCH
- *  │  ■ 异常记录擦写区 (256B)         │
- *  │    条目 8B, 最多 32 条           │
- *  │    小时内增量写入                │
- *  │    值变严重才写                  │
- *  │    小时结束 → 提交固定区 → 擦除   │
+ *  │  ... 释放的 ~4.5KB              │
  *  │                                │
- *  └─────────────────────────────────┘ +0x7100+
+ *  └─────────────────────────────────┘ +0x3E00
  *
  *  擦除粒度: 256B (Flash 页/子扇区)
  *  写入策略: 全部追加写, 不读-改-写
- *  磨损均衡: 时间戳区 3 块轮转; 固定区环形覆盖
+ *  磨损均衡: 时间戳区 3 块轮转
  *
  * ============================================================================
  */
@@ -63,7 +62,7 @@
 #define FLASH_DATA_BASE              0x300000UL    /* 3MB 起点 */
 
 /* ---- 静态配置区 (256B) ---- */
-#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0 */
+#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0, factory_cfg_t 占用 76B */
 
 /* ---- 时间戳存储区 (256B × N) ---- */
 #define FLASH_OFFS_TIMESTAMP_BLOCK0  (0x0100)      /* 时间戳块 0 */
@@ -71,8 +70,8 @@
 #define FLASH_OFFS_TIMESTAMP_BLOCK2  (0x0300)      /* 时间戳块 2 */
 
 /* ---- 异常记录区 ---- */
-#define FLASH_OFFS_ABNORMAL_FIXED    (0x3000)      /* 固定区起始, 环形写入 */
-#define FLASH_OFFS_ABNORMAL_SCRATCH  (0x7000)      /* 擦写区, 单个 256B 块 */
+#define FLASH_OFFS_ABNORMAL_VOLTAGE     (0x3000)      /* 电压异常固定区 */
+#define FLASH_OFFS_ABNORMAL_TEMPERATURE (0x3700)      /* 温度异常固定区 */
 
 /* ---- 时间戳块内条目格式 (7B) ---- */
 #pragma pack(1)
@@ -92,8 +91,9 @@ typedef struct {
     char     bat_model[4][16];      /* 4 节电芯型号 ASCII */
     uint8_t  cell_count;            /* 电芯数量 */
     uint32_t device_sn;             /* 设备序列号 */
-    uint8_t  crc8;                  /* 前 74B 的 CRC-8（magic 到 device_sn） */
-} factory_cfg_t;                    /* 共 75B */
+    uint8_t  disable_reason;          /* 禁用原因: 0=正常 1=过压 2=欠压 (持久化) */
+    uint8_t  crc8;                  /* 覆盖 magic ~ disable_reason 的 CRC-8 */
+} factory_cfg_t;                    /* 共 76B */
 #pragma pack()
 
 /* ---- 外部接口 ---- */

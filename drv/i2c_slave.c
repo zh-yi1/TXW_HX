@@ -55,11 +55,6 @@ static uint16_t reg_read_u16(uint8_t addr_l)
          | ((uint16_t)i2c_reg_map[addr_l + 1] << 8);
 }
 
-static int16_t reg_read_s16(uint8_t addr_l)
-{
-    return (int16_t)reg_read_u16(addr_l);
-}
-
 static uint32_t reg_read_u32(uint8_t addr_0)
 {
     return (uint32_t)i2c_reg_map[addr_0]
@@ -133,6 +128,7 @@ void i2c_slave_init(void)
     i2c_reg_map[REG_FW_VERSION_H]    = 0x01;
     i2c_reg_map[REG_TFT_ONLINE_CRC]  = 0x55;  /* 从机就绪标志 */
     i2c_reg_map[REG_UPDATE_CRC]      = 0x00;  /* 默认非升级模式 */
+    i2c_reg_map[REG_OVP_PERMANENT]   = 0x5A;  /* 默认无过压, battery_mgr_init 可能覆盖为 0x5B */
 }
 
 /* ========================================================================
@@ -455,14 +451,6 @@ static void apply_host_data(void)
  * ======================================================================== */
 void i2c_slave_proc(void)
 {
-    /* 固件版本和在线标志 (协议 §4.8: 0x80-0x83) */
-    i2c_reg_map[REG_FW_VERSION_L]   = 0x00;  /* V1.00 */
-    i2c_reg_map[REG_FW_VERSION_H]   = 0x01;
-    i2c_reg_map[REG_TFT_ONLINE_CRC] = 0x55;
-
-    /* OVP_PERMANENT: 协议 §4.5 密匙 0x5A, CW1573 离线时也可信 */
-    i2c_reg_map[REG_OVP_PERMANENT] = 0x5A;
-
     /* 按键事件原子累积: 影子缓冲 OR → reg_map, 主机读后清零对应 bit (§4.6) */
     i2c_reg_map[REG_KEY_EVENT] |= key_event_buf;
     key_event_buf = 0;

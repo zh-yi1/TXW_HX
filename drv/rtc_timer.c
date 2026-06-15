@@ -269,13 +269,15 @@ void factory_cfg_write(const factory_cfg_t *cfg)
     local = *cfg;
     local.magic = 0x55;
 
-    /* 计算 CRC8：覆盖 crc8 字段之前的所有字节 */  
-    const uint8_t *p = (const uint8_t *)&local;
-    uint8_t crc = 0;
-    for (uint8_t i = 0; i < sizeof(factory_cfg_t) - 1; i++) {
-        crc = crc8_update(crc, p[i]);
+    /* 计算 CRC8：覆盖 crc8 字段之前的所有字节 */
+    {
+        const uint8_t *p = (const uint8_t *)&local;
+        uint8_t crc = 0;
+        for (uint8_t i = 0; i < sizeof(factory_cfg_t) - 1; i++) {
+            crc = crc8_update(crc, p[i]);
+        }
+        local.crc8 = crc;
     }
-    local.crc8 = crc; 
 
     flash_sector_erase(addr);
     flash_wait_unbusy();

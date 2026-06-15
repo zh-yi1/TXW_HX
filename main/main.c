@@ -23,8 +23,10 @@ int main()
 
 		cw1573_proc();
 		rtc_timer_proc();
+		i2c_slave_proc();          /* 主机数据 → ui_data (先于 battery_mgr) */
+		battery_mgr_proc();        /* OV/UV + NTC 温度换算 */
+		battery_mgr_sync_to_ui();  /* 同步结果 → ui_data */
 
-		i2c_slave_proc();
 		key_proc();
 		ui_proc();
 	}
@@ -60,7 +62,8 @@ static void sys_init(void)
 
 	//3C 新国标模块初始化
 	rtc_timer_init();
-
+	abnormal_log_init();
+	battery_mgr_init();
 
 	//USART1初始化 (测试回环)
 	usart_init(115200);

@@ -156,6 +156,13 @@ typedef struct
 	uint32_t discharge_remain_time;	/* 剩余放空时间(秒) (协议 0x18-0x1B) */
 	uint16_t res_vbat;		/* 采样电阻 Vbat (mV) (协议 0x1C-0x1D) */
 
+	/* ---- 3C 新国标新增字段 ---- */
+	uint16_t cell_voltage_mv[4];	/* 每节电芯电压 (mV) */
+	int16_t  bat_temperature_01c;	/* 电池实时温度 (0.1℃) */
+	uint8_t  disable_flag;		/* 异常禁用标志 bit0=过压 bit1=欠压 */
+	uint8_t  abnormal_volt_count;	/* 电压异常记录条数 */
+	uint8_t  abnormal_temp_count;	/* 温度异常记录条数 */
+
 } ui_data_t;
 
 extern ui_data_t ui_data;

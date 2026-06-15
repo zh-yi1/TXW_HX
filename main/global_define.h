@@ -20,6 +20,11 @@
 #include "uart_upgrade.h"
 #include "usart.h"
 
+/* 3C 新国标模块 */
+#include "rtc_timer.h"
+#include "battery_mgr.h"
+#include "abnormal_log.h"
+
 #include "ui.h"
 #include "bar_progress.h"
 #include "flash_image_addr.h"

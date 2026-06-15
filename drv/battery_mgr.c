@@ -1,0 +1,407 @@
+#include "battery_mgr.h"
+#include "abnormal_log.h"
+#include "rtc_timer.h"
+#include "ui.h"
+
+/* ---- CW1573 数据引用 (定义在 cw1573.c) ---- */
+extern volatile cw1573_proc_data_t cw1573_info;
+extern uint8_t cw1573_cell_cnt;
+
+/* 禁用原因 (仅内部使用) */
+#define DISABLE_REASON_OV  1   /* 过压禁用 */
+#define DISABLE_REASON_UV  2   /* 欠压禁用 */
+
+/* ==========================================================================
+ *  NTC 阻值-温度查找表 (MF52-104F3950FA, R25=100KΩ, B25/50=3950K)
+ *  温度 -20℃ ~ 80℃, 步进 5℃, 阻值取自 电阻.md Rnom 列
+ *  阻值随温度升高单调递减
+ * ========================================================================== */
+static const uint32_t ntc_rnom_table[] = {
+    939364UL,  /* -20℃ */
+    710392UL,  /* -15℃ */
+    541619UL,  /* -10℃ */
+    416259UL,  /*  -5℃ */
+    322418UL,  /*   0℃ */
+    251623UL,  /*   5℃ */
+    197801UL,  /*  10℃ */
+    156568UL,  /*  15℃ */
+    124743UL,  /*  20℃ */
+    100000UL,  /*  25℃ */
+     80628UL,  /*  30℃ */
+     65357UL,  /*  35℃ */
+     53242UL,  /*  40℃ */
+     43571UL,  /*  45℃ */
+     35806UL,  /*  50℃ */
+     29558UL,  /*  55℃ */
+     24506UL,  /*  60℃ */
+     20406UL,  /*  65℃ */
+     17063UL,  /*  70℃ */
+     14326UL,  /*  75℃ */
+     12076UL,  /*  80℃ */
+};
+#define NTC_TABLE_CNT  (sizeof(ntc_rnom_table) / sizeof(ntc_rnom_table[0]))
+
+/* ---- RAM 状态 ---- */
+typedef struct {
+    uint32_t last_poll_tick;        /* 上次轮询时刻 */
+    uint32_t hour_start_tick;       /* 当前小时的起始 tick */
+    uint8_t  uv_seconds[4];         /* 每节电芯欠压持续秒数 */
+    uint8_t  ov_seconds[4];         /* 每节电芯过压持续秒数 */
+    uint8_t  disabled;              /* 禁用标志 */
+    uint8_t  disable_reason;        /* 禁用原因 (DISABLE_REASON_OV / DISABLE_REASON_UV) */
+    uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
+    uint8_t  chg_state;             /* 充放电状态 */
+    int16_t  temperature_01c;       /* 电池温度 0.1℃ (取 bat_ntc1/2 较高者) */
+} battery_mgr_ctx_t;
+
+static battery_mgr_ctx_t g_bat;
+
+/* ---- 内部函数 ---- */
+
+/* ==========================================================================
+ * ntc_resistance_to_temp — NTC 阻值 → 温度 (0.1℃)
+ *
+ * 使用线性插值查找表, 覆盖 -20℃ ~ 80℃.
+ * NTC 数据由主机 (020) 通过 I2C 下发到 ui_data.bat_ntc1.
+ * 阻值 = 0 表示主机尚未下发数据, 保持上次温度.
+ * ========================================================================== */
+static int16_t ntc_resistance_to_temp(uint32_t r_ohm)
+{
+    uint8_t i;
+
+    /* 无数据: 保持上次温度 */
+    if (r_ohm == 0) {
+        return g_bat.temperature_01c;
+    }
+
+    /* 超出上限: 阻值太小 → 温度过高, 钳位到 80℃ */
+    if (r_ohm <= ntc_rnom_table[NTC_TABLE_CNT - 1]) {
+        return (int16_t)(NTC_TEMP_MAX_C * 10);
+    }
+
+    /* 超出下限: 阻值太大 → 温度过低, 钳位到 -20℃ */
+    if (r_ohm >= ntc_rnom_table[0]) {
+        return (int16_t)(NTC_TEMP_MIN_C * 10);
+    }
+
+    /* 线性插值: 温度 = T_base + 5℃ * (R_high - R) / (R_high - R_low) */
+    for (i = 0; i < (uint8_t)(NTC_TABLE_CNT - 1); i++) {
+        if (r_ohm <= ntc_rnom_table[i] && r_ohm > ntc_rnom_table[i + 1]) {
+            uint32_t r_high  = ntc_rnom_table[i];
+            uint32_t r_low   = ntc_rnom_table[i + 1];
+            uint32_t delta_r = r_high - r_low;
+            uint32_t r_diff  = r_high - r_ohm;
+
+            /* T_01c = (-20 + i*5)*10 + 50 * r_diff / delta_r */
+            int32_t t_01c = (int32_t)(NTC_TEMP_MIN_C * 10)
+                          + (int32_t)i * (int32_t)(NTC_TABLE_STEP_C * 10)
+                          + (int32_t)((NTC_TABLE_STEP_C * 10) * r_diff / delta_r);
+            return (int16_t)t_01c;
+        }
+    }
+
+    /* 不应到达此处, 安全回退 */
+    return g_bat.temperature_01c;
+}
+
+/* 判断充放电状态 (基于 USB 端口状态) */
+static uint8_t detect_chg_state(void)
+{
+    /* 任一端口充电 → 充电中 */
+    if (ui_data.usb_c1_status == 0x01 ||
+        ui_data.usb_c2_status == 0x01 ||
+        ui_data.usb_a_status  == 0x01)
+        return CHG_STATE_CHARGING;
+
+    /* 任一端口放电 → 放电中 */
+    if (ui_data.usb_c1_status == 0x02 ||
+        ui_data.usb_c2_status == 0x02 ||
+        ui_data.usb_a_status  == 0x02)
+        return CHG_STATE_DISCHARGING;
+
+    return CHG_STATE_IDLE;
+}
+
+/* 检查是否需要提交当前小时异常记录 */
+static void check_hour_commit(void)
+{
+    uint32_t now = md_get_tick();
+    uint32_t hour_ms = 3600000UL;
+
+    if (g_bat.hour_start_tick == 0) {
+        g_bat.hour_start_tick = now;
+        return;
+    }
+
+    if (now - g_bat.hour_start_tick >= hour_ms) {
+        uint32_t ts = rtc_get_timestamp();
+        if (ts > 0) {
+            /* 异常结束时提交 (不足 1 小时也写, dirty 保证有异常才写) */
+            abnormal_log_voltage_commit(ts);
+            abnormal_log_temperature_commit(ts);
+        }
+
+        g_bat.hour_start_tick = now;
+    }
+}
+
+/* ---- 对外函数 ---- */
+
+/* ==========================================================================
+ * static_cfg_load_to_ui — 上电时从 Flash 静态配置区读取数据到 ui_data
+ *
+ * 读取内容:
+ *   1. factory_cfg_t → bat_model[4], cell_count, device_sn
+ *   2. OV 永久标志 → battery_mgr 内部状态 + I2C 寄存器
+ * ========================================================================== */
+void static_cfg_load_to_ui(void)
+{
+    factory_cfg_t cfg;
+
+    factory_cfg_read(&cfg);
+
+    /* magic 正确才复制数据 (上位机已写入) */
+    if (cfg.magic == 0x55) {
+        memcpy(ui_data.bat_model_1, cfg.bat_model[0], 16);
+        memcpy(ui_data.bat_model_2, cfg.bat_model[1], 16);
+        memcpy(ui_data.bat_model_3, cfg.bat_model[2], 16);
+        memcpy(ui_data.bat_model_4, cfg.bat_model[3], 16);
+    }
+
+    /* 恢复禁用原因 (0=正常 1=OV 2=UV) */
+    if (cfg.disable_reason != 0) {
+        g_bat.disabled       = 1;
+        g_bat.disable_reason = cfg.disable_reason;
+        if (cfg.disable_reason == DISABLE_REASON_OV) {
+            i2c_reg_map[REG_OVP_PERMANENT] = 0x5B;
+        }
+    }
+}
+
+void battery_mgr_init(void)
+{
+    memset(&g_bat, 0, sizeof(g_bat));
+
+    /* 非零默认值 */
+    g_bat.temperature_01c = 250;            /* 25.0℃ */
+
+    /* 加载静态配置 (factory_cfg + OV 标志) */
+    static_cfg_load_to_ui();
+}
+
+/* ==========================================================================
+ * battery_mgr_proc — 主轮询, 500ms 周期
+ *
+ * 数据来源:
+ *   - 电芯电压: CW1573 AFE 本地采集
+ *   - NTC 阻值: 主机 (020) 通过 I2C 下发 → ui_data.bat_ntc1
+ *   - 温度保护状态: 主机 (020) 通过 I2C 下发 → ui_data.ntc_status
+ *
+ * 判断逻辑:
+ *   - 过压/欠压: TFT 本地判断 (CW1573 电芯电压)
+ *   - 温度警告: 主机下发 ntc_status
+ *   - 温度异常记录: TFT 本地换算后与阈值比较
+ * ========================================================================== */
+void battery_mgr_proc(void)
+{
+    uint32_t now, ts;
+    uint8_t  i;
+    int16_t  t1, t2;
+    uint8_t  v1, v2;
+
+    if (!cw1573_is_ready())
+        return;
+
+    now = md_get_tick();
+    if (now - g_bat.last_poll_tick < BAT_MGR_POLL_MS)
+        return;
+    g_bat.last_poll_tick = now;
+
+    /* 已禁用: 不再检测 */
+    if (g_bat.disabled)
+        return;
+
+    /* 更新 CW1573 处理数据 */
+    cw1573_calc_data((cw1573_data_t *)&cw1573_raw,
+                     (cw1573_proc_data_t *)&cw1573_info);
+
+    /* ---- 1. 温度计算 (主机 NTC1/2 阻值 → 本地换算, 取较高者) ---- */
+    t1 = 0; t2 = 0;
+    v1 = (ui_data.bat_ntc1 != 0);
+    v2 = (ui_data.bat_ntc2 != 0);
+
+    if (v1) t1 = ntc_resistance_to_temp(ui_data.bat_ntc1);
+    if (v2) t2 = ntc_resistance_to_temp(ui_data.bat_ntc2);
+
+    if (v1 && v2)
+        g_bat.temperature_01c = (t1 > t2) ? t1 : t2;
+    else if (v1)
+        g_bat.temperature_01c = t1;
+    else if (v2)
+        g_bat.temperature_01c = t2;
+    /* else: 双 NTC 均无数据, 保持上次温度 */
+    
+
+    /* ---- 2. 充放电状态 ---- */
+    g_bat.chg_state = detect_chg_state();
+
+    /* ---- 3. 小时边界: 提交本小时 RAM 最差值到 Flash ---- */
+    check_hour_commit();
+
+    ts = rtc_get_timestamp();
+
+    /* ---- 4. 逐电芯检测 (TFT 本地判断) ---- */
+    for (i = 0; i < cw1573_cell_cnt; i++) {
+        uint16_t v = cw1573_info.vcell_mv[i];
+
+        /* 4.1 欠压禁用检测 (V < 1.5V 持续 > 5s) */
+        if (v < BAT_UV_DISABLE_MV && v > 0) {
+            g_bat.uv_seconds[i]++;
+            if (g_bat.uv_seconds[i] >= BAT_UV_DISABLE_S) {
+                g_bat.disabled = 1;
+                g_bat.disable_reason = DISABLE_REASON_UV;
+
+            /* 写 Flash: 记录禁用原因 */             
+            factory_cfg_t cfg;
+            factory_cfg_read(&cfg);
+            cfg.disable_reason = DISABLE_REASON_UV;
+            factory_cfg_write(&cfg);
+                
+            }
+        } else {
+            g_bat.uv_seconds[i] = 0;
+        }
+
+        /* 4.2 过压禁用检测 (V > 4.6V 持续 > 1s, 每轮 500ms → 2 轮) */
+        if (v > BAT_OV_DISABLE_MV) {
+            g_bat.ov_seconds[i]++;
+            /* ov_seconds * (500/100) >= 1s*10 → ov_seconds >= 2 */
+            if (g_bat.ov_seconds[i] * (BAT_MGR_POLL_MS / 100) >= BAT_OV_DISABLE_S * 10) {
+                g_bat.disabled = 1;
+                g_bat.disable_reason = DISABLE_REASON_OV;
+
+            /* 写 Flash: 记录禁用原因 */
+            factory_cfg_t cfg;
+            factory_cfg_read(&cfg);
+            cfg.disable_reason = DISABLE_REASON_OV;
+            factory_cfg_write(&cfg);
+            i2c_reg_map[REG_OVP_PERMANENT] = 0x5B;
+            }
+        } else {
+            g_bat.ov_seconds[i] = 0;
+        }
+
+        /* 4.3 过压保护记录 (V > 4.50V, 更新 RAM 最差值) */
+        if (v > BAT_OV_PROT_MV) {
+            if (ts > 0) {
+                abnormal_log_voltage_update(ts - (ts % 3600), v, i);
+            }
+        }
+    }
+
+    /* ---- 5. 温度保护警告 (主机 ntc_status, 协议 §4.3 0x20) ---- */
+    if (!g_bat.disabled) {
+        uint8_t ntc = ui_data.ntc_status;
+        uint8_t over_temp = 0, low_temp = 0;
+
+        /* BAT_NTC1/2: BIT[1:0]=NTC1, BIT[3:2]=NTC2
+         * 值: 00=正常 01=低温保护 02=高温保护 */
+        for (i = 0; i < 2; i++) {
+            uint8_t st = (ntc >> (i * 2)) & 0x03;
+            if (st == 0x02) over_temp = 1;
+            if (st == 0x01) low_temp  = 1;
+        }
+
+        if (over_temp)
+            g_bat.warning = WARNING_OVER_TEMP;
+        else if (low_temp)
+            g_bat.warning = WARNING_LOW_TEMP;
+        else
+            g_bat.warning = WARNING_NONE;
+    }
+
+    /* ---- 6. 温度异常记录 (主机判定过温/低温 → Flash) ---- */
+    if (g_bat.warning == WARNING_OVER_TEMP || g_bat.warning == WARNING_LOW_TEMP) {
+        uint8_t evt_type;
+
+        if (g_bat.chg_state == CHG_STATE_CHARGING) {
+            evt_type = (g_bat.warning == WARNING_OVER_TEMP)
+                     ? ABNORMAL_EVT_OT_PROT_CHG : ABNORMAL_EVT_UT_PROT_CHG;
+        } else if (g_bat.chg_state == CHG_STATE_DISCHARGING) {
+            evt_type = (g_bat.warning == WARNING_OVER_TEMP)
+                     ? ABNORMAL_EVT_OT_PROT_DSG : ABNORMAL_EVT_UT_PROT_DSG;
+        } else {
+            evt_type = (g_bat.warning == WARNING_OVER_TEMP)
+                     ? ABNORMAL_EVT_OT_PROT_IDLE : ABNORMAL_EVT_UT_PROT_IDLE;
+        }
+
+        if (ts > 0) {
+            abnormal_log_temperature_update(ts - (ts % 3600),
+                                (uint16_t)g_bat.temperature_01c,
+                                evt_type);
+        }
+    }
+}
+
+/* ---- Getter 函数 ---- */
+
+uint16_t battery_mgr_cell_voltage_mv(uint8_t cell_idx)
+{
+    if (cell_idx >= 4 || !cw1573_is_ready())
+        return 0;
+    return cw1573_info.vcell_mv[cell_idx];
+}
+
+uint16_t battery_mgr_pack_voltage_mv(void)
+{
+    if (!cw1573_is_ready())
+        return 0;
+    return cw1573_info.pack_mv;
+}
+
+int16_t battery_mgr_current_ma(void)
+{
+    if (!cw1573_is_ready())
+        return 0;
+    return cw1573_info.current_ma;
+}
+
+int16_t battery_mgr_temperature_01c(void)
+{
+    return g_bat.temperature_01c;
+}
+
+uint8_t battery_mgr_is_disabled(void)
+{
+    return g_bat.disabled;
+}
+
+uint8_t battery_mgr_get_disable_reason(void)
+{
+    return g_bat.disable_reason;
+}
+
+uint8_t battery_mgr_get_warning(void)
+{
+    return g_bat.warning;
+}
+
+uint8_t battery_mgr_get_chg_state(void)
+{
+    return g_bat.chg_state;
+}
+
+/* ==========================================================================
+ * battery_mgr_sync_to_ui — 将 battery_mgr 状态同步到 ui_data
+ * ========================================================================== */
+void battery_mgr_sync_to_ui(void)
+{
+    uint8_t i;
+    for (i = 0; i < 4; i++) {
+        ui_data.cell_voltage_mv[i] = battery_mgr_cell_voltage_mv(i);
+    }
+    ui_data.bat_temperature_01c = battery_mgr_temperature_01c();
+    ui_data.disable_flag        = battery_mgr_is_disabled();
+    ui_data.abnormal_volt_count = abnormal_log_voltage_count();
+    ui_data.abnormal_temp_count = abnormal_log_temperature_count();
+}
