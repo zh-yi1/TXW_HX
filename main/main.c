@@ -22,6 +22,8 @@ int main()
 #endif /* !DEBUG_EN */
 
 		cw1573_proc();
+		rtc_timer_proc();
+
 		i2c_slave_proc();
 		key_proc();
 		ui_proc();
@@ -55,6 +57,10 @@ static void sys_init(void)
 
 	//CW1573初始化
 	cw1573_init(4);
+
+	//3C 新国标模块初始化
+	rtc_timer_init();
+
 
 	//USART1初始化 (测试回环)
 	usart_init(115200);
