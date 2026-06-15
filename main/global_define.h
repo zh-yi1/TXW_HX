@@ -28,7 +28,6 @@
 #include "information_page.h"
 #include "digit_16.h"
 #include "prod_test.h"
-#include "flash_test.h"
 
 /* ========================================================================== */
 /*  Debug printf wrapper — 由 md_conf.h 的 DEBUG_EN 统一控制                   */

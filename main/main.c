@@ -21,11 +21,6 @@ int main()
 		prod_test_proc();
 #endif /* !DEBUG_EN */
 
-		/* Flash 测试: 上电 5 秒后持续执行 (非阻塞状态机) */
-		if (md_get_tick() > 5000) {
-			flash_test_run();
-		}
-
 		cw1573_proc();
 		i2c_slave_proc();
 		key_proc();
