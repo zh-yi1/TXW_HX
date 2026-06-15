@@ -54,7 +54,7 @@ void ui_init(void)
 	lcd_init();
 	
 	//刷黑屏幕
-	DispColor(BLACK);
+	// DispColor(BLACK);
 	// md_delay_1ms(500);
 	// Dispphoto_Dispaly_flash(0,0,FLASH_ADDR_BLUE_NUM_64_0);
 	// start_change_anima(0);

@@ -16,10 +16,14 @@ int main()
 			uart_upgrade_enter();
 		}
 
-		/* ---- USART1 回环测试: 收到什么发什么 ---- */
-		while (usart_recv_available())
-		{
-			usart_send_byte(usart_recv_byte());
+		/* ---- 产测协议处理 (USART1) ---- */
+#ifndef DEBUG_EN
+		prod_test_proc();
+#endif /* !DEBUG_EN */
+
+		/* Flash 测试: 上电 5 秒后持续执行 (非阻塞状态机) */
+		if (md_get_tick() > 5000) {
+			flash_test_run();
 		}
 
 		cw1573_proc();
@@ -60,9 +64,15 @@ static void sys_init(void)
 	//USART1初始化 (测试回环)
 	usart_init(115200);
 
-
 	//定时器初始化-PWM
 	// timer_init();
+
+	//产测模块初始化
+#ifndef DEBUG_EN
+	prod_test_init();
+#endif /* !DEBUG_EN */
+
+	LOGI("Hello World!\n");
 }
 
 void SystemInit(void){}

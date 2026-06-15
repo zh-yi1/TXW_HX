@@ -31,7 +31,7 @@
 #define TFT_EN					GPIOA
 #define TFT_EN_PIN				MD_GPIO_PIN_4
 
-#define LCD_CS_LOW() 			md_gpio_set_pin_low(LCD_CS, LCD_CS_PIN)
+#define LCD_CS_LOW() 			do { FLASH_CS_SET(); md_gpio_set_pin_low(LCD_CS, LCD_CS_PIN); } while(0)
 #define LCD_CS_HIGH() 			md_gpio_set_pin_high(LCD_CS, LCD_CS_PIN)
 
 #define LCD_RS_LOW() 			md_gpio_set_pin_low(LCD_RS, LCD_RS_PIN)
@@ -43,7 +43,7 @@
 #define LCD_BLK_LOW() 			md_gpio_set_pin_low(LCD_BLK, LCD_BLK_PIN)
 #define LCD_BLK_HIGH()			md_gpio_set_pin_high(LCD_BLK, LCD_BLK_PIN)
 
-#define FLASH_CS_CLR()			md_gpio_set_pin_low(FLASH_CS, FLASH_CS_PIN)
+#define FLASH_CS_CLR()			do { LCD_CS_HIGH(); md_gpio_set_pin_low(FLASH_CS, FLASH_CS_PIN); } while(0)
 #define FLASH_CS_SET()			md_gpio_set_pin_high(FLASH_CS, FLASH_CS_PIN)
 
 #define TFT_EN_CLR()			md_gpio_set_pin_low(TFT_EN, TFT_EN_PIN)
