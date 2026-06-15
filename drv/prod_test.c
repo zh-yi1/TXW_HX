@@ -232,15 +232,6 @@ static void pt_send_kv_bcd_time(const char *key, const uint8_t *bcd, uint8_t bcd
 static void pt_report_all(void)
 {
     char date_str[9];
-    uint8_t i;
-
-    /* 0. 加密签名: 64位哈希 (MCU_UID+密钥, 8字节十六进制) */
-    usart_send_string("UNLOCK_SIGN=");
-    for (i = 0; i < PT_UNLOCK_KEY_LEN; i++) {
-        usart_send_byte(pt_nibble_to_hex(pt_data.unlock_sign[i] >> 4));
-        usart_send_byte(pt_nibble_to_hex(pt_data.unlock_sign[i] & 0x0F));
-    }
-    usart_send_string("\r\n");
 
     /* 1.  SN: 整机序列号 */
     pt_send_kv_str("SN", pt_data.sn);
@@ -281,8 +272,6 @@ static void pt_report_all(void)
     usart_send_byte('0' + pt_data.ver_patch);
     usart_send_string("\r\n");
 
-    /* 12. MODEL: 产品型号编码 */
-    pt_send_kv_str("MODEL", pt_data.model);
 
     /* 13. MFG: 生产工厂代码 */
     pt_send_kv_str("MFG", pt_data.mfg);
