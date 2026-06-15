@@ -166,14 +166,24 @@ void rtc_timer_reinit(void)
 {
     factory_cfg_t cfg = {0};
 
-    /* 已同步则无需重复初始化 */
-    if (g_time_synced)
-        return;
-
     factory_cfg_read(&cfg);
 
     if (cfg.magic != 0x55)
         return;
+
+    /* start_timestamp 没变且已同步 → 无需重复初始化 */
+    if (g_time_synced && cfg.start_timestamp == g_start_timestamp)
+        return;
+
+    /* start_timestamp 变了 → 擦除旧时间戳块，避免重启后恢复出混合时间 */
+    if (g_time_synced) {
+        flash_sector_erase(ts_block_addrs[0]);
+        flash_wait_unbusy();
+        flash_sector_erase(ts_block_addrs[1]);
+        flash_wait_unbusy();
+        flash_sector_erase(ts_block_addrs[2]);
+        flash_wait_unbusy();
+    }
 
     g_start_timestamp    = cfg.start_timestamp;
     g_running_seconds    = 0;
@@ -186,6 +196,7 @@ void rtc_timer_reinit(void)
 void rtc_timer_proc(void)
 {
     static uint32_t last_save_seconds = 0;
+    static uint32_t last_print_seconds = 0;
     uint32_t now = md_get_tick();
 
     if (!g_time_synced)
@@ -199,8 +210,22 @@ void rtc_timer_proc(void)
         g_last_second_tick += seconds * 1000;
     }
 
+    /* 每 5 秒打印一次当前时间 (仅调试模式) */
+    if (g_running_seconds - last_print_seconds >= 5) {
+        uint32_t ts = g_start_timestamp + g_running_seconds;
+#ifdef DEBUG_EN
+        {
+            uint16_t y;
+            uint8_t mo, d, h, mi, s;
+            rtc_unix_to_datetime(ts, &y, &mo, &d, &h, &mi, &s);
+            LOGI("%04u-%02u-%02u %02u:%02u:%02u\r\n", y, mo, d, h, mi, s);
+        }
+#endif
+        last_print_seconds = g_running_seconds;
+    }
+
     /* 每 120 秒写一次 Flash 同步时间 (约 2 分钟) */
-    
+
     if (g_running_seconds - last_save_seconds >= 120) {
         rtc_save_checkpoint();
         last_save_seconds = g_running_seconds;
@@ -281,4 +306,80 @@ void factory_cfg_write(const factory_cfg_t *cfg)
     flash_wait_unbusy();
     flash_write(addr, (uint8_t *)&local, sizeof(factory_cfg_t));
     flash_wait_unbusy();
+}
+
+/* ========================================================================== */
+/*  时间转换                                                                   */
+/* ========================================================================== */
+
+static uint8_t rtc_bcd_to_byte(uint8_t bcd)
+{
+    return ((bcd >> 4) & 0x0F) * 10 + (bcd & 0x0F);
+}
+
+static uint8_t rtc_is_leap(uint16_t y)
+{
+    return ((y % 4 == 0 && y % 100 != 0) || y % 400 == 0) ? 1 : 0;
+}
+
+static const uint8_t rtc_dim[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+/*
+ * rtc_bcd6_to_unix — 6B BCD (YY MM DD HH MM SS, 年偏移 2000) → Unix 时间戳
+ */
+uint32_t rtc_bcd6_to_unix(const uint8_t bcd[6])
+{
+    uint16_t year  = 2000 + rtc_bcd_to_byte(bcd[0]);
+    uint8_t  month = rtc_bcd_to_byte(bcd[1]);
+    uint8_t  day   = rtc_bcd_to_byte(bcd[2]);
+    uint8_t  hour  = rtc_bcd_to_byte(bcd[3]);
+    uint8_t  min   = rtc_bcd_to_byte(bcd[4]);
+    uint8_t  sec   = rtc_bcd_to_byte(bcd[5]);
+    uint32_t days  = 0;
+    uint16_t y;
+    uint8_t  m;
+
+    for (y = 1970; y < year; y++)
+        days += rtc_is_leap(y) ? 366 : 365;
+
+    for (m = 1; m < month; m++) {
+        days += rtc_dim[m - 1];
+        if (m == 2 && rtc_is_leap(year)) days++;
+    }
+    days += (uint32_t)(day - 1);
+
+    return days * 86400UL + (uint32_t)hour * 3600UL
+           + (uint32_t)min * 60UL + sec;
+}
+
+/*
+ * rtc_unix_to_datetime — Unix 时间戳 → 年/月/日/时/分/秒
+ */
+void rtc_unix_to_datetime(uint32_t ts, uint16_t *year, uint8_t *month,
+                          uint8_t *day, uint8_t *hour, uint8_t *min, uint8_t *sec)
+{
+    uint32_t s = ts;
+    uint16_t y;
+    uint8_t  m;
+
+    for (y = 1970; ; y++) {
+        uint16_t diy = rtc_is_leap(y) ? 366 : 365;
+        if (s < diy * 86400UL) break;
+        s -= diy * 86400UL;
+    }
+    *year = y;
+
+    for (m = 1; m <= 12; m++) {
+        uint8_t dim = rtc_dim[m - 1];
+        if (m == 2 && rtc_is_leap(y)) dim = 29;
+        if (s < (uint32_t)dim * 86400UL) break;
+        s -= (uint32_t)dim * 86400UL;
+    }
+    *month = m;
+    *day   = (uint8_t)(s / 86400UL) + 1;
+    s     %= 86400UL;
+    *hour  = (uint8_t)(s / 3600UL);
+    s     %= 3600UL;
+    *min   = (uint8_t)(s / 60UL);
+    *sec   = (uint8_t)(s % 60UL);
 }

@@ -27,6 +27,7 @@
 #include "hint_page.h"
 #include "information_page.h"
 #include "digit_16.h"
+#include "rtc_timer.h"
 #include "prod_test.h"
 
 /* ========================================================================== */
