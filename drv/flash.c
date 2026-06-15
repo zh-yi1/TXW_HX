@@ -76,6 +76,8 @@ md_status_t flash_sector_erase(uint32_t addr)
 
 	FLASH_CS_SET();
 
+	flash_wait_unbusy();  /* 等 Flash 内部擦除完成 */
+
 	LCD_CS_LOW();   /* 恢复 LCD 片选 */
 
 	return MD_OK;

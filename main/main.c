@@ -1,7 +1,6 @@
 #include "main.h"
 
 static void sys_init(void);
-static uint8_t flash_test_done = 0;
 
 int main()
 {
@@ -22,11 +21,9 @@ int main()
 		prod_test_proc();
 #endif /* !DEBUG_EN */
 
-		/* Flash 测试: 上电 2 秒后执行一次 */
-		if (!flash_test_done && md_get_tick() > 2000) {
-			flash_test_done = 1;
+		/* Flash 测试: 上电 5 秒后持续执行 (非阻塞状态机) */
+		if (md_get_tick() > 5000) {
 			flash_test_run();
-			flash_test_done = 0;
 		}
 
 		cw1573_proc();
