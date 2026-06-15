@@ -21,8 +21,8 @@
  *  │    起始时间戳 4B                 │
  *  │    电芯型号 4×16B               │
  *  │    电芯数量 1B                  │
- *  │    保留 1B                      │
- *  │    CRC8 1B (前 71B)            │
+ *  │    设备序列号 4B                 │
+ *  │    CRC8 1B (前 74B)            │
  *  │    生产时串口写入, 永不擦除       │
  *  │                                │
  *  ├─────────────────────────────────┤ +0x0100
@@ -91,9 +91,9 @@ typedef struct {
     uint32_t start_timestamp;       /* 起始 Unix 时间戳 */
     char     bat_model[4][16];      /* 4 节电芯型号 ASCII */
     uint8_t  cell_count;            /* 电芯数量 */
-    uint8_t  reserved;              /* 保留 */
-    uint8_t  crc8;                  /* 前 71B 的 CRC-8（magic 到 reserved） */
-} factory_cfg_t;                    /* 共 72B */
+    uint32_t device_sn;             /* 设备序列号 */
+    uint8_t  crc8;                  /* 前 74B 的 CRC-8（magic 到 device_sn） */
+} factory_cfg_t;                    /* 共 75B */
 #pragma pack()
 
 /* ---- 外部接口 ---- */
