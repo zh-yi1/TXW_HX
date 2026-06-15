@@ -18,6 +18,7 @@
 #define KEY_LONG_MIN_MS     3000    /* minimum hold for long-press */
 #define KEY_LONG_MAX_MS     6000    /* maximum hold for long-press (exceed = ignore) */
 #define KEY_COMBO_CLICKS    5       /* clicks needed before combo long-press */
+#define AUTO_SLEEP_MS       30000   /* auto sleep after 30s idle */
 
 #define KEY_PRESSED()       (md_gpio_get_input_data(KEY_PORT, KEY_PIN) == 0)
 

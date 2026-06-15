@@ -55,11 +55,6 @@ static uint16_t reg_read_u16(uint8_t addr_l)
          | ((uint16_t)i2c_reg_map[addr_l + 1] << 8);
 }
 
-static int16_t reg_read_s16(uint8_t addr_l)
-{
-    return (int16_t)reg_read_u16(addr_l);
-}
-
 static uint32_t reg_read_u32(uint8_t addr_0)
 {
     return (uint32_t)i2c_reg_map[addr_0]

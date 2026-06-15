@@ -8,6 +8,7 @@ static uint8_t     burst_cnt       = 0;   /* presses in current burst, for singl
 static uint8_t     combo_cnt       = 0;   /* total presses for combo tracking */
 static bool        is_2nd_click    = false;
 static bool        combo_fired     = false;
+static uint32_t    last_activity_ms = 0;   /* for auto-sleep timer */
 
 #define KEY_IDLE_RESET_MS   3000    /* reset combo_cnt after 3s idle */
 
@@ -17,6 +18,8 @@ void key_init(void)
 	md_gpio_init_struct(&gpio_init);
 	gpio_init.mode = MD_GPIO_MODE_INPUT;
 	md_gpio_init(KEY_PORT, KEY_PIN, &gpio_init);
+
+	last_activity_ms = md_get_tick();
 }
 
 void key_proc(void)
@@ -40,10 +43,23 @@ void key_proc(void)
 			combo_cnt = 0;
 		if (KEY_PRESSED())
 		{
-			key_state       = KEY_STATE_DEBOUNCE;
-			state_entry_ms  = now;
-			press_start_ms  = now;
-			is_2nd_click    = false;
+			key_state        = KEY_STATE_DEBOUNCE;
+			state_entry_ms   = now;
+			press_start_ms   = now;
+			is_2nd_click     = false;
+			last_activity_ms = now;
+			printf("KEY_STATE_IDLE\n");
+		}
+
+		/* auto-sleep: 30s no activity → screen off */
+		if (ui_data.dev_state == DEV_STATE_NORMAL
+		    && (now - last_activity_ms) >= AUTO_SLEEP_MS
+		    && last_activity_ms != 0)
+		{
+			LCD_BLK_HIGH();
+			DispColor(BLACK);
+			ui_data.dev_state = DEV_STATE_SLEEP;
+			printf("KEY_STATE_SLEEP\n");
 		}
 		break;
 
@@ -60,8 +76,9 @@ void key_proc(void)
 		{
 			burst_cnt++;
 			combo_cnt++;
-			last_press_ms  = now;
-			key_state      = KEY_STATE_PRESS;
+			last_press_ms   = now;
+			last_activity_ms = now;
+			key_state       = KEY_STATE_PRESS;
 			state_entry_ms = now;
 		}
 		break;
