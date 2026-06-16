@@ -108,4 +108,9 @@ uint8_t rtc_is_synced(void);               /* 是否已时间同步 */
 void factory_cfg_read(factory_cfg_t *cfg);
 void factory_cfg_write(const factory_cfg_t *cfg);
 
+/* ---- 时间转换 ---- */
+uint32_t rtc_bcd6_to_unix(const uint8_t bcd[6]);           /* BCD(YYMMDDHHMMSS) → Unix */
+void rtc_unix_to_datetime(uint32_t ts, uint16_t *year, uint8_t *month,
+                          uint8_t *day, uint8_t *hour, uint8_t *min, uint8_t *sec);
+
 #endif /* __RTC_TIMER_H */

@@ -20,6 +20,14 @@
 static prod_test_rt_t pt_rt;     /* 运行时状态 */
 static prod_test_data_t pt_data; /* 名词解释全部数据 (先填测试值, 后续接真实数据) */
 
+/*
+ * USART 输出辅助 — 替代 LOGI.
+ * 非 DEBUG 模式下 LOGI 为空操作, 但厂测必须通过 USART1 上报,
+ * 所以直接用 usart_send_byte / usart_send_string.
+ */
+#define PT_PUTC(c)   usart_send_byte((uint8_t)(c))
+#define PT_PUTS(s)   usart_send_string(s)
+
 /* ---- 帧解析器 ---- */
 static frame_parse_state_t frame_state = FRAME_WAIT_AA;
 static uint8_t frame_buf[PT_FRAME_MAX_PARAMS + 4];
@@ -76,6 +84,60 @@ static void pt_fill_test_values(void)
     pt_data.r_err = 0;
     pt_data.uid_err = 0;
     pt_data.liq_cnt = 0;
+}
+
+/*
+ * pt_load_factory_cfg — 从 Flash 回读 factory_cfg, 覆盖 pt_data 中对应字段
+ *
+ * 在 pt_fill_test_values 之后调用, 若 Flash 中已有有效配置则用保存值替换默认值.
+ * 这样重启后进入厂测模式, pt_report_all() 报的就是上次写入的值.
+ */
+static void pt_load_factory_cfg(void)
+{
+    factory_cfg_t cfg;
+    uint8_t i, pos;
+
+    factory_cfg_read(&cfg);
+    if (cfg.magic != 0x55)
+        return;  /* 未写过, 保留测试默认值 */
+
+    /* SN: uint32_t → 12 位十进制字符串 (左补零) */
+    {
+        uint32_t n = cfg.device_sn;
+        for (i = 0; i < PT_SN_LEN; i++) {
+            pt_data.sn[PT_SN_LEN - 1 - i] = '0' + (n % 10);
+            n /= 10;
+        }
+        pt_data.sn[PT_SN_LEN] = '\0';
+    }
+
+    /* BAT_SN: bat_model[0..3] 用分号拼接 */
+    {
+        pos = 0;
+        for (i = 0; i < 4 && pos < PT_BAT_SN_LEN; i++) {
+            uint8_t j;
+            for (j = 0; j < 16 && cfg.bat_model[i][j] != '\0' && pos < PT_BAT_SN_LEN; j++) {
+                pt_data.bat_sn[pos++] = cfg.bat_model[i][j];
+            }
+            if (i < 3 && cfg.bat_model[i + 1][0] != '\0' && pos < PT_BAT_SN_LEN) {
+                pt_data.bat_sn[pos++] = ';';
+            }
+        }
+        pt_data.bat_sn[pos] = '\0';
+    }
+
+    /* MFG_DATE: start_timestamp → BCD */
+    if (cfg.start_timestamp != 0) {
+        uint16_t y;
+        uint8_t mo, d, h, mi, s;
+        rtc_unix_to_datetime(cfg.start_timestamp, &y, &mo, &d, &h, &mi, &s);
+        pt_data.mfg_date[0] = (uint8_t)(((y % 100) / 10) << 4) | ((y % 100) % 10);
+        pt_data.mfg_date[1] = (uint8_t)((mo / 10) << 4) | (mo % 10);
+        pt_data.mfg_date[2] = (uint8_t)((d / 10) << 4) | (d % 10);
+        pt_data.mfg_date[3] = (uint8_t)((h / 10) << 4) | (h % 10);
+        pt_data.mfg_date[4] = (uint8_t)((mi / 10) << 4) | (mi % 10);
+        pt_data.mfg_date[5] = (uint8_t)((s / 10) << 4) | (s % 10);
+    }
 }
 
 /* ========================================================================== */
@@ -153,25 +215,25 @@ static void pt_send_kv_u32(const char *key, uint32_t val)
 
     if (key && key[0] != '\0')
     {
-        LOGI(key);
-        LOGI('=');
+        PT_PUTS(key);
+        PT_PUTC('=');
     }
-    LOGI(buf);
-    LOGI("\r\n");
+    PT_PUTS(buf);
+    PT_PUTS("\r\n");
 }
 
 static void pt_send_kv_str(const char *key, const char *val)
 {
-    LOGI(key);
-    LOGI('=');
-    LOGI(val);
-    LOGI("\r\n");
+    PT_PUTS(key);
+    PT_PUTC('=');
+    PT_PUTS(val);
+    PT_PUTS("\r\n");
 }
 
 static void pt_send_line(const char *str)
 {
-    LOGI(str);
-    LOGI("\r\n");
+    PT_PUTS(str);
+    PT_PUTS("\r\n");
 }
 
 /**
@@ -186,7 +248,7 @@ static void pt_send_val_fixed2(int32_t val_hundredths)
     uint8_t pos = 0, i;
 
     if (val_hundredths < 0)
-        LOGI('-');
+        PT_PUTC('-');
 
     if (int_part == 0)
     {
@@ -208,44 +270,44 @@ static void pt_send_val_fixed2(int32_t val_hundredths)
         }
     }
     for (i = 0; i < pos; i++)
-        LOGI(buf[i]);
+        PT_PUTC(buf[i]);
 
-    LOGI('.');
-    LOGI('0' + (frac / 10));
-    LOGI('0' + (frac % 10));
+    PT_PUTC('.');
+    PT_PUTC('0' + (frac / 10));
+    PT_PUTC('0' + (frac % 10));
 }
 
 static void pt_send_kv_fixed2(const char *key, int32_t val_hundredths)
 {
-    LOGI(key);
-    LOGI('=');
+    PT_PUTS(key);
+    PT_PUTC('=');
     pt_send_val_fixed2(val_hundredths);
-    LOGI("\r\n");
+    PT_PUTS("\r\n");
 }
 
 static void pt_send_uid_hex(const uint8_t *uid, uint8_t len)
 {
     uint8_t i;
-    LOGI("UID=");
+    PT_PUTS("UID=");
     for (i = 0; i < len; i++)
     {
-        LOGI(pt_nibble_to_hex(uid[i] >> 4));
-        LOGI(pt_nibble_to_hex(uid[i] & 0x0F));
+        PT_PUTC(pt_nibble_to_hex(uid[i] >> 4));
+        PT_PUTC(pt_nibble_to_hex(uid[i] & 0x0F));
     }
-    LOGI("\r\n");
+    PT_PUTS("\r\n");
 }
 
 static void pt_send_kv_bcd_time(const char *key, const uint8_t *bcd, uint8_t bcd_len)
 {
     uint8_t i;
-    LOGI(key);
-    LOGI('=');
+    PT_PUTS(key);
+    PT_PUTC('=');
     for (i = 0; i < bcd_len; i++)
     {
-        LOGI(pt_nibble_to_hex(bcd[i] >> 4));
-        LOGI(pt_nibble_to_hex(bcd[i] & 0x0F));
+        PT_PUTC(pt_nibble_to_hex(bcd[i] >> 4));
+        PT_PUTC(pt_nibble_to_hex(bcd[i] & 0x0F));
     }
-    LOGI("\r\n");
+    PT_PUTS("\r\n");
 }
 
 /* ========================================================================== */
@@ -254,16 +316,6 @@ static void pt_send_kv_bcd_time(const char *key, const uint8_t *bcd, uint8_t bcd
 static void pt_report_all(void)
 {
     char date_str[9];
-    uint8_t i;
-
-    /* 0. 加密签名: 64位哈希 (MCU_UID+密钥, 8字节十六进制) */
-    LOGI("UNLOCK_SIGN=");
-    for (i = 0; i < PT_UNLOCK_KEY_LEN; i++)
-    {
-        LOGI(pt_nibble_to_hex(pt_data.unlock_sign[i] >> 4));
-        LOGI(pt_nibble_to_hex(pt_data.unlock_sign[i] & 0x0F));
-    }
-    LOGI("\r\n");
 
     /* 1.  SN: 整机序列号 */
     pt_send_kv_str("SN", pt_data.sn);
@@ -296,18 +348,15 @@ static void pt_report_all(void)
     pt_send_kv_u32("CYCLE_A", pt_data.cycle_a);
 
     /* 11. VER: 固件版本 VX.X.X */
-    LOGI("VER=V");
-    LOGI('0' + pt_data.ver_major);
-    LOGI('.');
-    LOGI('0' + pt_data.ver_minor);
-    LOGI('.');
-    LOGI('0' + pt_data.ver_patch);
-    LOGI("\r\n");
+    PT_PUTS("VER=V");
+    PT_PUTC('0' + pt_data.ver_major);
+    PT_PUTC('.');
+    PT_PUTC('0' + pt_data.ver_minor);
+    PT_PUTC('.');
+    PT_PUTC('0' + pt_data.ver_patch);
+    PT_PUTS("\r\n");
 
-    /* 12. MODEL: 产品型号编码 */
-    pt_send_kv_str("MODEL", pt_data.model);
-
-    /* 13. MFG: 生产工厂代码 */
+    /* 12. MFG: 生产工厂代码 */
     pt_send_kv_str("MFG", pt_data.mfg);
 
     /* 14. MFG_DATE: 生产日期 (6位 BCD: 年月日) */
@@ -349,6 +398,36 @@ static void pt_report_all(void)
 
     /* 24. ACK: 通信应答 */
     pt_send_line("ACK=OK");
+}
+
+/* ========================================================================== */
+/*  命令处理                                                                 */
+/* ========================================================================== */
+
+/* ========================================================================== */
+/*  Flash 保存辅助                                                            */
+/* ========================================================================== */
+
+/* ASCII 数字字符串 → uint32_t (遇非数字或满 10 位停止) */
+static uint32_t sn_str_to_u32(const char *s, uint8_t max_len)
+{
+    uint32_t val = 0;
+    uint8_t i;
+    for (i = 0; i < max_len && s[i] != '\0'; i++) {
+        if (s[i] < '0' || s[i] > '9') break;
+        val = val * 10 + (uint32_t)(s[i] - '0');
+    }
+    return val;
+}
+
+/*
+ * prod_save_factory_cfg — 写入 factory_cfg → 回读验证 → 激活时间同步
+ */
+static void prod_save_factory_cfg(const factory_cfg_t *cfg)
+{
+    factory_cfg_write(cfg);
+    pt_send_line("FLASH_SAVE=OK");
+    rtc_timer_reinit();
 }
 
 /* ========================================================================== */
@@ -427,6 +506,9 @@ static void pt_handle_unlock(const uint8_t *params, uint8_t len)
 
 static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
 {
+    factory_cfg_t cfg;
+    uint32_t sn_val;
+
     if (!pt_rt.unlocked)
     {
         pt_send_line("ERR=NOT_UNLOCKED");
@@ -439,12 +521,23 @@ static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
     memcpy(pt_data.sn, params, len);
     pt_data.sn[len] = '\0';
 
-    /* TODO: 写 Flash */
+    /* 解析 ASCII SN 为 uint32_t, 写入 Flash */
+    sn_val = sn_str_to_u32(pt_data.sn, PT_SN_LEN);
+
+    factory_cfg_read(&cfg);
+    cfg.device_sn = sn_val;
+    prod_save_factory_cfg(&cfg);
+
     pt_send_kv_str("SN", pt_data.sn);
 }
 
 static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
 {
+    factory_cfg_t cfg;
+    uint8_t cell_idx = 0;
+    uint8_t start    = 0;
+    uint8_t i;
+
     if (!pt_rt.unlocked)
     {
         pt_send_line("ERR=NOT_UNLOCKED");
@@ -457,12 +550,39 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
     memcpy(pt_data.bat_sn, params, len);
     pt_data.bat_sn[len] = '\0';
 
-    /* TODO: 写 Flash */
+    /*
+     * 写入 Flash: 按分号分隔, 逐个存入 bat_model[0..3] (每个最长 16B)
+     *
+     * 上位机格式: "CELL0_SN;CELL1_SN;CELL2_SN;CELL3_SN"
+     * 例: "LG18650;SAMSUNG-21700;;"  → 2 节电芯, 后 2 槽为空
+     */
+    factory_cfg_read(&cfg);
+    memset(cfg.bat_model, 0, sizeof(cfg.bat_model));
+
+    for (i = 0; i < len && cell_idx < 4; i++) {
+        if (pt_data.bat_sn[i] == ';' || i == len - 1) {
+            uint8_t end   = (pt_data.bat_sn[i] == ';') ? i : i + 1;
+            uint8_t chunk = (uint8_t)(end - start);
+            if (chunk > 16) chunk = 16;
+            if (chunk > 0) {
+                memcpy(cfg.bat_model[cell_idx], &pt_data.bat_sn[start], chunk);
+            }
+            cell_idx++;
+            start = i + 1;
+        }
+    }
+
+    cfg.cell_count = cell_idx;  /* 实际写入的电芯数量 */
+    prod_save_factory_cfg(&cfg);
+
     pt_send_kv_str("BAT_SN", pt_data.bat_sn);
 }
 
 static void pt_handle_sync_time(const uint8_t *params, uint8_t len)
 {
+    factory_cfg_t cfg;
+    uint32_t unix_ts;
+
     if (!pt_rt.unlocked)
     {
         pt_send_line("ERR=NOT_UNLOCKED");
@@ -476,23 +596,28 @@ static void pt_handle_sync_time(const uint8_t *params, uint8_t len)
 
     memcpy(pt_data.mfg_date, params, 6);
 
-    /* TODO: 写 Flash */
+    /* BCD → Unix 时间戳, 写入 Flash */
+    unix_ts = rtc_bcd6_to_unix(params);
+
+    factory_cfg_read(&cfg);
+    cfg.start_timestamp = unix_ts;
+    prod_save_factory_cfg(&cfg);
 
     /* 上行: DATE=20YYMMDDHHMMSS */
-    LOGI("DATE=20");
-    LOGI(pt_nibble_to_hex(params[0] >> 4));
-    LOGI(pt_nibble_to_hex(params[0] & 0x0F));
-    LOGI(pt_nibble_to_hex(params[1] >> 4));
-    LOGI(pt_nibble_to_hex(params[1] & 0x0F));
-    LOGI(pt_nibble_to_hex(params[2] >> 4));
-    LOGI(pt_nibble_to_hex(params[2] & 0x0F));
-    LOGI(pt_nibble_to_hex(params[3] >> 4));
-    LOGI(pt_nibble_to_hex(params[3] & 0x0F));
-    LOGI(pt_nibble_to_hex(params[4] >> 4));
-    LOGI(pt_nibble_to_hex(params[4] & 0x0F));
-    LOGI(pt_nibble_to_hex(params[5] >> 4));
-    LOGI(pt_nibble_to_hex(params[5] & 0x0F));
-    LOGI("\r\n");
+    PT_PUTS("DATE=20");
+    PT_PUTC(pt_nibble_to_hex(params[0] >> 4));
+    PT_PUTC(pt_nibble_to_hex(params[0] & 0x0F));
+    PT_PUTC(pt_nibble_to_hex(params[1] >> 4));
+    PT_PUTC(pt_nibble_to_hex(params[1] & 0x0F));
+    PT_PUTC(pt_nibble_to_hex(params[2] >> 4));
+    PT_PUTC(pt_nibble_to_hex(params[2] & 0x0F));
+    PT_PUTC(pt_nibble_to_hex(params[3] >> 4));
+    PT_PUTC(pt_nibble_to_hex(params[3] & 0x0F));
+    PT_PUTC(pt_nibble_to_hex(params[4] >> 4));
+    PT_PUTC(pt_nibble_to_hex(params[4] & 0x0F));
+    PT_PUTC(pt_nibble_to_hex(params[5] >> 4));
+    PT_PUTC(pt_nibble_to_hex(params[5] & 0x0F));
+    PT_PUTS("\r\n");
 }
 
 /* ========================================================================== */
@@ -639,7 +764,9 @@ void prod_test_init(void)
     /* 填测试数据 (后续替换为真实采集 + Flash 加载) */
     pt_fill_test_values();
 
-    /* 调试: 初始化完成 */
+    /* 从 Flash 回读已保存的 factory_cfg, 覆盖 SN/BAT_SN/MFG_DATE */
+    pt_load_factory_cfg();
+
     /* prod_test init done */
 }
 
