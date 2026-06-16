@@ -155,7 +155,7 @@ void key_proc(void)
 }
 
 void key_single_click_cb(void)
-{
+{	
 	if (ui_data.dev_state == DEV_STATE_SLEEP)
 	{
 		/* 休眠 → 唤醒: 开背光, 进入主界面 */
@@ -166,11 +166,8 @@ void key_single_click_cb(void)
 	}
 	else
 	{
-		//TODO: 处理切换界面的逻辑
-		/* 正常状态: 切换显示界面 (循环) */
-		ui_data.cur_page = (page_t)((ui_data.cur_page + 1) % PAGE_MAX);
+	key_single_click_ui_proc();
 	}
-
 	/* 设置按键事件 bit0: 单击 (写入影子缓冲, 由 i2c_slave_proc 原子交换) */
 	key_event_buf |= 0x01;
 	LOGI("Wake up from sleep\n");
@@ -182,10 +179,7 @@ void key_double_click_cb(void)
 	if (ui_data.dev_state == DEV_STATE_SLEEP)
 		return;
 
-	/* 刷黑屏幕, 关背光, 进入休眠 */
-	LCD_BLK_HIGH();
-	DispColor(BLACK);
-	ui_data.dev_state = DEV_STATE_SLEEP;
+	key_double_click_ui_proc();
 
 	/* 设置按键事件 bit1: 双击 (写入影子缓冲) */
 	key_event_buf |= 0x02;
@@ -198,11 +192,12 @@ void key_long_press_cb(void)
 	if (ui_data.dev_state == DEV_STATE_SLEEP)
 		return;
 
-	/* 进入/退出 USB-A 小电流模式 */
-	// ui_data.low_current_flag = !ui_data.low_current_flag;
-
-	/* 设置按键事件 bit4: 长按3S (写入影子缓冲) */
-	key_event_buf |= 0x10;
+	bool ret = key_long_press_ui_proc();
+	if(ret)
+	{
+		/* 设置按键事件 bit4: 长按3S (写入影子缓冲) */
+		key_event_buf |= 0x10;
+	}
 }
 
 void key_combo_cb(void)

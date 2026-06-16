@@ -112,7 +112,7 @@ MF52-104F3950FA 热敏电阻, R25=100KΩ, B25/50=3950K, 数据取自 `电阻.md`
 
 ```c
 ui_data.cell_voltage_mv[i]  = battery_mgr_cell_voltage_mv(i);
-ui_data.bat_temperature_01c = battery_mgr_temperature_01c();
+ui_data.bat_temperature = battery_mgr_temperature_01c();
 ui_data.disable_flag        = battery_mgr_is_disabled();
 ui_data.abnormal_count      = abnormal_log_voltage_count()
                             + abnormal_log_temperature_count();

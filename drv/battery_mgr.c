@@ -400,7 +400,7 @@ void battery_mgr_sync_to_ui(void)
     for (i = 0; i < 4; i++) {
         ui_data.cell_voltage_mv[i] = battery_mgr_cell_voltage_mv(i);
     }
-    ui_data.bat_temperature_01c = battery_mgr_temperature_01c();
+    ui_data.bat_temperature = battery_mgr_temperature_01c();
     ui_data.disable_flag        = battery_mgr_is_disabled();
     ui_data.abnormal_volt_count = abnormal_log_voltage_count();
     ui_data.abnormal_temp_count = abnormal_log_temperature_count();

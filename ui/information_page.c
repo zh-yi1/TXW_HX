@@ -123,7 +123,8 @@ void information_page_1_init(void)
     //电池型号
     display_string_16(ui_data.bat_model_1,
                       bat_info_text_img[INFO_BAT_NUM].x,
-                      bat_info_text_img[INFO_BAT_NUM].y);
+                      bat_info_text_img[INFO_BAT_NUM].y,
+                      DIGIT_16_COLOR_WHITE);
 }
 
 void information_page_2_init(void)
@@ -143,6 +144,7 @@ void information_page_2_init(void)
     Dispphoto_Dispaly_flash(bat_info_text_img[INFO_TIME_FAKE].x,
                         bat_info_text_img[INFO_TIME_FAKE].y, bat_info_text_img[INFO_TIME_FAKE].img_addr);
 }
+
 
 /* ============================ 数据更新 ============================ */
 
@@ -190,7 +192,8 @@ void information_page_1_updata(void)
             model_idx == 0 ? ui_data.bat_model_1 :
             model_idx == 1 ? ui_data.bat_model_2 :
             model_idx == 2 ? ui_data.bat_model_3 :
-                             ui_data.bat_model_4);
+                             ui_data.bat_model_4,
+            DIGIT_16_COLOR_WHITE);
 
         model_idx = (model_idx + 1) % 4;
 
@@ -200,10 +203,10 @@ void information_page_1_updata(void)
                                      ui_data.bat_model_4;
 
         /* 1. 直接覆盖绘制新字符串 */
-        display_string_16(new_model, BAT_MODEL_X, BAT_MODEL_Y);
+        display_string_16(new_model, BAT_MODEL_X, BAT_MODEL_Y, DIGIT_16_COLOR_WHITE);
 
         /* 2. 新宽度小于旧宽度时, 补擦尾部残影 */
-        new_w = string_width_16(new_model);
+        new_w = string_width_16(new_model, DIGIT_16_COLOR_WHITE);
         if (new_w < old_w)
             DispBlock(BAT_MODEL_X + new_w, BAT_MODEL_Y,
                       BAT_MODEL_X + old_w - 1,

@@ -104,6 +104,39 @@ void ui_proc(void)
 		case PAGE_SHORT_CIRCUIT:
 			short_circuit_hint_page();
 			break;
+		case PAGE_VOLTAGE_ABNORMAL:
+		{
+			abnormal_record_t rec;
+			uint8_t total = abnormal_log_voltage_count();
+			const char *model = NULL;
+			/* 仅在真正切页时复位索引, 强制重绘 (last_page=PAGE_ABNORMAL_UPDATA) 时不复位 */
+			if (ui_data.last_page != PAGE_ABNORMAL_UPDATA)
+				ui_data.abnormal_idx = 0;
+			if (total > 0 && abnormal_log_voltage_read(ui_data.abnormal_idx, &rec) == 0) {
+				if      (rec.cell == 0) model = ui_data.bat_model_1;
+				else if (rec.cell == 1) model = ui_data.bat_model_2;
+				else if (rec.cell == 2) model = ui_data.bat_model_3;
+				else if (rec.cell == 3) model = ui_data.bat_model_4;
+				abnormal_hint_page(0, ui_data.abnormal_idx + 1, total,
+				                   rec.timestamp, rec.value, model);
+			}
+			// abnormal_hint_page(0, 1, 5,1781605637, 4500, "AURNDIDFKS");
+			break;
+		}
+		case PAGE_TEMP_ABNORMAL:
+		{
+			abnormal_record_t rec;
+			uint8_t total = abnormal_log_temperature_count();
+			/* 仅在真正切页时复位索引, 强制重绘 (last_page=PAGE_ABNORMAL_UPDATA) 时不复位 */
+			if (ui_data.last_page != PAGE_ABNORMAL_UPDATA)
+				ui_data.abnormal_idx = 0;
+			if (total > 0 && abnormal_log_temperature_read(ui_data.abnormal_idx, &rec) == 0) {
+				abnormal_hint_page(1, ui_data.abnormal_idx + 1, total,
+				                   rec.timestamp, rec.value / 10, NULL);
+			}
+			// abnormal_hint_page(1, 1, 5,1781605637, 60, NULL);
+			break;
+		}
 		default:
 			break;
 		}
@@ -157,6 +190,101 @@ static void ui_gpio_init(void)
 	// LCD_BLK_HIGH();
 }
 
+void key_single_click_ui_proc(void)
+{
+	switch (ui_data.cur_page)
+	{
+	case PAGE_DEFAULT:
+		ui_data.last_page = PAGE_DEFAULT;
+		ui_data.cur_page = PAGE_INFO_1;
+		break;
+	case PAGE_INFO_1:
+		ui_data.last_page = PAGE_INFO_1;
+		ui_data.cur_page = PAGE_INFO_2;
+		break;
+	case PAGE_INFO_2:
+		ui_data.last_page = PAGE_INFO_2;
+		ui_data.cur_page = PAGE_INFO_3;
+		break;
+	case PAGE_INFO_3:
+		ui_data.last_page = PAGE_INFO_3;
+		ui_data.cur_page = PAGE_DEFAULT;
+		break;
+	case PAGE_VOLTAGE_ABNORMAL:
+		{
+			uint8_t cnt = abnormal_log_voltage_count();
+			ui_data.abnormal_idx++;
+			if (ui_data.abnormal_idx >= cnt) {
+				ui_data.abnormal_idx = 0;
+			} 
+			ui_data.last_page = PAGE_ABNORMAL_UPDATA;  /* 强制重绘 */
+			
+		}
+		break;
+	case PAGE_TEMP_ABNORMAL:
+		{
+			uint8_t cnt = abnormal_log_temperature_count();
+			ui_data.abnormal_idx++;
+			if (ui_data.abnormal_idx >= cnt) {
+				ui_data.abnormal_idx = 0;
+			} 
+			ui_data.last_page = PAGE_ABNORMAL_UPDATA;  /* 强制重绘 */
+			
+		}
+		break;
+	default:
+		break;
+	}	
+}
+
+void key_double_click_ui_proc(void)
+{
+	switch (ui_data.cur_page)
+	{
+		case PAGE_DEFAULT:
+		case PAGE_INFO_1:
+		case PAGE_INFO_2:
+		case PAGE_INFO_3:
+			LCD_BLK_HIGH();
+			DispColor(BLACK);
+			ui_data.dev_state = DEV_STATE_SLEEP;
+			break;
+
+		default:
+			break;
+	}
+}
+
+bool key_long_press_ui_proc(void)
+{
+	bool ret = false;
+	switch (ui_data.cur_page)
+	{
+		case PAGE_DEFAULT:
+		case PAGE_INFO_1:
+			ret = true;
+			break;
+		case PAGE_INFO_2:
+			ui_data.last_page = PAGE_INFO_2;
+			ui_data.cur_page = PAGE_TEMP_ABNORMAL;
+			break;
+		case PAGE_INFO_3:
+			ui_data.last_page =PAGE_INFO_3;
+			ui_data.cur_page = PAGE_VOLTAGE_ABNORMAL;
+			break;
+		case PAGE_TEMP_ABNORMAL:
+			ui_data.last_page = PAGE_TEMP_ABNORMAL;
+			ui_data.cur_page = PAGE_INFO_2;
+			break;
+		case PAGE_VOLTAGE_ABNORMAL:
+			ui_data.last_page =PAGE_VOLTAGE_ABNORMAL;
+			ui_data.cur_page = PAGE_INFO_3;
+			break;
+		default:
+			break;
+	}
+	return ret;
+}
 
 
 

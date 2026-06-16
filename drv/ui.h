@@ -72,11 +72,15 @@ typedef struct
 typedef enum
 {
 	PAGE_DEFAULT            = 0,  /* 默认主页 (电量/端口功率) */
-	PAGE_INFO_1             = 1,  /* 电池信息页1 (最大容量/循环次数/电池编号) */
-	PAGE_INFO_2             = 2,  /* 电池信息页2 (温度/运行时间) */
-	PAGE_OVER_TEMP          = 3,  /* 过温提示页 */
-	PAGE_LOW_TEMP           = 4,  /* 低温提示页 */
-	PAGE_SHORT_CIRCUIT      = 5,  /* 短路提示页 */
+	PAGE_INFO_1             ,  /* 电池信息页1 (最大容量/循环次数/电池编号) */
+	PAGE_INFO_2             ,  /* 电池信息页2 (温度/运行时间) */
+	PAGE_INFO_3             ,  /* 电池信息页3 (电压/电流) */
+	PAGE_OVER_TEMP          ,  /* 过温提示页 */
+	PAGE_LOW_TEMP           ,  /* 低温提示页 */
+	PAGE_SHORT_CIRCUIT      ,  /* 短路提示页 */
+	PAGE_VOLTAGE_ABNORMAL   ,  /* 电压异常提示页 */
+	PAGE_TEMP_ABNORMAL      ,  /* 温度异常提示页 */
+	PAGE_ABNORMAL_UPDATA    ,  /* 不是真的界面，异常界面切换的过度态 */
 
 	PAGE_MAX,
 } page_t;
@@ -158,10 +162,10 @@ typedef struct
 
 	/* ---- 3C 新国标新增字段 ---- */
 	uint16_t cell_voltage_mv[4];	/* 每节电芯电压 (mV) */
-	int16_t  bat_temperature_01c;	/* 电池实时温度 (0.1℃) */
 	uint8_t  disable_flag;		/* 异常禁用标志 bit0=过压 bit1=欠压 */
 	uint8_t  abnormal_volt_count;	/* 电压异常记录条数 */
 	uint8_t  abnormal_temp_count;	/* 温度异常记录条数 */
+		uint8_t  abnormal_idx;		/* 异常页面当前查看索引 (0-based) */
 
 } ui_data_t;
 
@@ -169,6 +173,9 @@ extern ui_data_t ui_data;
 
 void ui_init(void);
 void ui_proc(void);
+void key_single_click_ui_proc(void);
+void key_double_click_ui_proc(void);
+bool key_long_press_ui_proc(void);
 
 
 
