@@ -295,6 +295,13 @@ void battery_mgr_proc(void)
         if (v > BAT_OV_PROT_MV) {
             if (ts > 0) {
                 abnormal_log_voltage_update(ts - (ts % 3600), v, i);
+                if (ui_data.cur_page == PAGE_DEFAULT ||
+                    ui_data.cur_page == PAGE_INFO_1 ||
+                    ui_data.cur_page == PAGE_INFO_2 ||
+                    ui_data.cur_page == PAGE_INFO_3) {
+                    ui_data.last_page = ui_data.cur_page;
+                    ui_data.cur_page = PAGE_SHORT_CIRCUIT;
+                }
             }
         }
     }
@@ -313,9 +320,27 @@ void battery_mgr_proc(void)
         }
 
         if (over_temp)
-            g_bat.warning = WARNING_OVER_TEMP;
+            {
+                g_bat.warning = WARNING_OVER_TEMP;
+                if (ui_data.cur_page == PAGE_DEFAULT ||
+                    ui_data.cur_page == PAGE_INFO_1 ||
+                    ui_data.cur_page == PAGE_INFO_2 ||
+                    ui_data.cur_page == PAGE_INFO_3) {
+                    ui_data.last_page = ui_data.cur_page;
+                    ui_data.cur_page = PAGE_OVER_TEMP;
+                }
+            }
         else if (low_temp)
-            g_bat.warning = WARNING_LOW_TEMP;
+            {
+                g_bat.warning = WARNING_LOW_TEMP;
+                if (ui_data.cur_page == PAGE_DEFAULT ||
+                    ui_data.cur_page == PAGE_INFO_1 ||
+                    ui_data.cur_page == PAGE_INFO_2 ||
+                    ui_data.cur_page == PAGE_INFO_3) {
+                    ui_data.last_page = ui_data.cur_page;
+                    ui_data.cur_page = PAGE_LOW_TEMP;
+                }
+            }
         else
             g_bat.warning = WARNING_NONE;
     }

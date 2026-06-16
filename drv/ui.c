@@ -3,6 +3,8 @@
 
 static void ui_gpio_init(void);
 
+static uint32_t hint_enter_tick = 0;  /* 提示页进入时刻, 用于 5s 自动跳转 */
+
 ui_data_t ui_data = {
 	.bat_power = 50,
 	.is_charge = 1,
@@ -97,12 +99,15 @@ void ui_proc(void)
 			break;
 		case PAGE_OVER_TEMP:
 			over_temp_hint_page();
+			hint_enter_tick = md_get_tick();
 			break;
 		case PAGE_LOW_TEMP:
 			low_temp_hint_page();
+			hint_enter_tick = md_get_tick();
 			break;
 		case PAGE_SHORT_CIRCUIT:
 			short_circuit_hint_page();
+			hint_enter_tick = md_get_tick();
 			break;
 		case PAGE_VOLTAGE_ABNORMAL:
 		{
@@ -158,7 +163,11 @@ void ui_proc(void)
 	case PAGE_OVER_TEMP:
 	case PAGE_LOW_TEMP:
 	case PAGE_SHORT_CIRCUIT:
-		/* 提示页为静态页面，无需更新 */
+		if (md_get_tick() - hint_enter_tick >= 5000) {
+			ui_data.cur_page = (ui_data.cur_page == PAGE_SHORT_CIRCUIT)
+			                 ? PAGE_VOLTAGE_ABNORMAL
+			                 : PAGE_TEMP_ABNORMAL;
+		}
 		break;
 	default:
 		break;
