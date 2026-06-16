@@ -530,4 +530,83 @@ void default_page_updata(void)
 	}
 }
 
+/* ========================================================================
+ * V1.3 剩余充满时间估算 (1s 更新一次, 返回分钟)
+ * ======================================================================== */
+#define IBAT_BUF_SIZE  10U
+
+static int32_t ibat_buf[10];          /* 电流环形缓冲 */
+
+/* 电池循环降额系数 (%) */
+static uint8_t bat_cycle_derate(uint16_t cycle_times)
+{
+    if (cycle_times >= 210) return 90;
+    if (cycle_times >= 140) return 93;
+    if (cycle_times >= 70)  return 97;
+    return 100;
+}
+
+uint16_t calc_charge_remain_min(void)
+{
+    static uint32_t last_ms   = 0;
+    static uint8_t  ibat_idx  = 0;
+    static uint8_t  ibat_full = 0;
+
+    uint32_t total_cap_mah;         /* 折算后总容量 (mAh)    */
+    uint32_t remain_cap;            /* 剩余容量 (mAh)        */
+    uint32_t seconds;               /* 剩余时间 (秒)         */
+    uint32_t ibat_avg;              /* 平滑电流 (mA)         */
+    uint32_t now;
+    int32_t  ibat;
+    uint8_t  derate;
+
+	if (!ui_data.is_charge)
+		return 0;
+
+    /* ---- 1 秒采样 ---- */
+    now = md_get_tick();
+    if (now - last_ms >= 1000U) {
+        last_ms = now;
+        ibat = (int32_t)cw1573_info.current_ma;
+        ibat_buf[ibat_idx] = (ibat < 0) ? -ibat : ibat;
+        ibat_idx++;
+        if (ibat_idx >= IBAT_BUF_SIZE) {
+            ibat_idx  = 0;
+            ibat_full = 1;
+        }
+    }
+
+    if (!ibat_full)
+        return 0;
+
+    /* 平滑电流（10 点环形缓冲平均） */
+    {
+        int32_t sum = 0;
+        uint8_t i;
+        for (i = 0; i < IBAT_BUF_SIZE; i++)
+            sum += ibat_buf[i];
+        ibat_avg = (uint32_t)(sum / IBAT_BUF_SIZE);
+    }
+    if (ibat_avg < 50) ibat_avg = 50;   /* 最小电流下限，防除零及极端值 */
+
+    /* 总容量 = 标称容量(4节×5000mAh) * 循环降额系数 */
+    derate        = bat_cycle_derate(ui_data.bat_cycle_cnt);
+    total_cap_mah = 20000UL * 3600UL;
+    total_cap_mah = total_cap_mah * derate / 100U;
+
+    /* ----- 充电剩余时间（秒）----- */
+    if (ui_data.is_charge && cw1573_info.current_ma > 0)
+    {
+        remain_cap = (uint32_t)(100U - ui_data.bat_power) * total_cap_mah / 100U;
+        seconds    = (remain_cap * 3600UL / ibat_avg);
+        seconds    = (seconds > 0xFFFFU) ? 0xFFFFU : seconds;
+    }
+    else
+    {
+        seconds = 0;
+    }
+
+    return (uint16_t)(seconds / 60U);
+}
+
 

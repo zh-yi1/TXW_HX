@@ -267,6 +267,34 @@ void rtc_save_checkpoint(void)
     }
 }
 
+#if FACTORY_RESET_EN
+/*
+ * rtc_reset_running_time — 恢复出厂设置: 清零运行时间并擦除 Flash 存盘点
+ *
+ * V1.3 新增: 场测串口下发恢复出厂设置时调用,
+ * 清零 RAM 中的累计运行秒数并擦除全部时间戳块,
+ * 确保掉电重启后不会从 Flash 恢复出旧值.
+ */
+void rtc_reset_running_time(void)
+{
+    /* 清零 RAM 运行时间 */
+    g_running_seconds  = 0;
+    g_last_second_tick = md_get_tick();
+
+    /* 擦除全部时间戳块, 防止重启后 scan 恢复 */
+    flash_sector_erase(ts_block_addrs[0]);
+    flash_wait_unbusy();
+    flash_sector_erase(ts_block_addrs[1]);
+    flash_wait_unbusy();
+    flash_sector_erase(ts_block_addrs[2]);
+    flash_wait_unbusy();
+
+    /* 复位写指针到块 0 起始 */
+    g_ts_block_idx = 0;
+    g_saved_addr   = ts_block_addrs[0];
+}
+#endif /* FACTORY_RESET_EN */
+
 uint8_t rtc_is_synced(void)
 {
     return g_time_synced;

@@ -204,6 +204,48 @@ void abnormal_log_init(void)
     g_temp_ctx.dirty       = 0;
 }
 
+#if FACTORY_RESET_EN
+/*
+ * abnormal_log_reset — 恢复出厂设置: 擦除全部异常记录 Flash 区并复位 RAM 状态
+ *
+ * V1.3 新增: 场测串口下发恢复出厂设置时调用,
+ * 擦除电压异常区 (7 块) 和温度异常区 (7 块) 的全部数据,
+ * 同时复位 RAM 中的小时追踪和写指针.
+ */
+void abnormal_log_reset(void)
+{
+    uint8_t i;
+
+    /* 擦除电压异常区 (7 × 256B) */
+    for (i = 0; i < AREA_BLOCKS; i++) {
+        flash_sector_erase(VOLT_BASE + (uint32_t)i * BLOCK_SIZE);
+        flash_wait_unbusy();
+    }
+
+    /* 擦除温度异常区 (7 × 256B) */
+    for (i = 0; i < AREA_BLOCKS; i++) {
+        flash_sector_erase(TEMP_BASE + (uint32_t)i * BLOCK_SIZE);
+        flash_wait_unbusy();
+    }
+
+    /* 复位电压异常 RAM 上下文 */
+    g_volt_ctx.hour_start  = 0;
+    g_volt_ctx.worst_value = 0;
+    g_volt_ctx.extra       = 0;
+    g_volt_ctx.dirty       = 0;
+    g_volt_ctx.write_addr  = VOLT_BASE;
+    g_volt_ctx.count       = 0;
+
+    /* 复位温度异常 RAM 上下文 */
+    g_temp_ctx.hour_start  = 0;
+    g_temp_ctx.worst_value = 0;
+    g_temp_ctx.extra       = ABNORMAL_EVT_NONE;
+    g_temp_ctx.dirty       = 0;
+    g_temp_ctx.write_addr  = TEMP_BASE;
+    g_temp_ctx.count       = 0;
+}
+#endif /* FACTORY_RESET_EN */
+
 /* ---- 电压异常 ---- */
 
 void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t cell)

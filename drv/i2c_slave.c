@@ -1,6 +1,6 @@
 #include "i2c_slave.h"
 
-/* ---- 寄存器缓冲区 (协议 V1.1 最大地址 0x8F, 共 0x90=144 字节) ---- */
+/* ---- 寄存器缓冲区 (协议 V1.3 最大地址 0x8F, 共 0x90=144 字节) ---- */
 #define I2C_REG_MAP_SIZE  0x90
 volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE];
 
@@ -24,7 +24,7 @@ static volatile i2c_slave_state_t i2c_s;
 #define I2C_DIR_WRITE  I2C_STAT2_TRF_MSK
 #define I2C_DIR_READ   0x00000000U
 
-/* ---- 判断寄存器地址是否可写 (协议 V1.1) ---- */
+/* ---- 判断寄存器地址是否可写 (协议 V1.3) ---- */
 static uint8_t reg_is_writable(uint8_t addr)
 {
     /* 0x00~0x1F: 主机信息 + 电池数据 (W) */
@@ -124,6 +124,7 @@ void i2c_slave_init(void)
     md_i2c_enable_ack(I2C1);
 
     /* --- 初始化寄存器默认值 --- */
+    i2c_reg_map[REG_SOC]             = 0xFF;  /* 0xFF=未收到, 区分电量 0% */
     i2c_reg_map[REG_FW_VERSION_L]    = 0x00;  /* V1.00, 由 proc 填充 */
     i2c_reg_map[REG_FW_VERSION_H]    = 0x01;
     i2c_reg_map[REG_TFT_ONLINE_CRC]  = 0x55;  /* 从机就绪标志 */
@@ -356,6 +357,33 @@ static void pull_sensor_data(void)
     i2c_reg_map[REG_AFE_PROTECT3] = cw1573_raw.state_flag2;
 }
 
+#if FACTORY_RESET_EN
+/* ========================================================================
+ * factory_reset — V1.3 恢复出厂设置
+ *
+ * 场测串口下发时调用 (触发条件待定).
+ * 还原 SOH=100、清零 CYCLE、清总运行时间、清异常记录.
+ * ======================================================================== */
+static void factory_reset(void)
+{
+    /* 还原 SOH */
+    i2c_reg_map[REG_SOH] = 100;
+    ui_data.bat_max_cap  = 100;
+
+    /* 清零循环次数 */
+    reg_write_u16(REG_CYCLE_L, 0);
+    ui_data.bat_cycle_cnt = 0;
+
+    /* 清总运行时间 (RAM + Flash 存盘点) */
+    rtc_reset_running_time();
+
+    /* 清异常记录 (Flash + RAM) */
+    abnormal_log_reset();
+    ui_data.abnormal_volt_count = 0;
+    ui_data.abnormal_temp_count = 0;
+}
+#endif /* FACTORY_RESET_EN */
+
 /* ========================================================================
  * apply_host_data — 解析 G020 写入的 W 寄存器 → ui_data
  * ======================================================================== */
@@ -365,8 +393,8 @@ static void apply_host_data(void)
     ui_data.bat_power     = i2c_reg_map[REG_SOC];
     ui_data.bat_max_cap   = i2c_reg_map[REG_SOH];
     ui_data.bat_cycle_cnt = reg_read_u16(REG_CYCLE_L);
-    ui_data.charge_remain_time    = reg_read_u32(REG_CHARGE_REMAIN_0);
-    ui_data.discharge_remain_time = reg_read_u32(REG_DISCHARGE_REMAIN_0);
+    ui_data.charge_remain_time    = reg_read_u32(REG_CHARGE_REMAIN_0);    /* V1.3 未使用 */
+    ui_data.discharge_remain_time = reg_read_u32(REG_DISCHARGE_REMAIN_0); /* V1.3 未使用 */
     ui_data.res_vbat       = reg_read_u16(REG_RES_VBAT_L);
 
     /* ---- NTC 数据 (协议 §4.3) ---- */
@@ -444,6 +472,12 @@ static void apply_host_data(void)
     /* 充电时自动关闭小电流模式 */
     if (ui_data.is_charge)
         ui_data.low_current_flag = false;
+
+    /* V1.3: 收到电量数据后, password 寄存器写 0x66 告知主机已就绪
+     * SOC 初始值为 0xFF, 主机写入合法值 (0~100) 后触发 */
+    if (i2c_reg_map[REG_SOC] <= 100) {
+        i2c_reg_map[REG_PASSWORD] = 0x66;
+    }
 }
 
 /* ========================================================================

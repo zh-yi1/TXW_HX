@@ -102,6 +102,9 @@ void rtc_timer_reinit(void);               /* 生产配置写入后重新初始�
 void rtc_timer_proc(void);
 uint32_t rtc_get_timestamp(void);          /* 返回当前 Unix 时间戳，未同步返回 0 */
 void rtc_save_checkpoint(void);            /* 强制保存时间戳存盘点 */
+#if FACTORY_RESET_EN
+void rtc_reset_running_time(void);         /* V1.3: 恢复出厂设置 — 清零运行时间并擦除 Flash 存盘点 */
+#endif
 uint8_t rtc_is_synced(void);               /* 是否已时间同步 */
 
 /* ---- 生产配置读写 ---- */

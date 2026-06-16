@@ -6,7 +6,10 @@
 /* ---- I2C 从机地址 (7-bit) ---- */
 #define I2C_SLAVE_ADDR          0x2D
 
-/* ---- 寄存器地址定义 (协议 V1.1) ---- */
+/* V1.3 恢复出厂设置功能开关 (1=使能, 0=关闭, 控制 factory_reset + Flash 擦除相关代码) */
+#define FACTORY_RESET_EN  0
+
+/* ---- 寄存器地址定义 (协议 V1.3) ---- */
 
 /* 主机信息 §4.1 (0x00~0x0F) — 主机 → 从机 */
 #define REG_HOST_FW_VER_L       0x00
@@ -18,11 +21,11 @@
 #define REG_SOH                 0x11
 #define REG_CYCLE_L             0x12
 #define REG_CYCLE_H             0x13
-#define REG_CHARGE_REMAIN_0     0x14
+#define REG_CHARGE_REMAIN_0     0x14   /* V1.3 未使用 */
 #define REG_CHARGE_REMAIN_1     0x15
 #define REG_CHARGE_REMAIN_2     0x16
 #define REG_CHARGE_REMAIN_3     0x17
-#define REG_DISCHARGE_REMAIN_0  0x18
+#define REG_DISCHARGE_REMAIN_0  0x18   /* V1.3 未使用 */
 #define REG_DISCHARGE_REMAIN_1  0x19
 #define REG_DISCHARGE_REMAIN_2  0x1A
 #define REG_DISCHARGE_REMAIN_3  0x1B
@@ -92,22 +95,27 @@
 #define REG_KEY_EVENT           0x70
 
 /* BMS 备用寄存器 §4.7 (0x71~0x7F) — 主机 ← 从机 */
-#define REG_BMS_SOC             0x71
-#define REG_BMS_SOH             0x72
-#define REG_BMS_CYCLE_L         0x73
-#define REG_BMS_CYCLE_H         0x74
-#define REG_BMS_CHARGE_REMAIN_L 0x75
-#define REG_BMS_CHARGE_REMAIN_H 0x76
-#define REG_BMS_DISCHARGE_REMAIN_L 0x77
-#define REG_BMS_DISCHARGE_REMAIN_H 0x78
+#define REG_BMS_SOC              0x71
+#define REG_BMS_SOH              0x72
+#define REG_BMS_CYCLE_L          0x73
+#define REG_BMS_CYCLE_H          0x74
+#define REG_BMS_CHARGE_REMAIN_0  0x75   /* V1.3: charge_remain_time 4Byte */
+#define REG_BMS_CHARGE_REMAIN_1  0x76
+#define REG_BMS_CHARGE_REMAIN_2  0x77
+#define REG_BMS_CHARGE_REMAIN_3  0x78
+#define REG_BMS_DISCHARGE_REMAIN_0 0x79 /* V1.3: discharge_remain_time 4Byte */
+#define REG_BMS_DISCHARGE_REMAIN_1 0x7A
+#define REG_BMS_DISCHARGE_REMAIN_2 0x7B
+#define REG_BMS_DISCHARGE_REMAIN_3 0x7C
 
 /* 系统信息 §4.8 (0x80~0x8F) — 主机 ← 从机 */
 #define REG_FW_VERSION_L        0x80
 #define REG_FW_VERSION_H        0x81
 #define REG_TFT_ONLINE_CRC      0x82
 #define REG_UPDATE_CRC          0x83
+#define REG_PASSWORD            0x84   /* V1.3: 从机收到电量数据后写 0x66 */
 
-/* ---- 寄存器缓冲区 (协议 V1.1 最大地址 0x8F, 共 144 字节) ---- */
+/* ---- 寄存器缓冲区 (协议 V1.3 最大地址 0x8F, 共 144 字节) ---- */
 extern volatile uint8_t i2c_reg_map[];
 
 /* ---- 按键事件影子缓冲 (防主机清零竞争) ---- */

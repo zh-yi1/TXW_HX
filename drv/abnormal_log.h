@@ -38,6 +38,9 @@ typedef struct {
 
 /* ---- 外部接口 ---- */
 void abnormal_log_init(void);
+#if FACTORY_RESET_EN
+void abnormal_log_reset(void);  /* V1.3: 恢复出厂设置 — 擦除全部异常记录 Flash 区并复位 RAM */
+#endif
 
 /* 电压异常: 更新当前小时最差值 (仅 RAM) */
 void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t cell);

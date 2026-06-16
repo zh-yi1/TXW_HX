@@ -29,4 +29,6 @@ void anima_erase_area(int x, int y, int w, int h);
 void default_page_show_power(power_e port, uint8_t power_value, uint8_t status);
 void default_page_updata(void);
 
+uint16_t calc_charge_remain_min(void);   /* V1.3: 剩余充满时间 (分钟), 非充电态返回 0 */
+
 #endif

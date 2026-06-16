@@ -79,6 +79,8 @@ void ui_proc(void)
 	if (ui_data.dev_state == DEV_STATE_SLEEP)
 		return;
 
+	calc_charge_remain_min();  /* V1.3: 剩余充满时间估算 */
+
 	/* 检测界面切换，切换时初始化新界面 */
 	if (ui_data.cur_page != ui_data.last_page)
 	{
