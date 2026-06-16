@@ -9,12 +9,14 @@ int main()
 
 	while (1)
 	{
+	#ifdef UPGRADE_EN
 		/* 升级模式: 按键组合触发后直接跳转 Bootloader */
 		if (g_enter_upgrade)
 		{
 			g_enter_upgrade = 0;
 			uart_upgrade_enter();
 		}
+	#endif
 
 		/* ---- 产测协议处理 (USART1) ---- */
 #ifndef DEBUG_EN

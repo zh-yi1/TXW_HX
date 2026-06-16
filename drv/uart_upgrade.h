@@ -14,6 +14,8 @@
 
 #include "global_define.h"
 
+#ifdef UPGRADE_EN
+
 #define APP_ADDR    0x1400
 #define BOOT_ADDR   0x0000
 #define CRC_CAL_PAGE_ADDR   0x7E00
@@ -26,5 +28,7 @@ extern volatile uint8_t  g_enter_upgrade;
 
 /* Exported functions */
 void uart_upgrade_enter(void);
+
+#endif /* UPGRADE_EN */
 
 #endif /* __UART_UPGRADE_H__ */

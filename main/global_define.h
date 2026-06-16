@@ -17,7 +17,9 @@
 #include "timer.h"
 #include "key.h"
 #include "i2c_slave.h"
+#ifdef UPGRADE_EN
 #include "uart_upgrade.h"
+#endif
 #include "usart.h"
 
 /* 3C 新国标模块 */
