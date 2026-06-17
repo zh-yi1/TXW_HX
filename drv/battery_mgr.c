@@ -11,6 +11,10 @@ extern uint8_t cw1573_cell_cnt;
 #define DISABLE_REASON_OV  1   /* 过压禁用 */
 #define DISABLE_REASON_UV  2   /* 欠压禁用 */
 
+/* 禁用检测开关: 1=启用 0=关闭(测试用) */
+#define BAT_DISABLE_DETECT_EN  0
+#define BAT_ENABLE_TEST_EN  1
+
 /* ==========================================================================
  *  NTC 阻值-温度查找表 (MF52-104F3950FA, R25=100KΩ, B25/50=3950K)
  *  温度 -20℃ ~ 80℃, 步进 5℃, 阻值取自 电阻.md Rnom 列
@@ -44,9 +48,11 @@ static const uint32_t ntc_rnom_table[] = {
 /* ---- RAM 状态 ---- */
 typedef struct {
     uint32_t last_poll_tick;        /* 上次轮询时刻 */
-    uint32_t hour_start_tick;       /* 当前小时的起始 tick */
-    uint8_t  uv_seconds[4];         /* 每节电芯欠压持续秒数 */
-    uint8_t  ov_seconds[4];         /* 每节电芯过压持续秒数 */
+    uint32_t volt_1h_tick;          /* 电压异常 1h 计时起点 (0=未计时) */
+    uint32_t temp_1h_tick;          /* 温度异常 1h 计时起点 (0=未计时) */
+    uint8_t  uv_seconds[4];         /* 每节电芯欠压禁用持续次数 */
+    uint8_t  ov_seconds[4];         /* 每节电芯过压禁用持续次数 */
+    uint8_t  ov_prot_cnt[4];        /* 每节电芯过压保护持续次数 (>=2 = 持续 1s) */
     uint8_t  disabled;              /* 禁用标志 */
     uint8_t  disable_reason;        /* 禁用原因 (DISABLE_REASON_OV / DISABLE_REASON_UV) */
     uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
@@ -56,6 +62,9 @@ typedef struct {
 
 static battery_mgr_ctx_t g_bat;
 
+#if BAT_ENABLE_TEST_EN
+    uint16_t vcell_mv[4]={4200,4200,4300,4300};
+#endif
 /* ---- 内部函数 ---- */
 
 /* ==========================================================================
@@ -122,26 +131,25 @@ static uint8_t detect_chg_state(void)
     return CHG_STATE_IDLE;
 }
 
-/* 检查是否需要提交当前小时异常记录 */
+/* 检查 1h 计时是否到期, 到期则提交当前小时异常最差值 */
 static void check_hour_commit(void)
 {
     uint32_t now = md_get_tick();
     uint32_t hour_ms = 3600000UL;
+    uint32_t ts;
 
-    if (g_bat.hour_start_tick == 0) {
-        g_bat.hour_start_tick = now;
-        return;
+    if (g_bat.volt_1h_tick != 0 && now - g_bat.volt_1h_tick >= hour_ms) {
+        ts = rtc_get_timestamp();
+        if (ts > 0)
+            abnormal_log_voltage_commit(ts);
+        g_bat.volt_1h_tick = 0;
     }
 
-    if (now - g_bat.hour_start_tick >= hour_ms) {
-        uint32_t ts = rtc_get_timestamp();
-        if (ts > 0) {
-            /* 异常结束时提交 (不足 1 小时也写, dirty 保证有异常才写) */
-            abnormal_log_voltage_commit(ts);
+    if (g_bat.temp_1h_tick != 0 && now - g_bat.temp_1h_tick >= hour_ms) {
+        ts = rtc_get_timestamp();
+        if (ts > 0)
             abnormal_log_temperature_commit(ts);
-        }
-
-        g_bat.hour_start_tick = now;
+        g_bat.temp_1h_tick = 0;
     }
 }
 
@@ -161,21 +169,41 @@ void static_cfg_load_to_ui(void)
     factory_cfg_read(&cfg);
 
     /* magic 正确才复制数据 (上位机已写入) */
-    if (cfg.magic == 0x55) {
-        memcpy(ui_data.bat_model_1, cfg.bat_model[0], 16);
-        memcpy(ui_data.bat_model_2, cfg.bat_model[1], 16);
-        memcpy(ui_data.bat_model_3, cfg.bat_model[2], 16);
-        memcpy(ui_data.bat_model_4, cfg.bat_model[3], 16);
-    }
-
+    if (cfg.magic != 0x55) 
+        return;
+    
+    memcpy(ui_data.bat_model_1, cfg.bat_model[0], 16);
+    memcpy(ui_data.bat_model_2, cfg.bat_model[1], 16);
+    memcpy(ui_data.bat_model_3, cfg.bat_model[2], 16);
+    memcpy(ui_data.bat_model_4, cfg.bat_model[3], 16);
+    
     /* 恢复禁用原因 (0=正常 1=OV 2=UV) */
     if (cfg.disable_reason != 0) {
         g_bat.disabled       = 1;
         g_bat.disable_reason = cfg.disable_reason;
-        if (cfg.disable_reason == DISABLE_REASON_OV) {
-            i2c_reg_map[REG_OVP_PERMANENT] = 0x5B;
-        }
+        i2c_reg_map[REG_OVP_PERMANENT] = 0x5B; 
     }
+}
+
+void static_cfg_erasure(void)
+{
+    flash_sector_erase(FLASH_DATA_BASE + FLASH_OFFS_FACTORY_CFG);
+    flash_wait_unbusy();
+}
+
+void static_cfg_save_test(void)
+{
+    factory_cfg_t cfg;
+    cfg.magic = 0x55;
+    cfg.start_timestamp = 1781676562;
+    strcpy(cfg.bat_model[0], "DFLKSKLDGSJ");
+    strcpy(cfg.bat_model[1], "218399MMGKF");
+    strcpy(cfg.bat_model[2], "90494UTJGNG");
+    strcpy(cfg.bat_model[3], "PYL905K9MIJ");
+    cfg.cell_count = 4;     
+    cfg.device_sn = 0x00000000;
+    cfg.disable_reason = 0;
+    factory_cfg_write(&cfg);
 }
 
 void battery_mgr_init(void)
@@ -183,7 +211,7 @@ void battery_mgr_init(void)
     memset(&g_bat, 0, sizeof(g_bat));
 
     /* 非零默认值 */
-    g_bat.temperature_01c = 250;            /* 25.0℃ */
+    g_bat.temperature_01c = 0;            /* 0℃ */
 
     /* 加载静态配置 (factory_cfg + OV 标志) */
     static_cfg_load_to_ui();
@@ -217,9 +245,11 @@ void battery_mgr_proc(void)
         return;
     g_bat.last_poll_tick = now;
 
+#if BAT_DISABLE_DETECT_EN
     /* 已禁用: 不再检测 */
     if (g_bat.disabled)
         return;
+#endif
 
     /* 更新 CW1573 处理数据 */
     cw1573_calc_data((cw1573_data_t *)&cw1573_raw,
@@ -252,8 +282,13 @@ void battery_mgr_proc(void)
 
     /* ---- 4. 逐电芯检测 (TFT 本地判断) ---- */
     for (i = 0; i < cw1573_cell_cnt; i++) {
-        uint16_t v = cw1573_info.vcell_mv[i];
+#if BAT_ENABLE_TEST_EN
+        uint16_t v = vcell_mv[i];
 
+#else
+        uint16_t v = cw1573_info.vcell_mv[i];
+#endif
+#if BAT_DISABLE_DETECT_EN
         /* 4.1 欠压禁用检测 (V < 1.5V 持续 > 5s) */
         if (v < BAT_UV_DISABLE_MV && v > 0) {
             g_bat.uv_seconds[i]++;
@@ -261,13 +296,12 @@ void battery_mgr_proc(void)
                 g_bat.disabled = 1;
                 g_bat.disable_reason = DISABLE_REASON_UV;
 
-            /* 写 Flash: 记录禁用原因 */             
-            factory_cfg_t cfg;
-            factory_cfg_read(&cfg);
-            cfg.disable_reason = DISABLE_REASON_UV;
-            factory_cfg_write(&cfg);
-                
-            }
+                /* 写 Flash: 记录禁用原因 */
+                factory_cfg_t cfg;
+                factory_cfg_read(&cfg);
+                cfg.disable_reason = DISABLE_REASON_UV;
+                factory_cfg_write(&cfg);
+                }
         } else {
             g_bat.uv_seconds[i] = 0;
         }
@@ -280,21 +314,30 @@ void battery_mgr_proc(void)
                 g_bat.disabled = 1;
                 g_bat.disable_reason = DISABLE_REASON_OV;
 
-            /* 写 Flash: 记录禁用原因 */
-            factory_cfg_t cfg;
-            factory_cfg_read(&cfg);
-            cfg.disable_reason = DISABLE_REASON_OV;
-            factory_cfg_write(&cfg);
-            i2c_reg_map[REG_OVP_PERMANENT] = 0x5B;
-            }
+                /* 写 Flash: 记录禁用原因 */
+                factory_cfg_t cfg;
+                factory_cfg_read(&cfg);
+                cfg.disable_reason = DISABLE_REASON_OV;
+                factory_cfg_write(&cfg);
+                i2c_reg_map[REG_OVP_PERMANENT] = 0x5B;
+                }
         } else {
             g_bat.ov_seconds[i] = 0;
         }
+#endif /* BAT_DISABLE_DETECT_EN */
 
-        /* 4.3 过压保护记录 (V > 4.50V, 更新 RAM 最差值) */
+        /* 4.3 过压保护记录 (V > 4.50V 持续 > 1s, 更新 RAM 最差值) */
         if (v > BAT_OV_PROT_MV) {
-            if (ts > 0) {
+            g_bat.ov_prot_cnt[i]++;
+            if (g_bat.ov_prot_cnt[i] >= 2 && ts > 0) {
                 abnormal_log_voltage_update(ts - (ts % 3600), v, i);
+
+                /* 首次异常: 立即写 Flash, 开始 1h 计时 */
+                if (g_bat.volt_1h_tick == 0) {
+                    abnormal_log_voltage_commit(ts);
+                    g_bat.volt_1h_tick = now;
+                }
+
                 if (ui_data.cur_page == PAGE_DEFAULT ||
                     ui_data.cur_page == PAGE_INFO_1 ||
                     ui_data.cur_page == PAGE_INFO_2 ||
@@ -303,6 +346,8 @@ void battery_mgr_proc(void)
                     ui_data.cur_page = PAGE_SHORT_CIRCUIT;
                 }
             }
+        } else {
+            g_bat.ov_prot_cnt[i] = 0;
         }
     }
 
@@ -364,6 +409,12 @@ void battery_mgr_proc(void)
             abnormal_log_temperature_update(ts - (ts % 3600),
                                 (uint16_t)g_bat.temperature_01c,
                                 evt_type);
+
+            /* 首次异常: 立即写 Flash, 开始 1h 计时 */
+            if (g_bat.temp_1h_tick == 0) {
+                abnormal_log_temperature_commit(ts);
+                g_bat.temp_1h_tick = now;
+            }
         }
     }
 }

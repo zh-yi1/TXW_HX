@@ -310,7 +310,7 @@ uint8_t cw1573_read_all(cw1573_data_t *data)
 	{
 		uint8_t ts[2];
 		err |= cw1573_read_reg(CW1573_REG_TS_H, ts, 2);
-		data->ts_adc = (uint16_t)(((uint16_t)(ts[0] & 0x7F) << 8) | ts[1]);
+		data->ts_adc = (uint16_t)(((uint16_t)(ts[0] & 0xFF) << 8) | ts[1]);
 	}
 
 	/* Read IADC: 0x30-0x31 */

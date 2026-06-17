@@ -40,11 +40,11 @@
 /* ========================================================================== */
 /*  Debug printf wrapper — 由 md_conf.h 的 DEBUG_EN 统一控制                   */
 /* ========================================================================== */
-#ifdef DEBUG_EN
-#define LOGI(fmt, ...)  printf(fmt, ##__VA_ARGS__)
-#else
+// #ifdef DEBUG_EN
+// #define LOGI(fmt, ...)  printf(fmt, ##__VA_ARGS__)
+// #else
+// #define LOGI(fmt, ...)  ((void)0)
+// #endif
 #define LOGI(fmt, ...)  ((void)0)
-#endif
-
 #endif /* __GLOBAL_DEFINE_H */
 

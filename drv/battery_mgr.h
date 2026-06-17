@@ -24,6 +24,8 @@
 /* ---- 对外接口 ---- */
 void battery_mgr_init(void);
 void battery_mgr_proc(void);
+void static_cfg_erasure(void);
+void static_cfg_save_test(void);
 
 /* 查询函数 (无回调, 被动读取) */
 uint16_t battery_mgr_cell_voltage_mv(uint8_t cell_idx);   /* 电芯电压 mV */

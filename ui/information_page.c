@@ -135,7 +135,7 @@ void information_page_2_init(void)
     Dispphoto_Dispaly_flash(bat_info_text_img[INFO_BAT_TEMP].x,
                             bat_info_text_img[INFO_BAT_TEMP].y, bat_info_text_img[INFO_BAT_TEMP].img_addr);
     //电池温度值
-    draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature,
+    draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature / 10,
                        FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H);
     //运行时间
     Dispphoto_Dispaly_flash(bat_info_text_img[INFO_RUN_TIME].x,
@@ -216,12 +216,12 @@ void information_page_1_updata(void)
 
 void information_page_2_updata(void)
 {
-    static uint8_t last_temp = 0xFF;
+    static int16_t last_temp = 0x7FFF;
 
     /* 电池温度 — 变化时刷新 */
     if (ui_data.bat_temperature != last_temp)
     {
-        draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature,
+        draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature/10,
                            FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H);
         last_temp = ui_data.bat_temperature;
     }

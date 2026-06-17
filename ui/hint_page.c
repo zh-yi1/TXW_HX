@@ -10,14 +10,14 @@ typedef enum
 } hint_img_e;
 
 pos_and_addr_t hint_img_pos[] = {
-	{80, 4, FLASH_ADDR_TEMP_BLUE},
 	{80, 4, FLASH_ADDR_TEMP_ORANGE},
+	{80, 4, FLASH_ADDR_TEMP_BLUE},
 	{80, 4, FLASH_ADDR_CIRCUIT_PROTECTION},
 };
 
 pos_and_addr_t hint_text_img_pos[] = {
-	{0, 87, FLASH_ADDR_LOW_TMP_TEXT},
 	{0, 87, FLASH_ADDR_HIGH_TMP_TEXT},
+	{0, 87, FLASH_ADDR_LOW_TMP_TEXT},
 	{0, 87, FLASH_ADDR_CIRCUIT_PROTECTION_TEXT},
 };
 
