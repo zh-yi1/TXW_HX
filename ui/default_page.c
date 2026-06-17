@@ -181,6 +181,7 @@ static int anima_power_width(uint8_t power)
 #define ANIM_STEPS          40
 #define ANIM_STEP_MS        20    /* 动画每帧间隔, 可调 */
 
+#ifdef ENABLE_CHARGE_ANIM
 /* 充放电动画状态 (非阻塞, 由 default_page_updata 驱动) */
 static uint8_t  anima_step;
 static uint8_t  anima_active;       /* 0=空闲 1=进行中 */
@@ -276,6 +277,7 @@ static bool anima_tick(void)
 	}
 	return false;
 }
+#endif /* ENABLE_CHARGE_ANIM — anima_tick */
 
 
 /* ============================ 电量显示 ============================ */
@@ -346,7 +348,6 @@ draw_bar:
 static void default_page_show_bar_effect(void)
 {
 	int bat = ui_data.bat_power;
-	int fill_x;
 
 	/* 电量范围保护: 1-100, 防止数组越界 */
 	if (bat < 1)
@@ -365,7 +366,11 @@ static void default_page_show_bar_effect(void)
 	}
 	ui_data.prev_bar_effect = ui_data.is_charge ? 1 : 2;
 
-	Dispphoto_Dispaly_flash(BAR_PROGRESS_X, BAR_PROGRESS_Y, progress_bar[bat - 1]);
+	Dispphoto_Dispaly_flash(BAR_PROGRESS_X, BAR_PROGRESS_Y,
+		FLASH_ADDR_BAR_PROGRESS_BASE + (uint32_t)(bat - 1) * FLASH_STRIDE_BAR_PROGRESS);
+
+#ifdef ENABLE_CHARGE_ANIM
+	int fill_x;
 
 	fill_x = bat * BAR_PROGRESS_W / 100;
 
@@ -378,16 +383,20 @@ static void default_page_show_bar_effect(void)
 		int f = ui_data.charge_anim_frame;
 		int px = ui_data.prev_icon_x;
 
-		/* 先画新帧 */
+		/* 先画新帧 (偏移 = BASE + frame * STRIDE) */
 		if (is_blue)
 		{
-			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_UP_Y, charging_blue_up[f]);
-			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_DN_Y, charging_blue_down[f]);
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_UP_Y,
+				FLASH_ADDR_CHARGING_BLUE_UP_BASE + (uint32_t)f * FLASH_STRIDE_CHARGING_BLUE_UP);
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_DN_Y,
+				FLASH_ADDR_CHARGING_BLUE_DOWN_BASE + (uint32_t)f * FLASH_STRIDE_CHARGING_BLUE_DOWN);
 		}
 		else
 		{
-			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_UP_Y, charging_orange_up[f]);
-			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_DN_Y, charging_orange_down[f]);
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_UP_Y,
+				FLASH_ADDR_CHARGING_ORANGE_UP_BASE + (uint32_t)f * FLASH_STRIDE_CHARGING_ORANGE_UP);
+			Dispphoto_Dispaly_flash(icon_x, BAR_EFFECT_DN_Y,
+				FLASH_ADDR_CHARGING_ORANGE_DOWN_BASE + (uint32_t)f * FLASH_STRIDE_CHARGING_ORANGE_DOWN);
 		}
 
 		/* 擦除旧图标不重叠部分 (先画后擦, 无闪烁) */
@@ -413,9 +422,12 @@ static void default_page_show_bar_effect(void)
 	else
 	{
 		int idx = bat - 1;
-		Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y, blur_up[idx]);
-		Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y, blur_down[idx]);
+		Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y,
+			FLASH_ADDR_BLUR_UP_BASE + (uint32_t)idx * FLASH_STRIDE_BLUR_UP);
+		Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y,
+			FLASH_ADDR_BLUR_DOWN_BASE + (uint32_t)idx * FLASH_STRIDE_BLUR_DOWN);
 	}
+#endif /* ENABLE_CHARGE_ANIM */
 }
 
 void default_page_init()
@@ -442,9 +454,12 @@ void default_page_init()
 void default_page_updata(void)
 {
 	static uint32_t last_ms      = 0;
+#ifdef ENABLE_CHARGE_ANIM
 	static uint32_t anima_last_ms = 0;
+#endif
 	uint32_t now = md_get_tick();
 
+#ifdef ENABLE_CHARGE_ANIM
 	/* ---- 充放电动画进行中: 按 ANIM_STEP_MS 逐帧推进, 暂停普通更新 ---- */
 	if (anima_active)
 	{
@@ -460,6 +475,7 @@ void default_page_updata(void)
 		}
 		return;
 	}
+#endif
 
 	/* ---- 普通更新: 10ms 间隔 ---- */
 	if (now - last_ms < 50)
@@ -469,14 +485,19 @@ void default_page_updata(void)
 	int charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
 	int power_changed = (ui_data.bat_power_last != ui_data.bat_power);
 
-	/* 充放电切换: 启动非阻塞动画 */
+	/* 充放电切换: 启动非阻塞动画 (或直接重绘) */
 	if (charge_changed) {
-		start_change_anima(ui_data.is_charge);
 		ui_data.prev_disp_w = 0;
 		ui_data.is_charge_last = ui_data.is_charge;
 		ui_data.bat_power_last = ui_data.bat_power;
+#ifdef ENABLE_CHARGE_ANIM
+		start_change_anima(ui_data.is_charge);
 		anima_last_ms = now;
 		return;
+#else
+		default_page_show_battery();
+		/* 继续执行USB功率更新, 不return */
+#endif
 	}
 
 	ui_data.is_charge_last = ui_data.is_charge;
@@ -485,8 +506,10 @@ void default_page_updata(void)
 	/* 电量变化时重绘电池+进度条, 充电时每帧更新动画, 否则不更新 */
 	if (power_changed || charge_changed)
 		default_page_show_battery();
+#ifdef ENABLE_CHARGE_ANIM
 	else if (ui_data.is_charge)
 		default_page_show_bar_effect();
+#endif
 
 	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */
 	if (ui_data.usb_c1_status != ui_data.usb_c1_status_last || ui_data.usb_c1_power != ui_data.usb_c1_power_last)
