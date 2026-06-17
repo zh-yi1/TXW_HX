@@ -13,7 +13,14 @@ extern uint8_t cw1573_cell_cnt;
 
 /* 禁用检测开关: 1=启用 0=关闭(测试用) */
 #define BAT_DISABLE_DETECT_EN  0
-#define BAT_ENABLE_TEST_EN  1
+/* 电压测试用: 1=启用 0=关闭 */
+#define BAT_ENABLE_TEST_EN  0
+
+/* 异常消失超时: 超时后清除 1h 计时标志 (ms) */
+#define BAT_ANOMALY_TIMEOUT_MS  5000UL  /* 5s */
+
+/* 温度源选择: 0=双NTC取高者 1=仅用NTC2 */
+#define TEMP_NTC2_ONLY  1
 
 /* ==========================================================================
  *  NTC 阻值-温度查找表 (MF52-104F3950FA, R25=100KΩ, B25/50=3950K)
@@ -48,11 +55,10 @@ static const uint32_t ntc_rnom_table[] = {
 /* ---- RAM 状态 ---- */
 typedef struct {
     uint32_t last_poll_tick;        /* 上次轮询时刻 */
-    uint32_t volt_1h_tick;          /* 电压异常 1h 计时起点 (0=未计时) */
+    uint32_t volt_1h_tick[4];       /* 每节电芯电压异常 1h 计时起点 (0=未计时) */
     uint32_t temp_1h_tick;          /* 温度异常 1h 计时起点 (0=未计时) */
-    uint8_t  uv_seconds[4];         /* 每节电芯欠压禁用持续次数 */
-    uint8_t  ov_seconds[4];         /* 每节电芯过压禁用持续次数 */
     uint8_t  ov_prot_cnt[4];        /* 每节电芯过压保护持续次数 (>=2 = 持续 1s) */
+    uint8_t  ov_recov_cnt[4];       /* 每节电芯过压恢复持续次数 (>=10 = 持续 5s) */
     uint8_t  disabled;              /* 禁用标志 */
     uint8_t  disable_reason;        /* 禁用原因 (DISABLE_REASON_OV / DISABLE_REASON_UV) */
     uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
@@ -137,12 +143,16 @@ static void check_hour_commit(void)
     uint32_t now = md_get_tick();
     uint32_t hour_ms = 3600000UL;
     uint32_t ts;
+    uint8_t i;
 
-    if (g_bat.volt_1h_tick != 0 && now - g_bat.volt_1h_tick >= hour_ms) {
-        ts = rtc_get_timestamp();
-        if (ts > 0)
-            abnormal_log_voltage_commit(ts);
-        g_bat.volt_1h_tick = 0;
+    /* 电压: 每节电芯独立 1h 计时 */
+    for (i = 0; i < 4; i++) {
+        if (g_bat.volt_1h_tick[i] != 0 && now - g_bat.volt_1h_tick[i] >= hour_ms) {
+            ts = rtc_get_timestamp();
+            if (ts > 0)
+                abnormal_log_voltage_commit(ts);
+            g_bat.volt_1h_tick[i] = 0;
+        }
     }
 
     if (g_bat.temp_1h_tick != 0 && now - g_bat.temp_1h_tick >= hour_ms) {
@@ -181,7 +191,6 @@ void static_cfg_load_to_ui(void)
     if (cfg.disable_reason != 0) {
         g_bat.disabled       = 1;
         g_bat.disable_reason = cfg.disable_reason;
-        i2c_reg_map[REG_OVP_PERMANENT] = 0x5B; 
     }
 }
 
@@ -189,6 +198,24 @@ void static_cfg_erasure(void)
 {
     flash_sector_erase(FLASH_DATA_BASE + FLASH_OFFS_FACTORY_CFG);
     flash_wait_unbusy();
+}
+
+/* 擦除全部异常记录区 (电压 + 温度, 各 7 块 × 256B) */
+void abnormal_log_erasure(void)
+{
+    uint8_t i;
+
+    for (i = 0; i < 7; i++) {
+        flash_sector_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_VOLTAGE
+                           + (uint32_t)i * 256);
+        flash_wait_unbusy();
+    }
+
+    for (i = 0; i < 7; i++) {
+        flash_sector_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_TEMPERATURE
+                           + (uint32_t)i * 256);
+        flash_wait_unbusy();
+    }
 }
 
 void static_cfg_save_test(void)
@@ -234,8 +261,10 @@ void battery_mgr_proc(void)
 {
     uint32_t now, ts;
     uint8_t  i;
+#if !TEMP_NTC2_ONLY
     int16_t  t1, t2;
     uint8_t  v1, v2;
+#endif
 
     if (!cw1573_is_ready())
         return;
@@ -254,7 +283,7 @@ void battery_mgr_proc(void)
     /* 更新 CW1573 处理数据 */
     cw1573_calc_data((cw1573_data_t *)&cw1573_raw,
                      (cw1573_proc_data_t *)&cw1573_info);
-
+#if !TEMP_NTC2_ONLY
     /* ---- 1. 温度计算 (主机 NTC1/2 阻值 → 本地换算, 取较高者) ---- */
     t1 = 0; t2 = 0;
     v1 = (ui_data.bat_ntc1 != 0);
@@ -270,7 +299,11 @@ void battery_mgr_proc(void)
     else if (v2)
         g_bat.temperature_01c = t2;
     /* else: 双 NTC 均无数据, 保持上次温度 */
-    
+#else
+    /* ---- 1. 温度计算 (临时: 仅用 bat_ntc2) ---- */
+    if (ui_data.bat_ntc2 != 0)
+        g_bat.temperature_01c = ntc_resistance_to_temp(ui_data.bat_ntc2);
+#endif
 
     /* ---- 2. 充放电状态 ---- */
     g_bat.chg_state = detect_chg_state();
@@ -301,6 +334,7 @@ void battery_mgr_proc(void)
                 factory_cfg_read(&cfg);
                 cfg.disable_reason = DISABLE_REASON_UV;
                 factory_cfg_write(&cfg);
+                
                 }
         } else {
             g_bat.uv_seconds[i] = 0;
@@ -319,23 +353,23 @@ void battery_mgr_proc(void)
                 factory_cfg_read(&cfg);
                 cfg.disable_reason = DISABLE_REASON_OV;
                 factory_cfg_write(&cfg);
-                i2c_reg_map[REG_OVP_PERMANENT] = 0x5B;
                 }
         } else {
             g_bat.ov_seconds[i] = 0;
         }
 #endif /* BAT_DISABLE_DETECT_EN */
 
-        /* 4.3 过压保护记录 (V > 4.50V 持续 > 1s, 更新 RAM 最差值) */
+        /* 4.3 过压保护记录 (V > 4.50V 持续 1s 进入, V < 4.40V 持续 5s 退出) */
         if (v > BAT_OV_PROT_MV) {
+            /* 高于阈值: 累加保护计数, 清零恢复计数 */
             g_bat.ov_prot_cnt[i]++;
+            g_bat.ov_recov_cnt[i] = 0;
             if (g_bat.ov_prot_cnt[i] >= 2 && ts > 0) {
                 abnormal_log_voltage_update(ts - (ts % 3600), v, i);
 
-                /* 首次异常: 立即写 Flash, 开始 1h 计时 */
-                if (g_bat.volt_1h_tick == 0) {
+                if (g_bat.volt_1h_tick[i] == 0) {
                     abnormal_log_voltage_commit(ts);
-                    g_bat.volt_1h_tick = now;
+                    g_bat.volt_1h_tick[i] = now;
                 }
 
                 if (ui_data.cur_page == PAGE_DEFAULT ||
@@ -346,7 +380,18 @@ void battery_mgr_proc(void)
                     ui_data.cur_page = PAGE_SHORT_CIRCUIT;
                 }
             }
+        } else if (v < BAT_OV_RECOVER_MV) {
+            /* 低于恢复阈值: 累加恢复计数, 满 5s 清除保护状态 */
+            g_bat.ov_prot_cnt[i] = 0;
+            if (g_bat.volt_1h_tick[i] != 0) {
+                g_bat.ov_recov_cnt[i]++;
+                if (g_bat.ov_recov_cnt[i] >= BAT_OV_RECOVER_S * 2) {
+                    g_bat.volt_1h_tick[i] = 0;
+                    g_bat.ov_recov_cnt[i] = 0;
+                }
+            }
         } else {
+            /* 滞回区间 [4.40V, 4.50V]: 保持当前状态 */
             g_bat.ov_prot_cnt[i] = 0;
         }
     }
@@ -375,6 +420,7 @@ void battery_mgr_proc(void)
                     ui_data.cur_page = PAGE_OVER_TEMP;
                 }
             }
+        // 低温不需要
         else if (low_temp)
             {
                 g_bat.warning = WARNING_LOW_TEMP;
@@ -390,8 +436,9 @@ void battery_mgr_proc(void)
             g_bat.warning = WARNING_NONE;
     }
 
-    /* ---- 6. 温度异常记录 (主机判定过温/低温 → Flash) ---- */
-    if (g_bat.warning == WARNING_OVER_TEMP || g_bat.warning == WARNING_LOW_TEMP) {
+    /* ---- 6. 低温不写flash ---- */
+    // if (g_bat.warning == WARNING_OVER_TEMP || g_bat.warning == WARNING_LOW_TEMP) {
+    if (g_bat.warning == WARNING_OVER_TEMP) {
         uint8_t evt_type;
 
         if (g_bat.chg_state == CHG_STATE_CHARGING) {
@@ -410,12 +457,16 @@ void battery_mgr_proc(void)
                                 (uint16_t)g_bat.temperature_01c,
                                 evt_type);
 
-            /* 首次异常: 立即写 Flash, 开始 1h 计时 */
+            /* 首次进入保护: 立即写 Flash, 开始 1h 计时 */
             if (g_bat.temp_1h_tick == 0) {
                 abnormal_log_temperature_commit(ts);
                 g_bat.temp_1h_tick = now;
             }
         }
+    } else {
+        /* 退出保护: 清零 1h 计时, 未满 1h 不提交, 下次进入视为首次 */
+        if (g_bat.temp_1h_tick != 0)
+            g_bat.temp_1h_tick = 0;
     }
 }
 
@@ -465,6 +516,21 @@ uint8_t battery_mgr_get_warning(void)
 uint8_t battery_mgr_get_chg_state(void)
 {
     return g_bat.chg_state;
+}
+
+/* 任意保护标志: OV禁用 / UV禁用 / OV保护 (任一有效返回 1) */
+uint8_t battery_mgr_is_any_protection(void)
+{
+    uint8_t i;
+
+    if (g_bat.disabled)
+        return 1;
+
+    for (i = 0; i < 4; i++) {
+        if (g_bat.volt_1h_tick[i] != 0)
+            return 1;
+    }
+    return 0;
 }
 
 /* ==========================================================================

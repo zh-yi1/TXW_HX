@@ -1,5 +1,11 @@
 #include "cw1573.h"
 
+#define TEMP_TEST_EN 0
+
+#if TEMP_TEST_EN
+	uint32_t rntc_ohm = 90000;
+#endif
+
 volatile cw1573_data_t      cw1573_raw;
 volatile cw1573_proc_data_t cw1573_info;
 
@@ -343,6 +349,9 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 		p->pack_mv += p->vcell_mv[i];
 	}
 
+#if TEMP_TEST_EN
+	p->rntc_ohm = rntc_ohm;
+#else
 	/* NTC阻值: TS_ADC → Vntc(mV) → Rntc(Ω) */
 	{
 		uint16_t ts = raw->ts_adc;
@@ -358,7 +367,7 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 			}
 		}
 	}
-
+#endif
 	//TODO :确定采样电阻值是否是2.5mR
 	/* 电流: I(mA) = IADC * 6.25uV / 2.5mR = IADC * 5 / 2 */
 	{

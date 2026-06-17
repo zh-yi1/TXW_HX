@@ -489,6 +489,9 @@ void i2c_slave_proc(void)
     i2c_reg_map[REG_KEY_EVENT] |= key_event_buf;
     key_event_buf = 0;
 
+    /* 保护标志同步 → I2C 寄存器 (过压禁用/欠压禁用/过压保护, 任一有效写 0x5B) */
+    i2c_reg_map[REG_OVP_PERMANENT] = battery_mgr_is_any_protection() ? 0x5B : 0x5A;
+
     /* CW1573 采集 → reg_map (R) + ui_data */
     pull_sensor_data();
 
