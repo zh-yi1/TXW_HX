@@ -348,7 +348,7 @@ static void pull_sensor_data(void)
         reg_write_u32(REG_NTC1_0, rntc);
     }
     //TODO :温度如何计算
-    ui_data.bat_temperature = 0; /* 温度由主机通过 NTC 阻值自行计算 */
+    // ui_data.bat_temperature = 0; /* 温度由主机通过 NTC 阻值自行计算 */
     ui_data.bat_cc = cw1573_info.cc_mah;
 
     /* AFE_PROTECT1-3: 映射 CW1573 原始状态寄存器, 协议 §4.5 */
