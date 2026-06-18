@@ -45,6 +45,18 @@ void key_proc(void)
 		DispColor(BLACK);
 		ui_data.dev_state = DEV_STATE_SLEEP;
 	}
+	/* USB端口有设备插入则唤醒 */
+	else if (ui_data.dev_state == DEV_STATE_SLEEP
+	         && (ui_data.usb_c1_status != 0
+	             || ui_data.usb_c2_status != 0
+	             || ui_data.usb_a_status != 0))
+	{
+		LCD_BLK_LOW();
+		ui_data.dev_state = DEV_STATE_NORMAL;
+		ui_data.cur_page  = PAGE_DEFAULT;
+		ui_data.last_page = PAGE_MAX;  /* 强制触发界面重刷 */
+		last_press_ms = now;           /* 重置空闲计时 */
+	}
 
 	uint32_t elapsed = now - state_entry_ms;
 	uint32_t held    = now - press_start_ms;
