@@ -34,8 +34,12 @@ void key_proc(void)
 		return;
 	last_ms = now;
 
-	/* 30s 无按键操作 → 自动休眠 */
-	if (ui_data.dev_state == DEV_STATE_NORMAL && now - last_press_ms >= 30000)
+	/* 30s 无按键操作 且 三个 USB 端口均空闲 → 自动休眠 */
+	if (ui_data.dev_state == DEV_STATE_NORMAL
+	    && now - last_press_ms >= 30000
+	    && ui_data.usb_c1_status == 0
+	    && ui_data.usb_c2_status == 0
+	    && ui_data.usb_a_status == 0)
 	{
 		LCD_BLK_HIGH();
 		DispColor(BLACK);
