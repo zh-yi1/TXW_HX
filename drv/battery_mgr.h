@@ -12,7 +12,7 @@
 #define NTC_TABLE_STEP_C     5      /* 查找表步进 ℃ */
 
 /* ---- 过压/欠压检测阈值 (TFT 本地判断, 基于 CW1573 电芯电压) ---- */
-#define BAT_OV_PROT_MV      4490U   /* 过压保护记录阈值 mV */
+#define BAT_OV_PROT_MV      4470U   /* 过压保护记录阈值 mV */
 #define BAT_OV_RECOVER_MV   4400U   /* 过压保护恢复阈值 mV (滞回) */
 #define BAT_OV_DISABLE_MV   4600U   /* 过压禁用阈值 mV */
 #define BAT_UV_DISABLE_MV   1500U   /* 欠压禁用阈值 mV */
@@ -27,7 +27,10 @@
 #define BAT_UV_RECOVER_S    5U      /* 欠压保护恢复持续秒数 */
 
 /* ---- 检测轮询周期 ---- */
-#define BAT_MGR_POLL_MS     1U     /* 10ms 轮询一次 */
+#define BAT_MGR_POLL_MS     50U     /* 50ms 轮询一次 */
+
+/* 秒数 → 轮询次数 */
+#define BAT_MGR_POLL_CNT(s)  ((uint16_t)((s) * 1000U / BAT_MGR_POLL_MS))
 
 /* ---- 对外接口 ---- */
 void battery_mgr_init(void);

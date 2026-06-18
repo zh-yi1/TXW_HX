@@ -17,7 +17,7 @@ extern uint8_t cw1573_cell_cnt;
 #define BAT_ENABLE_TEST_EN  0
 
 /* 异常消失超时: 超时后清除 1h 计时标志 (ms) */
-#define BAT_ANOMALY_TIMEOUT_MS  50UL  /* 50ms */
+#define BAT_ANOMALY_TIMEOUT_MS  100UL  /* 100ms */
 
 /* 温度源选择: 0=双NTC取高者 1=仅用NTC2 */
 #define TEMP_NTC2_ONLY  1
@@ -55,7 +55,9 @@ static const uint32_t ntc_rnom_table[] = {
 /* ---- RAM 状态 ---- */
 typedef struct {
     uint32_t last_poll_tick;        /* 上次轮询时刻 */
-    uint32_t volt_1h_tick[4];       /* 每节电芯电压异常 1h 计时起点 (0=未计时) */
+    uint32_t ov_1h_tick[4];         /* 过压保护 1h 计时起点 (0=未计时) */
+    uint32_t uv_1h_tick[4];         /* 欠压保护 1h 计时起点 (0=未计时) */
+    uint32_t last_commit_hour[4];   /* 每节电芯上次提交记录的小时 (hour_start), 同小时去重 */
     uint32_t temp_1h_tick;          /* 温度异常 1h 计时起点 (0=未计时) */
     uint8_t  ov_prot_cnt[4];        /* 每节电芯过压保护持续次数 (>=2 = 持续 1s) */
     uint8_t  uv_seconds[4];         /* 每节电芯欠压禁用持续次数 */
@@ -153,11 +155,14 @@ static void check_hour_commit(void)
 
     /* 电压: 每节电芯独立 1h 计时 */
     for (i = 0; i < 4; i++) {
-        if (g_bat.volt_1h_tick[i] != 0 && now - g_bat.volt_1h_tick[i] >= hour_ms) {
+        if (g_bat.ov_1h_tick[i] != 0 && now - g_bat.ov_1h_tick[i] >= hour_ms) {
             ts = rtc_get_timestamp();
             if (ts > 0)
                 abnormal_log_voltage_commit(ts);
-            g_bat.volt_1h_tick[i] = 0;
+            g_bat.ov_1h_tick[i] = now;
+        }
+        if (g_bat.uv_1h_tick[i] != 0 && now - g_bat.uv_1h_tick[i] >= hour_ms) {
+            g_bat.uv_1h_tick[i] = now;
         }
     }
 
@@ -165,7 +170,7 @@ static void check_hour_commit(void)
         ts = rtc_get_timestamp();
         if (ts > 0)
             abnormal_log_temperature_commit(ts);
-        g_bat.temp_1h_tick = 0;
+        g_bat.temp_1h_tick = now;
     }
 }
 
@@ -325,10 +330,10 @@ void battery_mgr_proc(void)
     /* 4.0 CW1573 通信异常检测: 连续 5s 无应答 → 欠压禁用
      *     当电池欠压时 CW1573 掉电不工作, I2C 无 ACK,
      *     此时 cw1573_info.vcell_mv[] 为旧数据 (v > 1.5V), 无法通过 4.1 的电压阈值检测,
-     *     因此通过通信状态判断: 连续 10 次 (500ms×10=5s) 无应答即判定欠压 */
+     *     因此通过通信状态判断: 连续无应答 5s 即判定欠压 */
     if (!cw1573_comm_ok) {
         g_bat.cw1573_noresp_cnt++;
-        if (g_bat.cw1573_noresp_cnt >= 10) {
+        if (g_bat.cw1573_noresp_cnt >= BAT_MGR_POLL_CNT(5)) {
             g_bat.disabled = 1;
             g_bat.disable_reason = DISABLE_REASON_UV;
 
@@ -355,7 +360,7 @@ void battery_mgr_proc(void)
         /* 4.1 欠压禁用检测 (V < 1.5V 持续 > 5s) */
         if (v < BAT_UV_DISABLE_MV && v > 0) {
             g_bat.uv_seconds[i]++;
-            if (g_bat.uv_seconds[i] >= BAT_UV_DISABLE_S) {
+            if (g_bat.uv_seconds[i] >= BAT_MGR_POLL_CNT(BAT_UV_DISABLE_S)) {
                 g_bat.disabled = 1;
                 g_bat.disable_reason = DISABLE_REASON_UV;
 
@@ -372,10 +377,10 @@ void battery_mgr_proc(void)
             g_bat.uv_seconds[i] = 0;
         }
 
-        /* 4.2 过压禁用检测 (V > 4.6V 持续 > 1s, 每轮 500ms → 2 轮) */
+        /* 4.2 过压禁用检测 (V > 4.6V 持续 > 1s, 每轮 BAT_MGR_POLL_MS ms) */
         if (v > BAT_OV_DISABLE_MV) {
             g_bat.ov_seconds[i]++;
-            if (g_bat.ov_seconds[i] * (BAT_MGR_POLL_MS / 100) >= BAT_OV_DISABLE_S * 10) {
+            if (g_bat.ov_seconds[i] >= BAT_MGR_POLL_CNT(BAT_OV_DISABLE_S)) {
                 g_bat.disabled = 1;
                 g_bat.disable_reason = DISABLE_REASON_OV;
 
@@ -397,12 +402,13 @@ void battery_mgr_proc(void)
             /* 高于阈值: 累加保护计数, 清零恢复计数 */
             g_bat.ov_prot_cnt[i]++;
             g_bat.ov_recov_cnt[i] = 0;
-            if (g_bat.ov_prot_cnt[i] >= 2 && ts > 0) {
-                abnormal_log_voltage_update(ts - (ts % 3600), v, i, g_bat.chg_state);
-
-                if (g_bat.volt_1h_tick[i] == 0) {
-                    abnormal_log_voltage_commit(ts);
-                    g_bat.volt_1h_tick[i] = now;
+            if (g_bat.ov_prot_cnt[i] >= BAT_MGR_POLL_CNT(1)) {
+                if (ts > 0) {
+                    abnormal_log_voltage_update(ts - (ts % 3600), v, i, g_bat.chg_state);
+                    if (g_bat.ov_1h_tick[i] == 0) {
+                        abnormal_log_voltage_commit(ts);
+                        g_bat.ov_1h_tick[i] = now;
+                    }
                 }
 
                 if (ui_data.cur_page == PAGE_DEFAULT ||
@@ -416,10 +422,10 @@ void battery_mgr_proc(void)
         } else if (v < BAT_OV_RECOVER_MV) {
             /* 低于恢复阈值: 累加恢复计数, 满 5s 清除保护状态 */
             g_bat.ov_prot_cnt[i] = 0;
-            if (g_bat.volt_1h_tick[i] != 0) {
+            if (g_bat.ov_1h_tick[i] != 0) {
                 g_bat.ov_recov_cnt[i]++;
-                if (g_bat.ov_recov_cnt[i] >= BAT_OV_RECOVER_S * 2) {
-                    g_bat.volt_1h_tick[i] = 0;
+                if (g_bat.ov_recov_cnt[i] >= BAT_MGR_POLL_CNT(BAT_OV_RECOVER_S)) {
+                    g_bat.ov_1h_tick[i] = 0;
                     g_bat.ov_recov_cnt[i] = 0;
                 }
             }
@@ -432,9 +438,9 @@ void battery_mgr_proc(void)
         if (g_bat.chg_state != CHG_STATE_CHARGING && v < BAT_UV_PROT_MV && v > 0) {
             g_bat.uv_prot_cnt[i]++;
             g_bat.uv_recov_cnt[i] = 0;
-            if (g_bat.uv_prot_cnt[i] >= BAT_UV_PROT_ENTER_S * 2 && ts > 0) {
-                if (g_bat.volt_1h_tick[i] == 0) {
-                    g_bat.volt_1h_tick[i] = now;
+            if (g_bat.uv_prot_cnt[i] >= BAT_MGR_POLL_CNT(BAT_UV_PROT_ENTER_S)) {
+                if (g_bat.uv_1h_tick[i] == 0) {
+                    g_bat.uv_1h_tick[i] = now;
                 }
 
                 if (ui_data.cur_page == PAGE_DEFAULT ||
@@ -447,10 +453,10 @@ void battery_mgr_proc(void)
             }
         } else if (v > BAT_UV_RECOVER_MV || g_bat.chg_state == CHG_STATE_CHARGING) {
             g_bat.uv_prot_cnt[i] = 0;
-            if (g_bat.volt_1h_tick[i] != 0) {
+            if (g_bat.uv_1h_tick[i] != 0) {
                 g_bat.uv_recov_cnt[i]++;
-                if (g_bat.uv_recov_cnt[i] >= BAT_UV_RECOVER_S * 2) {
-                    g_bat.volt_1h_tick[i] = 0;
+                if (g_bat.uv_recov_cnt[i] >= BAT_MGR_POLL_CNT(BAT_UV_RECOVER_S)) {
+                    g_bat.uv_1h_tick[i] = 0;
                     g_bat.uv_recov_cnt[i] = 0;
                 }
             }
@@ -597,7 +603,7 @@ uint8_t battery_mgr_is_any_protection(void)
         return 1;
 
     for (i = 0; i < 4; i++) {
-        if (g_bat.volt_1h_tick[i] != 0)
+        if (g_bat.ov_1h_tick[i] != 0 || g_bat.uv_1h_tick[i] != 0)
             return 1;
     }
     return 0;
