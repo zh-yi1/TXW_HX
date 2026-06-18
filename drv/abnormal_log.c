@@ -20,6 +20,7 @@ typedef struct {
     uint32_t hour_start;      /* 当前小时起始 Unix 时间戳 */
     uint16_t worst_value;     /* 当前小时最差值 (mV 或 0.1℃) */
     uint8_t  extra;           /* 电压=cell(0~3), 温度=event_type */
+    uint8_t  chg_state;       /* 异常发生时的充放电状态 */
     uint8_t  dirty;           /* 1=本小时有异常, 0=无 */
     /* Flash 写指针 */
     uint32_t write_addr;      /* 下一条记录写入地址 */
@@ -99,7 +100,7 @@ static void advance_write_ptr(uint32_t base, uint32_t *write_addr)
 /* ---- 内部: 写一条记录到 Flash ---- */
 static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint8_t *count,
                                  uint32_t timestamp, uint16_t value,
-                                 uint8_t type, uint8_t cell)
+                                 uint8_t type, uint8_t cell, uint8_t chg_state)
 {
     if (*count >= MAX_RECORDS)
         return 0;
@@ -111,7 +112,7 @@ static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint8_t *co
     rec.value     = value;
     rec.type      = type;
     rec.cell      = cell;
-    rec.chg_state = CHG_STATE_IDLE;
+    rec.chg_state = chg_state;
 
     /* 目标位置非空则擦除所在块 */
     {
@@ -248,16 +249,19 @@ void abnormal_log_reset(void)
 
 /* ---- 电压异常 ---- */
 
-void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t cell)
+void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv,
+                                  uint8_t cell, uint8_t chg_state)
 {
     if (hour_start != g_volt_ctx.hour_start) {
         g_volt_ctx.hour_start  = hour_start;
         g_volt_ctx.worst_value = value_mv;
         g_volt_ctx.extra  = cell;
+        g_volt_ctx.chg_state   = chg_state;
         g_volt_ctx.dirty       = 1;
     } else if (value_mv > g_volt_ctx.worst_value) {
         g_volt_ctx.worst_value = value_mv;
         g_volt_ctx.extra  = cell;
+        g_volt_ctx.chg_state   = chg_state;
         g_volt_ctx.dirty       = 1;
     }
 }
@@ -269,7 +273,8 @@ uint8_t abnormal_log_voltage_commit(uint32_t timestamp)
 
     if (!write_one_record(VOLT_BASE, &g_volt_ctx.write_addr, &g_volt_ctx.count,
                            timestamp, g_volt_ctx.worst_value,
-                           ABNORMAL_EVT_OV_PROT, g_volt_ctx.extra))
+                           ABNORMAL_EVT_OV_PROT, g_volt_ctx.extra,
+                           g_volt_ctx.chg_state))
         return 0;
 
     g_volt_ctx.dirty       = 0;
@@ -291,16 +296,19 @@ uint8_t abnormal_log_voltage_count(void)
 
 /* ---- 温度异常 ---- */
 
-void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c, uint8_t type)
+void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c,
+                                      uint8_t type, uint8_t chg_state)
 {
     if (hour_start != g_temp_ctx.hour_start) {
         g_temp_ctx.hour_start  = hour_start;
         g_temp_ctx.worst_value = value_01c;
         g_temp_ctx.extra  = type;
+        g_temp_ctx.chg_state   = chg_state;
         g_temp_ctx.dirty       = 1;
     } else if (value_01c > g_temp_ctx.worst_value) {
         g_temp_ctx.worst_value = value_01c;
         g_temp_ctx.extra  = type;
+        g_temp_ctx.chg_state   = chg_state;
         g_temp_ctx.dirty       = 1;
     }
 }
@@ -312,7 +320,7 @@ uint8_t abnormal_log_temperature_commit(uint32_t timestamp)
 
     if (!write_one_record(TEMP_BASE, &g_temp_ctx.write_addr, &g_temp_ctx.count,
                            timestamp, g_temp_ctx.worst_value,
-                           g_temp_ctx.extra, 0xFF))
+                           g_temp_ctx.extra, 0xFF, g_temp_ctx.chg_state))
         return 0;
 
     g_temp_ctx.dirty       = 0;

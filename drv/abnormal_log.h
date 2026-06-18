@@ -43,7 +43,7 @@ void abnormal_log_reset(void);  /* V1.3: 恢复出厂设置 — 擦除全部异�
 #endif
 
 /* 电压异常: 更新当前小时最差值 (仅 RAM) */
-void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t cell);
+void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t cell, uint8_t chg_state);
 
 /* 电压异常: 提交到 Flash, 满 100 条返回 0 */
 uint8_t abnormal_log_voltage_commit(uint32_t timestamp);
@@ -55,7 +55,7 @@ uint8_t abnormal_log_voltage_read(uint8_t index, abnormal_record_t *out);
 uint8_t abnormal_log_voltage_count(void);
 
 /* 温度异常: 更新当前小时最差值 (仅 RAM) */
-void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c, uint8_t type);
+void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c, uint8_t type, uint8_t chg_state);
 
 /* 温度异常: 提交到 Flash, 满 100 条返回 0 */
 uint8_t abnormal_log_temperature_commit(uint32_t timestamp);

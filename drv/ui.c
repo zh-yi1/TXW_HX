@@ -97,13 +97,19 @@ void ui_proc(void)
 		case PAGE_INFO_2:
 			information_page_2_init();
 			break;
+		case PAGE_INFO_3:
+			information_page_3_init();
+			break;
 		case PAGE_OVER_TEMP:
-			over_temp_hint_page();
+			high_temp_pro(battery_mgr_get_warning_chg_state());
 			hint_enter_tick = md_get_tick();
 			break;
 		case PAGE_LOW_TEMP:
 			low_temp_hint_page();
 			hint_enter_tick = md_get_tick();
+			break;
+		case PAGE_DISABLED:
+			disabled_hint_page();
 			break;
 		case PAGE_SHORT_CIRCUIT:
 			short_circuit_hint_page();
@@ -117,15 +123,17 @@ void ui_proc(void)
 			/* 仅在真正切页时复位索引, 强制重绘 (last_page=PAGE_ABNORMAL_UPDATA) 时不复位 */
 			if (ui_data.last_page != PAGE_ABNORMAL_UPDATA)
 				ui_data.abnormal_idx = 0;
-			if (total > 0 && abnormal_log_voltage_read(ui_data.abnormal_idx, &rec) == 0) {
+			if (total == 0) {
+				abnormal_hint_page(0, 0, 0, 0, 0, NULL, 0);
+			} else if (abnormal_log_voltage_read(ui_data.abnormal_idx, &rec) == 0) {
+				const char *model = NULL;
 				if      (rec.cell == 0) model = ui_data.bat_model_1;
 				else if (rec.cell == 1) model = ui_data.bat_model_2;
 				else if (rec.cell == 2) model = ui_data.bat_model_3;
 				else if (rec.cell == 3) model = ui_data.bat_model_4;
 				abnormal_hint_page(0, ui_data.abnormal_idx + 1, total,
-				                   rec.timestamp, rec.value, model);
+				                   rec.timestamp, rec.value, model, rec.chg_state);
 			}
-			// abnormal_hint_page(0, 1, 5,1781605637, 4500, "AURNDIDFKS");
 			break;
 		}
 		case PAGE_TEMP_ABNORMAL:
@@ -135,11 +143,12 @@ void ui_proc(void)
 			/* 仅在真正切页时复位索引, 强制重绘 (last_page=PAGE_ABNORMAL_UPDATA) 时不复位 */
 			if (ui_data.last_page != PAGE_ABNORMAL_UPDATA)
 				ui_data.abnormal_idx = 0;
-			if (total > 0 && abnormal_log_temperature_read(ui_data.abnormal_idx, &rec) == 0) {
+			if (total == 0) {
+				abnormal_hint_page(1, 0, 0, 0, 0, NULL, 0);
+			} else if (abnormal_log_temperature_read(ui_data.abnormal_idx, &rec) == 0) {
 				abnormal_hint_page(1, ui_data.abnormal_idx + 1, total,
-				                   rec.timestamp, rec.value / 10, NULL);
+				                   rec.timestamp, rec.value / 10, NULL, rec.chg_state);
 			}
-			// abnormal_hint_page(1, 1, 5,1781605637, 60, NULL);
 			break;
 		}
 		default:
@@ -159,6 +168,9 @@ void ui_proc(void)
 		break;
 	case PAGE_INFO_2:
 		information_page_2_updata();
+		break;
+	case PAGE_INFO_3:
+		information_page_3_updata();
 		break;
 	case PAGE_OVER_TEMP:
 	case PAGE_LOW_TEMP:

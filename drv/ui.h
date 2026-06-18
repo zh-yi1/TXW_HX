@@ -78,6 +78,7 @@ typedef enum
 	PAGE_OVER_TEMP          ,  /* 过温提示页 */
 	PAGE_LOW_TEMP           ,  /* 低温提示页 */
 	PAGE_SHORT_CIRCUIT      ,  /* 短路提示页 */
+	PAGE_DISABLED           ,  /* 禁用提示页 (全红) */
 	PAGE_VOLTAGE_ABNORMAL   ,  /* 电压异常提示页 */
 	PAGE_TEMP_ABNORMAL      ,  /* 温度异常提示页 */
 	PAGE_ABNORMAL_UPDATA    ,  /* 不是真的界面，异常界面切换的过度态 */

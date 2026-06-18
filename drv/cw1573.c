@@ -345,7 +345,8 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 	p->pack_mv = 0;
 	for (uint8_t i = 0; i < cw1573_cell_cnt; i++)
 	{
-		p->vcell_mv[i] = (uint16_t)((uint32_t)raw->vcell[i] * 78125UL / 1000000UL);
+		/* 78125/1000000 = 5/64, +32 四舍五入 */
+		p->vcell_mv[i] = (uint16_t)(((uint32_t)raw->vcell[i] * 5UL + 32UL) / 64UL);
 		p->pack_mv += p->vcell_mv[i];
 	}
 
@@ -359,7 +360,8 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 		if (ts & 0x8000U)
 		{
 			/* Vntc(mV) = TS * 78.125uV / 1000 = TS * 78125 / 1000000 */
-			uint32_t vntc = (uint32_t)(ts & 0x7FFFU) * 78125UL / 1000000UL;
+			/* 78125/1000000 = 5/64 */
+		uint32_t vntc = (uint32_t)(ts & 0x7FFFU) * 5UL / 64UL;
 			if (vntc > 0 && vntc < 2545)
 			{
 				/* Rntc(Ω) = 10000 * Vntc / (2545 - Vntc) */

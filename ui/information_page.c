@@ -52,11 +52,20 @@ static const uint32_t num_40_addrs[] = {
     FLASH_ADDR_NUM_40_9,
 };
 
-/* 在指定区域居中绘制数值 + 单位图标 */
-static void draw_value_in_area(range_t r, uint16_t value, uint32_t unit_addr, uint8_t unit_w, uint8_t unit_h)
+/* 在指定区域居中绘制数值 + 单位图标 (支持负数) */
+static void draw_value_in_area(range_t r, int16_t value, uint32_t unit_addr,
+                               uint8_t unit_w, uint8_t unit_h, uint32_t neg_addr)
 {
     int digits[4], n, i, cur_x, cur_y;
     int total_w;
+    uint8_t neg_w = 0;
+
+    /* 处理负数 */
+    if (value < 0) {
+        value = -value;
+        if (neg_addr != 0)
+            neg_w = NUM_40_W;  /* 负号占一个数字宽度 */
+    }
 
     if (value > 9999)
         value = 9999;
@@ -88,9 +97,14 @@ static void draw_value_in_area(range_t r, uint16_t value, uint32_t unit_addr, ui
         n = 1;
     }
 
-    total_w = n * NUM_40_W + unit_w;
+    total_w = neg_w + n * NUM_40_W + unit_w;
     cur_x = r.x1 + (int)(r.x2 - r.x1 - total_w) / 2;
     cur_y = r.y1;
+
+    /* 负号 */
+    if (neg_w)
+        Dispphoto_Dispaly_flash(cur_x, cur_y, neg_addr);
+    cur_x += neg_w;
 
     for (i = 0; i < n; i++)
     {
@@ -113,10 +127,10 @@ void information_page_1_init(void)
                             bat_info_text_img[INFO_CYCLE_CNT].y, bat_info_text_img[INFO_CYCLE_CNT].img_addr);
     //最大容量值
     draw_value_in_area(bat_info_range[INFO_MAX_CAP], ui_data.bat_max_cap,
-                       FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H);
+                       FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H, 0);
     //循环次数值
     draw_value_in_area(bat_info_range[INFO_CYCLE_CNT], ui_data.bat_cycle_cnt,
-                       FLASH_ADDR_CI, CI_W, CI_H);
+                       FLASH_ADDR_CI, CI_W, CI_H, 0);
     //电池编号
     Dispphoto_Dispaly_flash(bat_info_text_img[INFO_BAT_ID].x,
                             bat_info_text_img[INFO_BAT_ID].y, bat_info_text_img[INFO_BAT_ID].img_addr);
@@ -136,7 +150,7 @@ void information_page_2_init(void)
                             bat_info_text_img[INFO_BAT_TEMP].y, bat_info_text_img[INFO_BAT_TEMP].img_addr);
     //电池温度值
     draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature / 10,
-                       FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H);
+                       FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H, FLASH_ADDR_NUM_40);
     //运行时间
     Dispphoto_Dispaly_flash(bat_info_text_img[INFO_RUN_TIME].x,
                             bat_info_text_img[INFO_RUN_TIME].y, bat_info_text_img[INFO_RUN_TIME].img_addr);
@@ -145,6 +159,54 @@ void information_page_2_init(void)
                         bat_info_text_img[INFO_TIME_FAKE].y, bat_info_text_img[INFO_TIME_FAKE].img_addr);
 }
 
+void information_page_3_init(void)
+{
+    DispBlock(0, 0, ROW - 1, COL - 1);
+
+    // 电芯电压
+    Dispphoto_Dispaly_flash(88, 12, FLASH_ADDR_A_CELL_VOLTAGE);
+
+    /* 4 节电芯: 电压 + 型号, 12 高度蓝色字体 */
+    {
+        uint8_t i;
+        char buf[8];
+
+        const uint8_t cell_y[] = {52, 66, 80, 94};
+
+        for (i = 0; i < 4; i++)
+        {
+            const char *model;
+            uint16_t mv = ui_data.cell_voltage_mv[i];
+            uint8_t v_int = mv / 1000;
+            uint8_t v_dec = (mv % 1000) / 10;
+            uint8_t p = 0;
+
+            /* 格式化 "X.XXV" */
+            if (v_int >= 10) { buf[p++] = '0' + v_int / 10; v_int %= 10; }
+            buf[p++] = '0' + v_int;
+            buf[p++] = '.';
+            buf[p++] = '0' + v_dec / 10;
+            buf[p++] = '0' + v_dec % 10;
+            buf[p++] = 'V';
+            buf[p]   = '\0';
+
+            if      (i == 0) model = ui_data.bat_model_1;
+            else if (i == 1) model = ui_data.bat_model_2;
+            else if (i == 2) model = ui_data.bat_model_3;
+            else             model = ui_data.bat_model_4;
+
+            digit_display_string(buf, 13, cell_y[i], DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+            digit_display_string(model, 55, cell_y[i], DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+        }
+    }
+
+    //运行时间
+    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_RUN_TIME].x,
+                            bat_info_text_img[INFO_RUN_TIME].y, bat_info_text_img[INFO_RUN_TIME].img_addr);
+    // TODO ：运行时间值,当前是假的
+    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_TIME_FAKE].x,
+                        bat_info_text_img[INFO_TIME_FAKE].y, bat_info_text_img[INFO_TIME_FAKE].img_addr);
+}
 
 /* ============================ 数据更新 ============================ */
 
@@ -168,7 +230,7 @@ void information_page_1_updata(void)
     if (ui_data.bat_max_cap != last_max_cap)
     {
         draw_value_in_area(bat_info_range[INFO_MAX_CAP], ui_data.bat_max_cap,
-                           FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H);
+                           FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H, 0);
         last_max_cap = ui_data.bat_max_cap;
     }
 
@@ -176,7 +238,7 @@ void information_page_1_updata(void)
     if (ui_data.bat_cycle_cnt != last_cycle)
     {
         draw_value_in_area(bat_info_range[INFO_CYCLE_CNT], ui_data.bat_cycle_cnt,
-                           FLASH_ADDR_CI, CI_W, CI_H);
+                           FLASH_ADDR_CI, CI_W, CI_H, 0);
         last_cycle = ui_data.bat_cycle_cnt;
     }
 
@@ -221,10 +283,45 @@ void information_page_2_updata(void)
     /* 电池温度 — 变化时刷新 */
     if (ui_data.bat_temperature != last_temp)
     {
+        /* 先擦除旧值区域, 防止位数变化时残影 */
+        DispBlock(bat_info_range[INFO_BAT_TEMP].x1, bat_info_range[INFO_BAT_TEMP].y1,
+                  bat_info_range[INFO_BAT_TEMP].x2, bat_info_range[INFO_BAT_TEMP].y2);
         draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature/10,
-                           FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H);
+                           FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H,
+                           FLASH_ADDR_NUM_40);
         last_temp = ui_data.bat_temperature;
     }
 
     /* TODO: 刷新运行时间值*/
+}
+
+void information_page_3_updata(void)
+{
+    static uint16_t last_mv[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    uint8_t i;
+
+    for (i = 0; i < 4; i++)
+    {
+        if (ui_data.cell_voltage_mv[i] != last_mv[i])
+        {
+            char buf[8];
+            uint16_t mv = ui_data.cell_voltage_mv[i];
+            uint8_t v_int = mv / 1000;
+            uint8_t v_dec = (mv % 1000) / 10;
+            uint8_t p = 0;
+
+            /* 格式化 "X.XXV" */
+            if (v_int >= 10) { buf[p++] = '0' + v_int / 10; v_int %= 10; }
+            buf[p++] = '0' + v_int;
+            buf[p++] = '.';
+            buf[p++] = '0' + v_dec / 10;
+            buf[p++] = '0' + v_dec % 10;
+            buf[p++] = 'V';
+            buf[p]   = '\0';
+
+            digit_display_string(buf, 13, 52 + i * 14,
+                                 DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+            last_mv[i] = mv;
+        }
+    }
 }

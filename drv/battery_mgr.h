@@ -12,11 +12,19 @@
 #define NTC_TABLE_STEP_C     5      /* 查找表步进 ℃ */
 
 /* ---- 过压/欠压检测阈值 (TFT 本地判断, 基于 CW1573 电芯电压) ---- */
-#define BAT_OV_PROT_MV      4500U   /* 过压保护记录阈值 mV */
+#define BAT_OV_PROT_MV      4490U   /* 过压保护记录阈值 mV */
 #define BAT_OV_RECOVER_MV   4400U   /* 过压保护恢复阈值 mV (滞回) */
 #define BAT_OV_DISABLE_MV   4600U   /* 过压禁用阈值 mV */
 #define BAT_UV_DISABLE_MV   1500U   /* 欠压禁用阈值 mV */
 #define BAT_OV_RECOVER_S    5U      /* 过压保护恢复持续秒数 */
+#define BAT_OV_DISABLE_S    1U      /* 过压禁用持续秒数 */
+#define BAT_UV_DISABLE_S    5U      /* 欠压禁用持续秒数 */
+
+/* 欠压保护 (非充电状态) */
+#define BAT_UV_PROT_MV      2720U   /* 欠压保护记录阈值 mV */
+#define BAT_UV_RECOVER_MV   3000U   /* 欠压保护恢复阈值 mV (滞回) */
+#define BAT_UV_PROT_ENTER_S 1U      /* 欠压保护进入持续秒数 */
+#define BAT_UV_RECOVER_S    5U      /* 欠压保护恢复持续秒数 */
 
 /* ---- 检测轮询周期 ---- */
 #define BAT_MGR_POLL_MS     500U    /* 500ms 轮询一次 */
@@ -38,6 +46,7 @@ uint8_t  battery_mgr_is_disabled(void);                   /* 是否已禁用 (OV
 uint8_t  battery_mgr_get_disable_reason(void);            /* 禁用原因 1=OV 2=UV */
 uint8_t  battery_mgr_get_warning(void);                   /* 当前警告类型 (主机 ntc_status) */
 uint8_t  battery_mgr_get_chg_state(void);                 /* 当前充放电状态 */
+uint8_t  battery_mgr_get_warning_chg_state(void);         /* 警告触发时的充放电状态 */
 uint8_t  battery_mgr_is_any_protection(void);             /* 任意保护标志: OV禁用/UV禁用/OV保护 */
 
 void battery_mgr_sync_to_ui(void);                         /* 同步 battery_mgr → ui_data */

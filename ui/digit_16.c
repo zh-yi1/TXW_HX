@@ -1,30 +1,39 @@
 #include "digit_16.h"
 
 /* ================================================================
- * 16px 字符位图表 (Canvas 尺寸, 单位: 像素)
+ * 字符位图显示模块 (12/16 高度)
  *
- * 数据来源: 海信VP785S UI资料/digit/16/ 下 PNG 文件的 IHDR
- * 高度统一按 12px 处理
+ * 数据来源: 海信VP785S UI资料/digit/16/ 和 digit/12/ 下 PNG 文件
  *
- *  数字 0-9:  10x12
- *  大写 A-Z:  6~17 x 12
- *  符号 -:     9x12
+ * 16 高度: 字符高 12px, 行高 16px
+ * 12 高度: 字符高 10px, 行高 12px
  *
- * Flash 索引 (16_WHITE / 16_BLUE 共用):
+ *  数字 0-9
+ *  大写 A-Z
+ *  符号 -
+ *  蓝色额外: : ^ . /
+ *
+ * Flash 索引 (共用):
  *   '0'-'9'  → 0-9
  *   '-'      → 10
  *   'A'-'Z'  → 11-36
- *
- * 16_BLUE 额外字符:
- *   ':' → 37 (冒号),  '^' → 38 (度数),
- *   '.' → 39 (点),    '_' → 40 (下划线)
+ *   ':'      → 37
+ *   '^'      → 38
+ *   '.'      → 39
+ *   '/'      → 40
  * ================================================================ */
 
 #define SCREEN_W 240
-#define CHAR_Y_OFF 0  /* 底部对齐偏移 */
 
-/* ---- 字符宽度表 (按 ASCII 索引, 0 = 不支持的字符) ---- */
-/* 白色 */
+/* ---- 底部对齐偏移: 行高 - 字符高 ---- */
+#define CHAR_Y_OFF_16  4  /* 16 - 12 */
+#define CHAR_Y_OFF_12  2  /* 12 - 10 */
+
+/* ================================================================
+ * 字符宽度表
+ * ================================================================ */
+
+/* 16 高度 — 白色 */
 static const uint8_t digit_16_width[128] = {
 	['0'] = 10, ['1'] = 6, ['2'] = 10, ['3'] = 10,
 	['4'] = 10, ['5'] = 10, ['6'] = 10, ['7'] = 10,
@@ -41,7 +50,7 @@ static const uint8_t digit_16_width[128] = {
 	['-'] =  9,
 };
 
-/* 蓝色 (TODO: 填入实际宽度) */
+/* 16 高度 — 蓝色 */
 static const uint8_t digit_16_width_blue[128] = {
 	['0'] = 10, ['1'] = 6, ['2'] = 10, ['3'] = 10,
 	['4'] = 10, ['5'] = 10, ['6'] = 10, ['7'] = 10,
@@ -58,17 +67,38 @@ static const uint8_t digit_16_width_blue[128] = {
 	['-'] =  9,
 
 	/* 蓝色专属特殊字符 (Flash index 37-40) */
-	[':'] =  8,   /* 冒号  — FLASH_IDX_16_BLUE_Z_COLON  (TODO) */
-	['^'] =  16,   /* 度数  — FLASH_IDX_16_BLUE_Z_DEGREE (TODO) */
-	['.'] =  4,   /* 点    — FLASH_IDX_16_BLUE_Z_DOT    (TODO) */
-	['/'] =  8,   /* 斜杠 — FLASH_IDX_16_BLUE_Z_LINE   (TODO) */
+	[':'] =  8,
+	['^'] = 16,
+	['.'] =  4,
+	['/'] =  8,
+};
+
+/* 12 高度 — 蓝色 (TODO: 填入实际宽度) */
+static const uint8_t digit_12_width_blue[128] = {
+	['0'] =  8, ['1'] = 5, ['2'] = 8, ['3'] = 8,
+	['4'] =  9, ['5'] = 8, ['6'] = 8, ['7'] = 8,
+	['8'] =  8, ['9'] = 8,
+
+	['A'] =  9, ['B'] = 8, ['C'] = 10, ['D'] = 9,
+	['E'] =  7, ['F'] = 7, ['G'] = 10, ['H'] = 9,
+	['I'] =  5, ['J'] = 7, ['K'] =  8, ['L'] = 7,
+	['M'] = 11, ['N'] = 8, ['O'] = 10, ['P'] = 8,
+	['Q'] = 10, ['R'] = 8, ['S'] =  8, ['T'] = 8,
+	['U'] =  9, ['V'] =10, ['W'] = 13, ['X'] = 9,
+	['Y'] =  9, ['Z'] = 9,
+
+	['-'] =  7,
+
+	[':'] =  6,
+	['^'] = 13,
+	['.'] =  3,
+	['/'] =  6,
 };
 
 /* ================================================================
  * char_to_idx — 字符 → Flash 索引
  *
- * 蓝色专属字符 (index 37-40): ':' '^' '.' '_'
- * 白色宽度表中未收录这些字符 (w=0), 自动跳过
+ * 12/16 高度共用同一套索引映射
  *
  * 返回 0xFF 表示不支持的字符
  * ================================================================ */
@@ -82,10 +112,10 @@ static uint8_t char_to_idx(char c)
 		return (uint8_t)(c - 'A' + 11);      /* 11-36 */
 
 	/* 蓝色专属特殊字符 */
-	if (c == ':') return 37;   /* Z_COLON  */
-	if (c == '^') return 38;   /* Z_DEGREE */
-	if (c == '.') return 39;   /* Z_DOT    */
-	if (c == '/') return 40;   /* Z_LINE   */
+	if (c == ':') return 37;
+	if (c == '^') return 38;
+	if (c == '.') return 39;
+	if (c == '/') return 40;
 
 	return 0xFF;
 }
@@ -93,19 +123,26 @@ static uint8_t char_to_idx(char c)
 /* ================================================================
  * get_char_w — 获取字符像素宽度
  *
- * 根据颜色选择对应的宽度表
+ * 根据颜色和高度选择对应的宽度表
  * 返回 0 表示不支持的字符
  * ================================================================ */
-static uint8_t get_char_w(char c, uint8_t color)
+static uint8_t get_char_w(char c, uint8_t color, uint8_t height)
 {
 	const uint8_t *table;
 
 	if ((uint8_t)c >= 128)
 		return 0;
 
-	table = (color == DIGIT_16_COLOR_WHITE)
-		? digit_16_width
-		: digit_16_width_blue;
+	if (height == DIGIT_HEIGHT_12)
+	{
+		table = digit_12_width_blue;
+	}
+	else
+	{
+		table = (color == DIGIT_16_COLOR_WHITE)
+			? digit_16_width
+			: digit_16_width_blue;
+	}
 
 	return table[(uint8_t)c];
 }
@@ -114,31 +151,44 @@ static uint8_t get_char_w(char c, uint8_t color)
  * get_char_addr — 计算字符位图在 Flash 中的绝对地址
  *
  * addr = base + idx * stride
- * 两色 stride 相同 (498), 仅 base 不同
  *
+ * 12 高度仅支持蓝色
  * 返回 0 表示不支持的字符
  * ================================================================ */
-static uint32_t get_char_addr(char c, uint8_t color)
+static uint32_t get_char_addr(char c, uint8_t color, uint8_t height)
 {
 	uint8_t  idx  = char_to_idx(c);
 	uint32_t base;
+	uint32_t stride;
 
 	if (idx == 0xFF)
 		return 0;
 
-	base = (color == DIGIT_16_COLOR_WHITE)
-		? FLASH_ADDR_16_WHITE_BASE
-		: FLASH_ADDR_16_BLUE_BASE;
+	if (height == DIGIT_HEIGHT_12)
+	{
+		/* 仅蓝色 */
+		if (color != DIGIT_16_COLOR_BLUE)
+			return 0;
+		base   = FLASH_ADDR_12_BLUE_BASE;
+		stride = FLASH_STRIDE_12_BLUE;
+	}
+	else
+	{
+		base   = (color == DIGIT_16_COLOR_WHITE)
+			? FLASH_ADDR_16_WHITE_BASE
+			: FLASH_ADDR_16_BLUE_BASE;
+		stride = FLASH_STRIDE_16_WHITE;
+	}
 
-	return base + (uint32_t)idx * FLASH_STRIDE_16_WHITE;
+	return base + (uint32_t)idx * stride;
 }
 
 /* ================================================================
- * string_width_16 — 计算字符串像素宽度
+ * digit_string_width — 计算字符串像素宽度
  *
  * 返回 str 所有有效字符宽度之和 (不超过 SCREEN_W)
  * ================================================================ */
-uint16_t string_width_16(const char *str, uint8_t color)
+uint16_t digit_string_width(const char *str, uint8_t color, uint8_t height)
 {
 	uint16_t total_w = 0;
 	uint8_t  c, w;
@@ -151,8 +201,8 @@ uint16_t string_width_16(const char *str, uint8_t color)
 		c = (uint8_t)*str;
 		if (c < 128)
 		{
-			w = get_char_w((char)c, color);
-			if (w > 0 && get_char_addr((char)c, color) != 0)
+			w = get_char_w((char)c, color, height);
+			if (w > 0 && get_char_addr((char)c, color, height) != 0)
 			{
 				if (total_w + w > SCREEN_W)
 					break;
@@ -165,20 +215,23 @@ uint16_t string_width_16(const char *str, uint8_t color)
 }
 
 /* ================================================================
- * display_string_16 — 在指定位置显示字符串
+ * digit_display_string — 在指定位置显示字符串
  *
- * 底部对齐 (行高 16px, 字符高 12px, 顶部偏移 4px)
+ * 底部对齐
  * 不支持的字符自动跳过
  * 超出屏幕右边界截断
  * ================================================================ */
-void display_string_16(const char *str, uint16_t start_x, uint16_t start_y, uint8_t color)
+void digit_display_string(const char *str, uint16_t start_x, uint16_t start_y, uint8_t color, uint8_t height)
 {
 	uint16_t cur_x;
 	uint8_t  c, w;
 	uint32_t addr;
+	uint8_t  y_off;
 
 	if (!str)
 		return;
+
+	y_off = (height == DIGIT_HEIGHT_12) ? CHAR_Y_OFF_12 : CHAR_Y_OFF_16;
 
 	cur_x = start_x;
 
@@ -189,8 +242,8 @@ void display_string_16(const char *str, uint16_t start_x, uint16_t start_y, uint
 		if (c >= 128)
 			goto next;
 
-		addr = get_char_addr((char)c, color);
-		w    = get_char_w((char)c, color);
+		addr = get_char_addr((char)c, color, height);
+		w    = get_char_w((char)c, color, height);
 
 		/* 不支持的字符或地址未配置则跳过 */
 		if (addr == 0 || w == 0)
@@ -201,7 +254,7 @@ void display_string_16(const char *str, uint16_t start_x, uint16_t start_y, uint
 			break;
 
 		/* 底部对齐 */
-		Dispphoto_Dispaly_flash(cur_x, start_y + CHAR_Y_OFF, addr);
+		Dispphoto_Dispaly_flash(cur_x, start_y + y_off, addr);
 
 		cur_x += w;
 

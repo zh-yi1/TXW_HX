@@ -3,8 +3,9 @@
 
 #include "global_define.h"
 
-void over_temp_hint_page(void);
+void high_temp_pro(uint8_t type);     /* 过温保护: HINT_OVER_TEMP_DSG/CHG/IDLE */
 void low_temp_hint_page(void);
+void disabled_hint_page(void);
 void short_circuit_hint_page(void);
 
 /*
@@ -22,6 +23,7 @@ void abnormal_hint_page(uint8_t  type,
                                 uint8_t  total,
                                 uint32_t timestamp,
                                 uint16_t value,
-                                const char *bat_num);
+                                const char *bat_num,
+                                uint8_t  chg_state);
 
 #endif

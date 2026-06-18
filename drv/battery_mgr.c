@@ -12,7 +12,7 @@ extern uint8_t cw1573_cell_cnt;
 #define DISABLE_REASON_UV  2   /* 欠压禁用 */
 
 /* 禁用检测开关: 1=启用 0=关闭(测试用) */
-#define BAT_DISABLE_DETECT_EN  0
+#define BAT_DISABLE_DETECT_EN  1
 /* 电压测试用: 1=启用 0=关闭 */
 #define BAT_ENABLE_TEST_EN  0
 
@@ -58,11 +58,16 @@ typedef struct {
     uint32_t volt_1h_tick[4];       /* 每节电芯电压异常 1h 计时起点 (0=未计时) */
     uint32_t temp_1h_tick;          /* 温度异常 1h 计时起点 (0=未计时) */
     uint8_t  ov_prot_cnt[4];        /* 每节电芯过压保护持续次数 (>=2 = 持续 1s) */
+    uint8_t  uv_seconds[4];         /* 每节电芯欠压禁用持续次数 */
+    uint8_t  ov_seconds[4];         /* 每节电芯过压禁用持续次数 */
     uint8_t  ov_recov_cnt[4];       /* 每节电芯过压恢复持续次数 (>=10 = 持续 5s) */
+    uint8_t  uv_prot_cnt[4];        /* 每节电芯欠压保护持续次数 (>=2 = 持续 1s) */
+    uint8_t  uv_recov_cnt[4];       /* 每节电芯欠压恢复持续次数 (>=10 = 持续 5s) */
     uint8_t  disabled;              /* 禁用标志 */
     uint8_t  disable_reason;        /* 禁用原因 (DISABLE_REASON_OV / DISABLE_REASON_UV) */
     uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
     uint8_t  chg_state;             /* 充放电状态 */
+    uint8_t  warning_chg_state;     /* 警告触发时的充放电状态 */
     int16_t  temperature_01c;       /* 电池温度 0.1℃ (取 bat_ntc1/2 较高者) */
 } battery_mgr_ctx_t;
 
@@ -191,6 +196,7 @@ void static_cfg_load_to_ui(void)
     if (cfg.disable_reason != 0) {
         g_bat.disabled       = 1;
         g_bat.disable_reason = cfg.disable_reason;
+        ui_data.cur_page     = PAGE_DISABLED;  /* 开机即全红 */
     }
 }
 
@@ -334,8 +340,10 @@ void battery_mgr_proc(void)
                 factory_cfg_read(&cfg);
                 cfg.disable_reason = DISABLE_REASON_UV;
                 factory_cfg_write(&cfg);
-                
-                }
+
+                ui_data.last_page = ui_data.cur_page;
+                ui_data.cur_page  = PAGE_DISABLED;
+            }
         } else {
             g_bat.uv_seconds[i] = 0;
         }
@@ -343,17 +351,18 @@ void battery_mgr_proc(void)
         /* 4.2 过压禁用检测 (V > 4.6V 持续 > 1s, 每轮 500ms → 2 轮) */
         if (v > BAT_OV_DISABLE_MV) {
             g_bat.ov_seconds[i]++;
-            /* ov_seconds * (500/100) >= 1s*10 → ov_seconds >= 2 */
             if (g_bat.ov_seconds[i] * (BAT_MGR_POLL_MS / 100) >= BAT_OV_DISABLE_S * 10) {
                 g_bat.disabled = 1;
                 g_bat.disable_reason = DISABLE_REASON_OV;
 
-                /* 写 Flash: 记录禁用原因 */
                 factory_cfg_t cfg;
                 factory_cfg_read(&cfg);
                 cfg.disable_reason = DISABLE_REASON_OV;
                 factory_cfg_write(&cfg);
-                }
+
+                ui_data.last_page = ui_data.cur_page;
+                ui_data.cur_page  = PAGE_DISABLED;
+            }
         } else {
             g_bat.ov_seconds[i] = 0;
         }
@@ -365,7 +374,7 @@ void battery_mgr_proc(void)
             g_bat.ov_prot_cnt[i]++;
             g_bat.ov_recov_cnt[i] = 0;
             if (g_bat.ov_prot_cnt[i] >= 2 && ts > 0) {
-                abnormal_log_voltage_update(ts - (ts % 3600), v, i);
+                abnormal_log_voltage_update(ts - (ts % 3600), v, i, g_bat.chg_state);
 
                 if (g_bat.volt_1h_tick[i] == 0) {
                     abnormal_log_voltage_commit(ts);
@@ -394,6 +403,40 @@ void battery_mgr_proc(void)
             /* 滞回区间 [4.40V, 4.50V]: 保持当前状态 */
             g_bat.ov_prot_cnt[i] = 0;
         }
+
+        /* 4.4 欠压保护记录 (V < 2.72V 持续 1s 进入, V > 3.00V 持续 5s 退出, 仅非充电状态) */
+        if (g_bat.chg_state != CHG_STATE_CHARGING && v < BAT_UV_PROT_MV && v > 0) {
+            g_bat.uv_prot_cnt[i]++;
+            g_bat.uv_recov_cnt[i] = 0;
+            if (g_bat.uv_prot_cnt[i] >= BAT_UV_PROT_ENTER_S * 2 && ts > 0) {
+                abnormal_log_voltage_update(ts - (ts % 3600), v, i, g_bat.chg_state);
+
+                if (g_bat.volt_1h_tick[i] == 0) {
+                    abnormal_log_voltage_commit(ts);
+                    g_bat.volt_1h_tick[i] = now;
+                }
+
+                if (ui_data.cur_page == PAGE_DEFAULT ||
+                    ui_data.cur_page == PAGE_INFO_1 ||
+                    ui_data.cur_page == PAGE_INFO_2 ||
+                    ui_data.cur_page == PAGE_INFO_3) {
+                    ui_data.last_page = ui_data.cur_page;
+                    ui_data.cur_page = PAGE_SHORT_CIRCUIT;
+                }
+            }
+        } else if (v > BAT_UV_RECOVER_MV || g_bat.chg_state == CHG_STATE_CHARGING) {
+            g_bat.uv_prot_cnt[i] = 0;
+            if (g_bat.volt_1h_tick[i] != 0) {
+                g_bat.uv_recov_cnt[i]++;
+                if (g_bat.uv_recov_cnt[i] >= BAT_UV_RECOVER_S * 2) {
+                    g_bat.volt_1h_tick[i] = 0;
+                    g_bat.uv_recov_cnt[i] = 0;
+                }
+            }
+        } else {
+            /* 滞回区间 [2.72V, 3.00V]: 保持当前状态 */
+            g_bat.uv_prot_cnt[i] = 0;
+        }
     }
 
     /* ---- 5. 温度保护警告 (主机 ntc_status, 协议 §4.3 0x20) ---- */
@@ -412,6 +455,7 @@ void battery_mgr_proc(void)
         if (over_temp)
             {
                 g_bat.warning = WARNING_OVER_TEMP;
+                g_bat.warning_chg_state = g_bat.chg_state;
                 if (ui_data.cur_page == PAGE_DEFAULT ||
                     ui_data.cur_page == PAGE_INFO_1 ||
                     ui_data.cur_page == PAGE_INFO_2 ||
@@ -455,7 +499,7 @@ void battery_mgr_proc(void)
         if (ts > 0) {
             abnormal_log_temperature_update(ts - (ts % 3600),
                                 (uint16_t)g_bat.temperature_01c,
-                                evt_type);
+                                evt_type, g_bat.chg_state);
 
             /* 首次进入保护: 立即写 Flash, 开始 1h 计时 */
             if (g_bat.temp_1h_tick == 0) {
@@ -516,6 +560,11 @@ uint8_t battery_mgr_get_warning(void)
 uint8_t battery_mgr_get_chg_state(void)
 {
     return g_bat.chg_state;
+}
+
+uint8_t battery_mgr_get_warning_chg_state(void)
+{
+    return g_bat.warning_chg_state;
 }
 
 /* 任意保护标志: OV禁用 / UV禁用 / OV保护 (任一有效返回 1) */
