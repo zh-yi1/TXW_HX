@@ -8,6 +8,7 @@
 
 volatile cw1573_data_t      cw1573_raw;
 volatile cw1573_proc_data_t cw1573_info;
+volatile uint8_t            cw1573_comm_ok = 1;
 
 uint8_t cw1573_cell_cnt = 4;
 static uint8_t cw1573_cfg_done  = 0;
@@ -407,5 +408,5 @@ void cw1573_proc(void)
 		return;
 	last_tick = now;
 
-	cw1573_read_all((cw1573_data_t *)&cw1573_raw);
+	cw1573_comm_ok = (cw1573_read_all((cw1573_data_t *)&cw1573_raw) == 0) ? 1 : 0;
 }

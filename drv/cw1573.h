@@ -148,7 +148,7 @@ typedef struct
 	uint32_t rntc_ohm;      /* NTC 阻值 (Ω) */
 	int32_t  current_ma;    /* 电池电流 (mA, 正=充电) */
 	uint32_t cc_mah;        /* 库仑量 (mAh) */
-} cw1573_proc_data_t;
+}cw1573_proc_data_t;
 
 void cw1573_init(uint8_t cell_count);
 uint8_t cw1573_is_ready(void);
@@ -161,6 +161,7 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *proc);
 #define CW1573_CFG_RETRY_MS  200U
 
 extern uint8_t cw1573_cell_cnt;
+extern volatile uint8_t            cw1573_comm_ok;
 extern volatile cw1573_data_t      cw1573_raw;
 extern volatile cw1573_proc_data_t cw1573_info;
 

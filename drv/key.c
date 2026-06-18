@@ -17,6 +17,12 @@ void key_init(void)
 	md_gpio_init_struct(&gpio_init);
 	gpio_init.mode = MD_GPIO_MODE_INPUT;
 	md_gpio_init(KEY_PORT, KEY_PIN, &gpio_init);
+	last_press_ms = md_get_tick();  /* 初始化空闲计时基准 */
+}
+
+uint32_t key_get_last_ms(void)
+{
+	return last_press_ms;
 }
 
 void key_proc(void)
@@ -27,6 +33,14 @@ void key_proc(void)
 	if (now - last_ms < KEY_SAMPLE_MS)
 		return;
 	last_ms = now;
+
+	/* 30s 无按键操作 → 自动休眠 */
+	if (ui_data.dev_state == DEV_STATE_NORMAL && now - last_press_ms >= 30000)
+	{
+		LCD_BLK_HIGH();
+		DispColor(BLACK);
+		ui_data.dev_state = DEV_STATE_SLEEP;
+	}
 
 	uint32_t elapsed = now - state_entry_ms;
 	uint32_t held    = now - press_start_ms;

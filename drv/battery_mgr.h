@@ -27,7 +27,7 @@
 #define BAT_UV_RECOVER_S    5U      /* 欠压保护恢复持续秒数 */
 
 /* ---- 检测轮询周期 ---- */
-#define BAT_MGR_POLL_MS     500U    /* 500ms 轮询一次 */
+#define BAT_MGR_POLL_MS     1U     /* 10ms 轮询一次 */
 
 /* ---- 对外接口 ---- */
 void battery_mgr_init(void);

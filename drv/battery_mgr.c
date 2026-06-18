@@ -17,7 +17,7 @@ extern uint8_t cw1573_cell_cnt;
 #define BAT_ENABLE_TEST_EN  0
 
 /* 异常消失超时: 超时后清除 1h 计时标志 (ms) */
-#define BAT_ANOMALY_TIMEOUT_MS  5000UL  /* 5s */
+#define BAT_ANOMALY_TIMEOUT_MS  50UL  /* 50ms */
 
 /* 温度源选择: 0=双NTC取高者 1=仅用NTC2 */
 #define TEMP_NTC2_ONLY  1
@@ -65,6 +65,7 @@ typedef struct {
     uint8_t  uv_recov_cnt[4];       /* 每节电芯欠压恢复持续次数 (>=10 = 持续 5s) */
     uint8_t  disabled;              /* 禁用标志 */
     uint8_t  disable_reason;        /* 禁用原因 (DISABLE_REASON_OV / DISABLE_REASON_UV) */
+    uint8_t  cw1573_noresp_cnt;     /* CW1573 连续无应答次数 (500ms/次, >=10 = 5s → 欠压) */
     uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
     uint8_t  chg_state;             /* 充放电状态 */
     uint8_t  warning_chg_state;     /* 警告触发时的充放电状态 */
@@ -320,6 +321,29 @@ void battery_mgr_proc(void)
     ts = rtc_get_timestamp();
 
     /* ---- 4. 逐电芯检测 (TFT 本地判断) ---- */
+
+    /* 4.0 CW1573 通信异常检测: 连续 5s 无应答 → 欠压禁用
+     *     当电池欠压时 CW1573 掉电不工作, I2C 无 ACK,
+     *     此时 cw1573_info.vcell_mv[] 为旧数据 (v > 1.5V), 无法通过 4.1 的电压阈值检测,
+     *     因此通过通信状态判断: 连续 10 次 (500ms×10=5s) 无应答即判定欠压 */
+    if (!cw1573_comm_ok) {
+        g_bat.cw1573_noresp_cnt++;
+        if (g_bat.cw1573_noresp_cnt >= 10) {
+            g_bat.disabled = 1;
+            g_bat.disable_reason = DISABLE_REASON_UV;
+
+            factory_cfg_t cfg;
+            factory_cfg_read(&cfg);
+            cfg.disable_reason = DISABLE_REASON_UV;
+            factory_cfg_write(&cfg);
+
+            ui_data.last_page = ui_data.cur_page;
+            ui_data.cur_page  = PAGE_DISABLED;
+        }
+    } else {
+        g_bat.cw1573_noresp_cnt = 0;
+    }
+
     for (i = 0; i < cw1573_cell_cnt; i++) {
 #if BAT_ENABLE_TEST_EN
         uint16_t v = vcell_mv[i];
@@ -404,15 +428,12 @@ void battery_mgr_proc(void)
             g_bat.ov_prot_cnt[i] = 0;
         }
 
-        /* 4.4 欠压保护记录 (V < 2.72V 持续 1s 进入, V > 3.00V 持续 5s 退出, 仅非充电状态) */
+        /* 4.4 欠压保护 (V < 2.72V 持续 1s 进入, V > 3.00V 持续 5s 退出, 仅非充电状态, 不记录异常日志) */
         if (g_bat.chg_state != CHG_STATE_CHARGING && v < BAT_UV_PROT_MV && v > 0) {
             g_bat.uv_prot_cnt[i]++;
             g_bat.uv_recov_cnt[i] = 0;
             if (g_bat.uv_prot_cnt[i] >= BAT_UV_PROT_ENTER_S * 2 && ts > 0) {
-                abnormal_log_voltage_update(ts - (ts % 3600), v, i, g_bat.chg_state);
-
                 if (g_bat.volt_1h_tick[i] == 0) {
-                    abnormal_log_voltage_commit(ts);
                     g_bat.volt_1h_tick[i] = now;
                 }
 

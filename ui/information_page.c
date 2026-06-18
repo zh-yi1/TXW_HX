@@ -9,48 +9,11 @@
 #define DEGREE_CENTIGRDE_W 16
 #define DEGREE_CENTIGRDE_H 16
 
-typedef enum
-{
-    INFO_MAX_CAP,     /* 最大容量 */
-    INFO_CYCLE_CNT,   /* 循环次数 */
-    INFO_BAT_TEMP,    /* 电池温度 */
-    INFO_BAT_ID,   /* 电池编号 */
-    INFO_BAT_NUM,   /* 具体电池编号 */
-    INFO_RUN_TIME,    /* 运行时间 */
-    INFO_TIME_FAKE,   /* 伪时间 */
+#define R_MAX_CAP     ((range_t){0,   48, 119, 87})
+#define R_CYCLE_CNT   ((range_t){120, 48, 239, 87})
+#define R_BAT_TEMP    ((range_t){0,   48, 239, 87})
 
-    INFO_ITEM_MAX,
-} bat_info_e;
-
-// TODO :文字切图出来后替换
-static const pos_and_addr_t bat_info_text_img[] = {
-    {32, 12, FLASH_ADDR_MAX_CAP},
-    {144, 12, FLASH_ADDR_CYCLE_INDEX},
-    {88, 12, FLASH_ADDR_BAT_TMP},
-    {18, 113, FLASH_ADDR_BAT_NUM},
-    {98, 113, FLASH_ADDR_X_166102A_1C_16},
-    {36, 113, FLASH_ADDR_RUN_TIME},
-    {116, 113, FLASH_ADDR_TIME_FAKE},
-};
-
-static const range_t bat_info_range[] = {
-    {0, 48, 0 + 119, 48 + 39},
-    {120, 48, 120 + 119, 48 + 39},
-    {0, 48, 0 + 239, 48 + 39},
-};
-
-static const uint32_t num_40_addrs[] = {
-    FLASH_ADDR_NUM_40_0,
-    FLASH_ADDR_NUM_40_1,
-    FLASH_ADDR_NUM_40_2,
-    FLASH_ADDR_NUM_40_3,
-    FLASH_ADDR_NUM_40_4,
-    FLASH_ADDR_NUM_40_5,
-    FLASH_ADDR_NUM_40_6,
-    FLASH_ADDR_NUM_40_7,
-    FLASH_ADDR_NUM_40_8,
-    FLASH_ADDR_NUM_40_9,
-};
+#define NUM_40_ADDR(d)  (FLASH_ADDR_NUM_40_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_40)
 
 /* 在指定区域居中绘制数值 + 单位图标 (支持负数) */
 static void draw_value_in_area(range_t r, int16_t value, uint32_t unit_addr,
@@ -108,7 +71,7 @@ static void draw_value_in_area(range_t r, int16_t value, uint32_t unit_addr,
 
     for (i = 0; i < n; i++)
     {
-        Dispphoto_Dispaly_flash(cur_x, cur_y, num_40_addrs[digits[i]]);
+        Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_40_ADDR(digits[i]));
         cur_x += NUM_40_W;
     }
 
@@ -120,25 +83,19 @@ void information_page_1_init(void)
     DispBlock(0, 0, ROW - 1, COL - 1);
 
     // 最大容量
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_MAX_CAP].x,
-                            bat_info_text_img[INFO_MAX_CAP].y, bat_info_text_img[INFO_MAX_CAP].img_addr);
+    Dispphoto_Dispaly_flash(32, 12, FLASH_ADDR_MAX_CAP);
     // 循环次数
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_CYCLE_CNT].x,
-                            bat_info_text_img[INFO_CYCLE_CNT].y, bat_info_text_img[INFO_CYCLE_CNT].img_addr);
+    Dispphoto_Dispaly_flash(144, 12, FLASH_ADDR_CYCLE_INDEX);
     //最大容量值
-    draw_value_in_area(bat_info_range[INFO_MAX_CAP], ui_data.bat_max_cap,
+    draw_value_in_area(R_MAX_CAP, ui_data.bat_max_cap,
                        FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H, 0);
     //循环次数值
-    draw_value_in_area(bat_info_range[INFO_CYCLE_CNT], ui_data.bat_cycle_cnt,
+    draw_value_in_area(R_CYCLE_CNT, ui_data.bat_cycle_cnt,
                        FLASH_ADDR_CI, CI_W, CI_H, 0);
     //电池编号
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_BAT_ID].x,
-                            bat_info_text_img[INFO_BAT_ID].y, bat_info_text_img[INFO_BAT_ID].img_addr);
+    Dispphoto_Dispaly_flash(18, 113, FLASH_ADDR_BAT_NUM);
     //电池型号
-    display_string_16(ui_data.bat_model_1,
-                      bat_info_text_img[INFO_BAT_NUM].x,
-                      bat_info_text_img[INFO_BAT_NUM].y,
-                      DIGIT_16_COLOR_WHITE);
+    display_string_16(ui_data.bat_model_1, 98, 113, DIGIT_16_COLOR_WHITE);
 }
 
 void information_page_2_init(void)
@@ -146,17 +103,14 @@ void information_page_2_init(void)
     DispBlock(0, 0, ROW - 1, COL - 1);
 
     // 电池温度
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_BAT_TEMP].x,
-                            bat_info_text_img[INFO_BAT_TEMP].y, bat_info_text_img[INFO_BAT_TEMP].img_addr);
+    Dispphoto_Dispaly_flash(88, 12, FLASH_ADDR_BAT_TMP);
     //电池温度值
-    draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature / 10,
+    draw_value_in_area(R_BAT_TEMP, ui_data.bat_temperature / 10,
                        FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H, FLASH_ADDR_NUM_40);
     //运行时间
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_RUN_TIME].x,
-                            bat_info_text_img[INFO_RUN_TIME].y, bat_info_text_img[INFO_RUN_TIME].img_addr);
+    Dispphoto_Dispaly_flash(36, 113, FLASH_ADDR_RUN_TIME);
     // TODO ：运行时间值,当前是假的
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_TIME_FAKE].x,
-                        bat_info_text_img[INFO_TIME_FAKE].y, bat_info_text_img[INFO_TIME_FAKE].img_addr);
+    Dispphoto_Dispaly_flash(116, 113, FLASH_ADDR_TIME_FAKE);
 }
 
 void information_page_3_init(void)
@@ -201,11 +155,9 @@ void information_page_3_init(void)
     }
 
     //运行时间
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_RUN_TIME].x,
-                            bat_info_text_img[INFO_RUN_TIME].y, bat_info_text_img[INFO_RUN_TIME].img_addr);
+    Dispphoto_Dispaly_flash(36, 113, FLASH_ADDR_RUN_TIME);
     // TODO ：运行时间值,当前是假的
-    Dispphoto_Dispaly_flash(bat_info_text_img[INFO_TIME_FAKE].x,
-                        bat_info_text_img[INFO_TIME_FAKE].y, bat_info_text_img[INFO_TIME_FAKE].img_addr);
+    Dispphoto_Dispaly_flash(116, 113, FLASH_ADDR_TIME_FAKE);
 }
 
 /* ============================ 数据更新 ============================ */
@@ -229,7 +181,7 @@ void information_page_1_updata(void)
     /* 最大容量 — 变化时刷新 */
     if (ui_data.bat_max_cap != last_max_cap)
     {
-        draw_value_in_area(bat_info_range[INFO_MAX_CAP], ui_data.bat_max_cap,
+        draw_value_in_area(R_MAX_CAP, ui_data.bat_max_cap,
                            FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H, 0);
         last_max_cap = ui_data.bat_max_cap;
     }
@@ -237,7 +189,7 @@ void information_page_1_updata(void)
     /* 循环次数 — 变化时刷新 */
     if (ui_data.bat_cycle_cnt != last_cycle)
     {
-        draw_value_in_area(bat_info_range[INFO_CYCLE_CNT], ui_data.bat_cycle_cnt,
+        draw_value_in_area(R_CYCLE_CNT, ui_data.bat_cycle_cnt,
                            FLASH_ADDR_CI, CI_W, CI_H, 0);
         last_cycle = ui_data.bat_cycle_cnt;
     }
@@ -284,9 +236,8 @@ void information_page_2_updata(void)
     if (ui_data.bat_temperature != last_temp)
     {
         /* 先擦除旧值区域, 防止位数变化时残影 */
-        DispBlock(bat_info_range[INFO_BAT_TEMP].x1, bat_info_range[INFO_BAT_TEMP].y1,
-                  bat_info_range[INFO_BAT_TEMP].x2, bat_info_range[INFO_BAT_TEMP].y2);
-        draw_value_in_area(bat_info_range[INFO_BAT_TEMP], ui_data.bat_temperature/10,
+        DispBlock(0, 48, 239, 87);
+        draw_value_in_area(R_BAT_TEMP, ui_data.bat_temperature/10,
                            FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H,
                            FLASH_ADDR_NUM_40);
         last_temp = ui_data.bat_temperature;

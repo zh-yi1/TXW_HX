@@ -1,14 +1,6 @@
 #include "default_page.h"
 
-// 固定图片位置
-static const pos_and_addr_t default_img_pos[] = {
-	{14, 83, FLASH_ADDR_TYPE_C},
-	{46, 83, FLASH_ADDR_USB_1},
-	{95, 83, FLASH_ADDR_TYPE_C},
-	{127, 83, FLASH_ADDR_USB_2},
-	{176, 83, FLASH_ADDR_USB},
-	{208, 83, FLASH_ADDR_USB_3},
-};
+// 固定图片位置 (直接内联, 节省 SRAM)
 
 /* ============================ 小数字功率显示 ============================ */
 
@@ -18,18 +10,7 @@ static const range_t power_range[] = {
 	{174, 103, 174 + 55, 103 + 31},
 };
 
-static const uint32_t num_32_addrs[10] = {
-	FLASH_ADDR_NUM_32_0,
-	FLASH_ADDR_NUM_32_1,
-	FLASH_ADDR_NUM_32_2,
-	FLASH_ADDR_NUM_32_3,
-	FLASH_ADDR_NUM_32_4,
-	FLASH_ADDR_NUM_32_5,
-	FLASH_ADDR_NUM_32_6,
-	FLASH_ADDR_NUM_32_7,
-	FLASH_ADDR_NUM_32_8,
-	FLASH_ADDR_NUM_32_9,
-};
+#define NUM_32_ADDR(d)  (FLASH_ADDR_NUM_32_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_32)
 
 #define NUM_32_W 20
 #define NUM_32_H 32
@@ -70,11 +51,11 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 
 	if (tens)
 	{
-		Dispphoto_Dispaly_flash(cur_x, cur_y, num_32_addrs[tens]);
+		Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(tens));
 		cur_x += NUM_32_W;
 	}
 
-	Dispphoto_Dispaly_flash(cur_x, cur_y, num_32_addrs[ones]);
+	Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(ones));
 	cur_x += NUM_32_W + 1;
 
 	Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_32_H - W_H, FLASH_ADDR_POWER_W);
@@ -82,31 +63,8 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 
 /* ============================ 充电百分比动画 ============================ */
 
-static const uint32_t blue_num64_addrs[10] = {
-	FLASH_ADDR_BLUE_NUM_48_0,
-	FLASH_ADDR_BLUE_NUM_48_1,
-	FLASH_ADDR_BLUE_NUM_48_2,
-	FLASH_ADDR_BLUE_NUM_48_3,
-	FLASH_ADDR_BLUE_NUM_48_4,
-	FLASH_ADDR_BLUE_NUM_48_5,
-	FLASH_ADDR_BLUE_NUM_48_6,
-	FLASH_ADDR_BLUE_NUM_48_7,
-	FLASH_ADDR_BLUE_NUM_48_8,
-	FLASH_ADDR_BLUE_NUM_48_9,
-};
-
-static const uint32_t orange_num64_addrs[10] = {
-	FLASH_ADDR_ORANGE_NUM_48_0,
-	FLASH_ADDR_ORANGE_NUM_48_1,
-	FLASH_ADDR_ORANGE_NUM_48_2,
-	FLASH_ADDR_ORANGE_NUM_48_3,
-	FLASH_ADDR_ORANGE_NUM_48_4,
-	FLASH_ADDR_ORANGE_NUM_48_5,
-	FLASH_ADDR_ORANGE_NUM_48_6,
-	FLASH_ADDR_ORANGE_NUM_48_7,
-	FLASH_ADDR_ORANGE_NUM_48_8,
-	FLASH_ADDR_ORANGE_NUM_48_9,
-};
+#define BLUE_NUM_48_ADDR(d)    (FLASH_ADDR_BLUE_NUM_48_BASE    + (uint32_t)(d) * FLASH_STRIDE_BLUE_NUM_48)
+#define ORANGE_NUM_48_ADDR(d)  (FLASH_ADDR_ORANGE_NUM_48_BASE  + (uint32_t)(d) * FLASH_STRIDE_ORANGE_NUM_48)
 
 #define NUM_48_W 40
 #define NUM_48_H 48
@@ -130,7 +88,7 @@ static void anima_erase_area(int x, int y, int w, int h)
 /* 在 (x,y) 绘制电量百分比 (同步阻塞) */
 static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
 {
-	const uint32_t *addrs = is_blue ? blue_num64_addrs : orange_num64_addrs;
+	uint32_t base = is_blue ? FLASH_ADDR_BLUE_NUM_48_BASE : FLASH_ADDR_ORANGE_NUM_48_BASE;
 	uint32_t percent_addr = is_blue ? FLASH_ADDR_PERCENT_BLUE : FLASH_ADDR_PERCENT_ORANG;
 	int digits[3], n, i, cur_x;
 
@@ -162,7 +120,7 @@ static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
 	cur_x = x;
 	for (i = 0; i < n; i++)
 	{
-		Dispphoto_Dispaly_flash(cur_x, y, addrs[digits[i]]);
+		Dispphoto_Dispaly_flash(cur_x, y, base + (uint32_t)digits[i] * FLASH_STRIDE_BLUE_NUM_48);
 		cur_x += NUM_48_W;
 	}
 
@@ -438,10 +396,12 @@ void default_page_init()
 	default_page_show_battery();
 
 	// 显示固定位置图标
-	for (int i = 0; i < sizeof(default_img_pos) / sizeof(default_img_pos[0]); i++)
-	{
-		Dispphoto_Dispaly_flash(default_img_pos[i].x, default_img_pos[i].y, default_img_pos[i].img_addr);
-	}
+	Dispphoto_Dispaly_flash(14, 83, FLASH_ADDR_TYPE_C);
+	Dispphoto_Dispaly_flash(46, 83, FLASH_ADDR_USB_1);
+	Dispphoto_Dispaly_flash(95, 83, FLASH_ADDR_TYPE_C);
+	Dispphoto_Dispaly_flash(127, 83, FLASH_ADDR_USB_2);
+	Dispphoto_Dispaly_flash(176, 83, FLASH_ADDR_USB);
+	Dispphoto_Dispaly_flash(208, 83, FLASH_ADDR_USB_3);
 
 	// 显示USB功率
 	default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
@@ -495,6 +455,9 @@ void default_page_updata(void)
 		anima_last_ms = now;
 		return;
 #else
+		/* 无动画时充放电切换: 擦除电量区(全宽×48) + 进度条周边动画残留 */
+		anima_erase_area(0, CHARGE_POWER_Y, SCREEN_W, NUM_48_H);
+		anima_erase_area(0, BAR_EFFECT_UP_Y, BAR_PROGRESS_W, BAR_EFFECT_AREA_H);
 		default_page_show_battery();
 		/* 继续执行USB功率更新, 不return */
 #endif

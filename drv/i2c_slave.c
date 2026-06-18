@@ -316,11 +316,18 @@ void I2C1_Handler(void)
  * ======================================================================== */
 static void pull_sensor_data(void)
 {
-    /* CW1573 未就绪: 不覆盖 ui_data 已有值 (可能来自主机或初始值) */
-    if (!cw1573_is_ready())
-        return;
-
-    cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
+    /* CW1573 未就绪: 填充默认值 (4.2V/cell, 100kΩ NTC) */
+    if (!cw1573_is_ready()) {
+        for (int i = 0; i < cw1573_cell_cnt; i++) {
+            cw1573_info.vcell_mv[i] = 4200;
+        }
+        cw1573_info.pack_mv     = 4200 * cw1573_cell_cnt;
+        cw1573_info.rntc_ohm    = 100000;
+        cw1573_info.current_ma  = 0;
+        cw1573_info.cc_mah      = 0;
+    } else {
+        cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
+    }
 
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
     for (int i = 0; i < cw1573_cell_cnt; i++) {

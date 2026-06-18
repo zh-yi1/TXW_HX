@@ -196,7 +196,9 @@ void rtc_timer_reinit(void)
 void rtc_timer_proc(void)
 {
     static uint32_t last_save_seconds = 0;
+#ifdef RTC_TIME_PRINT_EN
     static uint32_t last_print_seconds = 0;
+#endif
     uint32_t now = md_get_tick();
 
     if (!g_time_synced)
@@ -210,19 +212,42 @@ void rtc_timer_proc(void)
         g_last_second_tick += seconds * 1000;
     }
 
-    /* 每 5 秒打印一次当前时间 (仅调试模式) */
+#ifdef RTC_TIME_PRINT_EN
+    /* 每 5 秒通过串口发送一次当前时间, 格式: 2026-06-18-14-03-10 */
     if (g_running_seconds - last_print_seconds >= 5) {
         uint32_t ts = g_start_timestamp + g_running_seconds;
-#ifdef DEBUG_EN
-        {
-            uint16_t y;
-            uint8_t mo, d, h, mi, s;
-            rtc_unix_to_datetime(ts, &y, &mo, &d, &h, &mi, &s);
-            LOGI("%04u-%02u-%02u %02u:%02u:%02u\r\n", y, mo, d, h, mi, s);
-        }
-#endif
+        uint16_t y;
+        uint8_t mo, d, h, mi, s;
+        char time_str[20];  /* "YYYY-MM-DD-HH-MM-SS\0" = 19+1 */
+
+        rtc_unix_to_datetime(ts, &y, &mo, &d, &h, &mi, &s);
+
+        /* 手动格式化, 避免引入 sprintf (节省 SRAM) */
+        time_str[0]  = (char)('0' + y / 1000);
+        time_str[1]  = (char)('0' + (y / 100) % 10);
+        time_str[2]  = (char)('0' + (y / 10) % 10);
+        time_str[3]  = (char)('0' + y % 10);
+        time_str[4]  = '-';
+        time_str[5]  = (char)('0' + mo / 10);
+        time_str[6]  = (char)('0' + mo % 10);
+        time_str[7]  = '-';
+        time_str[8]  = (char)('0' + d / 10);
+        time_str[9]  = (char)('0' + d % 10);
+        time_str[10] = ' ';
+        time_str[11] = (char)('0' + h / 10);
+        time_str[12] = (char)('0' + h % 10);
+        time_str[13] = ':';
+        time_str[14] = (char)('0' + mi / 10);
+        time_str[15] = (char)('0' + mi % 10);
+        time_str[16] = ':';
+        time_str[17] = (char)('0' + s / 10);
+        time_str[18] = (char)('0' + s % 10);
+        time_str[19] = '\0';
+
+        usart_send_string(time_str);
         last_print_seconds = g_running_seconds;
     }
+#endif /* RTC_TIME_PRINT_EN */
 
     /* 每 120 秒写一次 Flash 同步时间 (约 2 分钟) */
 

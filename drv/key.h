@@ -31,6 +31,7 @@ typedef enum {
 
 void key_init(void);
 void key_proc(void);
+uint32_t key_get_last_ms(void);  /* 获取最后一次按键时刻, 用于空闲休眠检测 */
 
 void key_single_click_cb(void);
 void key_double_click_cb(void);

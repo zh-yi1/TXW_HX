@@ -231,6 +231,10 @@ void key_single_click_ui_proc(void)
 		ui_data.last_page = PAGE_INFO_3;
 		ui_data.cur_page = PAGE_DEFAULT;
 		break;
+	case PAGE_DISABLED:
+		ui_data.last_page = PAGE_DISABLED;
+		ui_data.cur_page = PAGE_DEFAULT;
+		break;
 	case PAGE_VOLTAGE_ABNORMAL:
 		{
 			uint8_t cnt = abnormal_log_voltage_count();
