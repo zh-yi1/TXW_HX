@@ -63,8 +63,8 @@ static void sys_init(void)
 	cw1573_init(4);
 
 	//TODO : 测试用，临时写入场测需要的数据
-	static_cfg_erasure();
-	static_cfg_save_test();
+	// static_cfg_erasure();
+	// static_cfg_save_test();
 
 	//3C 新国标模块初始化
 	rtc_timer_init();
@@ -72,7 +72,7 @@ static void sys_init(void)
 	battery_mgr_init();
 
 	//USART1初始化 (测试回环)
-	// usart_init(115200);
+	usart_init(115200);
 
 	//定时器初始化-PWM
 	// timer_init();

@@ -11,7 +11,7 @@
 
 #include "prod_test.h"
 
-#ifndef DEBUG_EN
+#if !defined(PROD_TEST_SIMPLE_EN) && !defined(DEBUG_EN)
 
 /* ========================================================================== */
 /*  模块级全局变量                                                           */
@@ -784,4 +784,4 @@ void prod_test_proc(void)
         pt_proc_ng_lock();
 }
 
-#endif /* !DEBUG_EN */
+#endif /* !PROD_TEST_SIMPLE_EN && !DEBUG_EN */
