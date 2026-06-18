@@ -162,13 +162,13 @@ static uint32_t get_char_addr(char c, uint8_t color, uint8_t height)
 	uint32_t stride;
 
 	if (idx == 0xFF)
-		return 0;
+		return 0xFFFFFFFF;
 
 	if (height == DIGIT_HEIGHT_12)
 	{
 		/* 仅蓝色 */
 		if (color != DIGIT_16_COLOR_BLUE)
-			return 0;
+			return 0xFFFFFFFF;
 		base   = FLASH_ADDR_12_BLUE_BASE;
 		stride = FLASH_STRIDE_12_BLUE;
 	}
@@ -202,7 +202,7 @@ uint16_t digit_string_width(const char *str, uint8_t color, uint8_t height)
 		if (c < 128)
 		{
 			w = get_char_w((char)c, color, height);
-			if (w > 0 && get_char_addr((char)c, color, height) != 0)
+			if (w > 0 && get_char_addr((char)c, color, height) != 0xFFFFFFFF)
 			{
 				if (total_w + w > SCREEN_W)
 					break;
@@ -246,7 +246,7 @@ void digit_display_string(const char *str, uint16_t start_x, uint16_t start_y, u
 		w    = get_char_w((char)c, color, height);
 
 		/* 不支持的字符或地址未配置则跳过 */
-		if (addr == 0 || w == 0)
+		if (addr == 0xFFFFFFFF || w == 0)
 			goto next;
 
 		/* 超出屏幕右边界则截断 */
