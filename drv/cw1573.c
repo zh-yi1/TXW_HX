@@ -10,6 +10,8 @@ volatile cw1573_data_t      cw1573_raw;
 volatile cw1573_proc_data_t cw1573_info;
 volatile uint8_t            cw1573_comm_ok = 1;
 
+volatile uint8_t g_bat_high_temp;  /* 电芯高温: rntc_ohm >= 26000Ω */
+
 uint8_t cw1573_cell_cnt = 4;
 static uint8_t cw1573_cfg_done  = 0;
 
@@ -380,6 +382,9 @@ void cw1573_calc_data(cw1573_data_t *raw, cw1573_proc_data_t *p)
 
 	/* 电量: mAh = CC * 6.25uV / 2.5mR / 3600 = CC / 1440 */
 	p->cc_mah = raw->cc / 1440UL;
+
+	/* 高温标志: NTC 阻值 ≥ 26kΩ */
+	g_bat_high_temp = (p->rntc_ohm <= 26000UL) ? 1 : 0;
 }
 
 void cw1573_proc(void)

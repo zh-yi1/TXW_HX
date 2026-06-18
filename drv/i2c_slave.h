@@ -121,6 +121,10 @@ extern volatile uint8_t i2c_reg_map[];
 /* ---- 按键事件影子缓冲 (防主机清零竞争) ---- */
 extern volatile uint8_t key_event_buf;  /* 协议 §4.6 */
 
+/* ---- 主机通信检测: 最后一次 I2C 地址匹配时刻 (tick) ---- */
+extern volatile uint32_t g_i2c_addr_match_tick;
+uint8_t i2c_is_host_sleeping(void);     /* 连续 5s 无地址匹配 → 主机休眠 */
+
 /* ---- 对外接口 ---- */
 void i2c_slave_init(void);
 void i2c_slave_proc(void);

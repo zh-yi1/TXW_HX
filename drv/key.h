@@ -37,5 +37,6 @@ void key_single_click_cb(void);
 void key_double_click_cb(void);
 void key_long_press_cb(void);
 void key_combo_cb(void);
+void key_wake_host(void);       /* 主机休眠+高温 → KEY_PIN 拉低 5ms 唤醒 */
 
 #endif

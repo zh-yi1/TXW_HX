@@ -7,6 +7,9 @@ volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE];
 /* ---- 按键事件影子缓冲 (协议 §4.6) ---- */
 volatile uint8_t key_event_buf;
 
+/* ---- 主机通信检测: 最后一次 I2C 地址匹配时刻 (tick), 连续 5s 无匹配→主机休眠 ---- */
+volatile uint32_t g_i2c_addr_match_tick;
+
 /* ---- ISR 内部状态 ---- */
 typedef struct {
     volatile uint8_t reg_addr;    /* 当前寄存器地址 */
@@ -240,6 +243,7 @@ void I2C1_Handler(void)
     /* --- ADDR: 地址匹配 --- */
     if (md_i2c_is_active_flag_addr(I2C1) && md_i2c_is_enable_it_evt(I2C1))
     {
+        g_i2c_addr_match_tick = md_get_tick();  /* 每次地址匹配刷新, 用于主机休眠检测 */
         i2c_clear_flag_addr(I2C1);
         md_i2c_enable_it_buf(I2C1);
 
@@ -485,6 +489,14 @@ static void apply_host_data(void)
     if (i2c_reg_map[REG_SOC] <= 100) {
         i2c_reg_map[REG_PASSWORD] = 0x66;
     }
+}
+
+/* ========================================================================
+ * i2c_is_host_sleeping — 连续 5s 无 I2C 地址匹配 → 主机休眠
+ * ======================================================================== */
+uint8_t i2c_is_host_sleeping(void)
+{
+    return (md_get_tick() - g_i2c_addr_match_tick >= 5000) ? 1 : 0;
 }
 
 /* ========================================================================

@@ -29,6 +29,7 @@ int main()
 		battery_mgr_proc();        /* OV/UV + NTC 温度换算 */
 		battery_mgr_sync_to_ui();  /* 同步结果 → ui_data */
 
+		key_wake_host();           /* 主机休眠+高温 → KEY_PIN 拉低唤醒 */
 		key_proc();
 		ui_proc();
 	}

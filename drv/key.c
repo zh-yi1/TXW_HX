@@ -225,3 +225,28 @@ void key_combo_cb(void)
 	g_enter_upgrade = 1;
 #endif
 }
+
+/* ========================================================================
+ * key_wake_host — 主机休眠且电芯高温时, KEY_PIN 拉低 5ms 唤醒主机
+ *
+ * 条件: (1) I2C 连续 5s 无地址匹配 → 主机休眠
+ *       (2) CW1573 NTC 阻值 ≥ 26kΩ → 电芯高温
+ * 动作: KEY_PIN 切为输出 → 拉低 5ms → key_init() 恢复输入上拉
+ *       重置 I2C 地址匹配计时, 避免短时间内重复唤醒
+ * ======================================================================== */
+void key_wake_host(void)
+{
+	if (!i2c_is_host_sleeping() && !g_bat_high_temp)
+		return;
+
+	/* KEY_PIN 切输出, 拉低 5ms 产生唤醒脉冲 */
+	md_gpio_set_pin_mode_output(KEY_PORT, KEY_PIN);
+	md_gpio_set_pin_low(KEY_PORT, KEY_PIN);
+	md_delay_1ms(5);
+
+	/* 恢复 KEY_PIN 为输入上拉 */
+	key_init();
+
+	/* 重置计时, 避免主机未就绪前重复唤醒 */
+	g_i2c_addr_match_tick = md_get_tick();
+}
