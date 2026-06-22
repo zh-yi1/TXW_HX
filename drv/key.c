@@ -233,8 +233,10 @@ void key_long_press_cb(void)
 void key_combo_cb(void)
 {
 #ifdef UPGRADE_EN
-	/* 触发升级模式: 设置标志位, main() 循环中处理 */
-	g_enter_upgrade = 1;
+	/* 仅充电时允许触发升级模式: 设置标志位, main() 循环中处理 */
+	if (ui_data.is_charge) {
+		g_enter_upgrade = 1;
+	}
 #endif
 }
 
