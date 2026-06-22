@@ -15,6 +15,8 @@ extern uint8_t cw1573_cell_cnt;
 #define BAT_DISABLE_DETECT_EN  1
 /* 电压测试用: 1=启用 0=关闭 */
 #define BAT_ENABLE_TEST_EN  0
+/* 禁用原因写Flash: 1=启用(持久化, 复位后仍禁用) 0=关闭(测试用, 仅RAM禁用, 复位后恢复) */
+#define BAT_DISABLE_WRITE_FLASH_EN  0
 
 /* 异常消失超时: 超时后清除 1h 计时标志 (ms) */
 #define BAT_ANOMALY_TIMEOUT_MS  100UL  /* 100ms */
@@ -337,10 +339,13 @@ void battery_mgr_proc(void)
             g_bat.disabled = 1;
             g_bat.disable_reason = DISABLE_REASON_UV;
 
+#if BAT_DISABLE_WRITE_FLASH_EN
+            /* 写 Flash: 记录禁用原因 */
             factory_cfg_t cfg;
             factory_cfg_read(&cfg);
             cfg.disable_reason = DISABLE_REASON_UV;
             factory_cfg_write(&cfg);
+#endif
 
             ui_data.last_page = ui_data.cur_page;
             ui_data.cur_page  = PAGE_DISABLED;
@@ -364,11 +369,13 @@ void battery_mgr_proc(void)
                 g_bat.disabled = 1;
                 g_bat.disable_reason = DISABLE_REASON_UV;
 
+#if BAT_DISABLE_WRITE_FLASH_EN
                 /* 写 Flash: 记录禁用原因 */
                 factory_cfg_t cfg;
                 factory_cfg_read(&cfg);
                 cfg.disable_reason = DISABLE_REASON_UV;
                 factory_cfg_write(&cfg);
+#endif
 
                 ui_data.last_page = ui_data.cur_page;
                 ui_data.cur_page  = PAGE_DISABLED;
@@ -384,10 +391,13 @@ void battery_mgr_proc(void)
                 g_bat.disabled = 1;
                 g_bat.disable_reason = DISABLE_REASON_OV;
 
+#if BAT_DISABLE_WRITE_FLASH_EN
+                /* 写 Flash: 记录禁用原因 */
                 factory_cfg_t cfg;
                 factory_cfg_read(&cfg);
                 cfg.disable_reason = DISABLE_REASON_OV;
                 factory_cfg_write(&cfg);
+#endif
 
                 ui_data.last_page = ui_data.cur_page;
                 ui_data.cur_page  = PAGE_DISABLED;
