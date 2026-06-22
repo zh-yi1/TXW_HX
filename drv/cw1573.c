@@ -53,7 +53,7 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 		res = 0;
 
 	/* BAL_SET: disable balance by default */
-	cfg = 0x80;
+	cfg = 0x00;
 	cw1573_write_reg(CW1573_REG_BAL_SET, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_BAL_SET, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
@@ -66,7 +66,7 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 
 	/* CONFIG1: exit sleep, enable VADC, IADC, CO, DO */
 	// cfg = CW1573_RST | CW1573_EXIT_SLEEP | CW1573_EN_VADC | CW1573_EN_IADC | CW1573_EN_CO | CW1573_EN_DO;
-	cfg = 0xBF;
+	cfg = 0x9F;
 	cw1573_write_reg(CW1573_REG_CONFIG1, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_CONFIG1, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
@@ -79,13 +79,13 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 		res = 0;
 
 	/* CONFIG2: enable DCTL, DOC/COC, SC, hysteresis */
-	cfg = 0xB9;
+	cfg = 0xB1;
 	cw1573_write_reg(CW1573_REG_CONFIG2, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_CONFIG2, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
 	/* VOV = 4.50V per cell (3300mV + 240*5mV) */
-	cfg = 0xEE;
+	cfg = 0xF0;
 	cw1573_write_reg(CW1573_REG_VOV, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_VOV, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
@@ -168,7 +168,8 @@ static uint8_t cw1573_config_regs(uint8_t cell_count)
 	if (cw1573_read_reg(CW1573_REG_VDOC2, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
 
-	cfg = 0x1D;
+	/* COC: charge OC 14.4mV/5.76A (96ms) */
+	cfg = 0x09;
 	cw1573_write_reg(CW1573_REG_VCOC, &cfg, 1);
 	if (cw1573_read_reg(CW1573_REG_VCOC, rbuf, 1) || rbuf[0] != cfg)
 		res = 0;
