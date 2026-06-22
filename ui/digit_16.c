@@ -33,8 +33,8 @@
  * 字符宽度表
  * ================================================================ */
 
-/* 16 高度 — 白色 */
-static const uint8_t digit_16_width[128] = {
+/* 16 高度 — 白/蓝共用 (白色值; 蓝色差异见 get_char_w 内覆盖) */
+static const uint8_t digit_16_width[] = {
 	['0'] = 10, ['1'] = 6, ['2'] = 10, ['3'] = 10,
 	['4'] = 10, ['5'] = 10, ['6'] = 10, ['7'] = 10,
 	['8'] = 10, ['9'] = 10,
@@ -50,31 +50,8 @@ static const uint8_t digit_16_width[128] = {
 	['-'] =  9,
 };
 
-/* 16 高度 — 蓝色 */
-static const uint8_t digit_16_width_blue[128] = {
-	['0'] = 10, ['1'] = 6, ['2'] = 10, ['3'] = 10,
-	['4'] = 10, ['5'] = 10, ['6'] = 10, ['7'] = 10,
-	['8'] = 10, ['9'] = 10,
-
-	['A'] = 12, ['B'] = 11, ['C'] = 13, ['D'] = 11,
-	['E'] =  9, ['F'] =  9, ['G'] = 13, ['H'] = 12,
-	['I'] =  6, ['J'] =  9, ['K'] = 11, ['L'] =  9,
-	['M'] = 13, ['N'] = 12, ['O'] = 13, ['P'] = 11,
-	['Q'] = 13, ['R'] = 11, ['S'] = 11, ['T'] = 11,
-	['U'] = 12, ['V'] = 12, ['W'] = 17, ['X'] = 11,
-	['Y'] = 11, ['Z'] = 11,
-
-	['-'] =  9,
-
-	/* 蓝色专属特殊字符 (Flash index 37-40) */
-	[':'] =  8,
-	['^'] = 16,
-	['.'] =  4,
-	['/'] =  8,
-};
-
-/* 12 高度 — 蓝色 (TODO: 填入实际宽度) */
-static const uint8_t digit_12_width_blue[128] = {
+/* 12 高度 — 蓝色 */
+static const uint8_t digit_12_width_blue[] = {
 	['0'] =  8, ['1'] = 5, ['2'] = 8, ['3'] = 8,
 	['4'] =  9, ['5'] = 8, ['6'] = 8, ['7'] = 8,
 	['8'] =  8, ['9'] = 8,
@@ -128,23 +105,29 @@ static uint8_t char_to_idx(char c)
  * ================================================================ */
 static uint8_t get_char_w(char c, uint8_t color, uint8_t height)
 {
-	const uint8_t *table;
+	uint8_t w;
 
-	if ((uint8_t)c >= 128)
+	/* 不支持的字符 → 0, 同时防止数组越界 (删 [128] 后数组仅到最高有效索引) */
+	if (char_to_idx(c) == 0xFF)
 		return 0;
 
 	if (height == DIGIT_HEIGHT_12)
-	{
-		table = digit_12_width_blue;
-	}
-	else
-	{
-		table = (color == DIGIT_16_COLOR_WHITE)
-			? digit_16_width
-			: digit_16_width_blue;
+		return digit_12_width_blue[(uint8_t)c];
+
+	/* 16 高度: 白/蓝共用主表 (白色值) */
+	w = digit_16_width[(uint8_t)c];
+
+	/* 蓝色宽度覆盖: 'M','R' 与白色不同; ':','^','.','/' 蓝色专属 */
+	if (color == DIGIT_16_COLOR_BLUE) {
+		if      (c == 'M') return 13;
+		else if (c == 'R') return 11;
+		else if (c == ':') return  8;
+		else if (c == '^') return 16;
+		else if (c == '.') return  4;
+		else if (c == '/') return  8;
 	}
 
-	return table[(uint8_t)c];
+	return w;
 }
 
 /* ================================================================

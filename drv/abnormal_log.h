@@ -57,6 +57,9 @@ uint8_t abnormal_log_voltage_count(void);
 /* 温度异常: 更新当前小时最差值 (仅 RAM) */
 void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c, uint8_t type, uint8_t chg_state);
 
+/* 温度异常: 强制更新当前小时最差值 (仅 RAM) */
+void abnormal_log_temperature_update_force(uint32_t hour_start, uint16_t value_01c, uint8_t type, uint8_t chg_state);
+
 /* 温度异常: 提交到 Flash, 满 100 条返回 0 */
 uint8_t abnormal_log_temperature_commit(uint32_t timestamp);
 

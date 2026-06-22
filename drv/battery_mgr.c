@@ -490,8 +490,34 @@ void battery_mgr_proc(void)
                     ui_data.last_page = ui_data.cur_page;
                     ui_data.cur_page = PAGE_OVER_TEMP;
                 }
+
+                /* 写异常日志: 确定事件类型 */
+                {
+                    uint8_t evt_type;
+
+                    if (g_bat.warning_chg_state == CHG_STATE_CHARGING)
+                        evt_type = ABNORMAL_EVT_OT_PROT_CHG;
+                    else if (g_bat.warning_chg_state == CHG_STATE_DISCHARGING)
+                        evt_type = ABNORMAL_EVT_OT_PROT_DSG;
+                    else
+                        evt_type = ABNORMAL_EVT_OT_PROT_IDLE;
+
+                    if (ts > 0) {
+                        abnormal_log_temperature_update(ts - (ts % 3600),
+                                            (uint16_t)g_bat.temperature_01c,
+                                            evt_type, g_bat.warning_chg_state);
+
+                        /* 首次进入保护: 立即写 Flash, 开始 1h 计时 */
+                        if (g_bat.temp_1h_tick == 0) {
+                            abnormal_log_temperature_update_force(ts - (ts % 3600),
+                                            (uint16_t)g_bat.temperature_01c,
+                                            evt_type, g_bat.warning_chg_state);
+                            abnormal_log_temperature_commit(ts);
+                            g_bat.temp_1h_tick = now;
+                        }
+                    }
+                }
             }
-        // 低温不需要
         else if (low_temp)
             {
                 g_bat.warning = WARNING_LOW_TEMP;
@@ -504,38 +530,17 @@ void battery_mgr_proc(void)
                 }
             }
         else
-            g_bat.warning = WARNING_NONE;
-    }
-
-    /* ---- 6. 低温不写flash ---- */
-    // if (g_bat.warning == WARNING_OVER_TEMP || g_bat.warning == WARNING_LOW_TEMP) {
-    if (g_bat.warning == WARNING_OVER_TEMP) {
-        uint8_t evt_type;
-
-        if (g_bat.chg_state == CHG_STATE_CHARGING) {
-            evt_type = (g_bat.warning == WARNING_OVER_TEMP)
-                     ? ABNORMAL_EVT_OT_PROT_CHG : ABNORMAL_EVT_UT_PROT_CHG;
-        } else if (g_bat.chg_state == CHG_STATE_DISCHARGING) {
-            evt_type = (g_bat.warning == WARNING_OVER_TEMP)
-                     ? ABNORMAL_EVT_OT_PROT_DSG : ABNORMAL_EVT_UT_PROT_DSG;
-        } else {
-            evt_type = (g_bat.warning == WARNING_OVER_TEMP)
-                     ? ABNORMAL_EVT_OT_PROT_IDLE : ABNORMAL_EVT_UT_PROT_IDLE;
-        }
-
-        if (ts > 0) {
-            abnormal_log_temperature_update(ts - (ts % 3600),
-                                (uint16_t)g_bat.temperature_01c,
-                                evt_type, g_bat.chg_state);
-
-            /* 首次进入保护: 立即写 Flash, 开始 1h 计时 */
-            if (g_bat.temp_1h_tick == 0) {
-                abnormal_log_temperature_commit(ts);
-                g_bat.temp_1h_tick = now;
+            {
+                g_bat.warning = WARNING_NONE;
             }
-        }
-    } else {
-        /* 退出保护: 清零 1h 计时, 未满 1h 不提交, 下次进入视为首次 */
+
+        /* 退出过温保护: 清零 1h 计时 */
+        if (!over_temp && g_bat.temp_1h_tick != 0)
+            g_bat.temp_1h_tick = 0;
+    }
+    else
+    {
+        /* g_bat.disabled: 清零计时 */
         if (g_bat.temp_1h_tick != 0)
             g_bat.temp_1h_tick = 0;
     }
