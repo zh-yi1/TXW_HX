@@ -33,9 +33,12 @@ static abnormal_ctx_t g_temp_ctx;   /* 温度异常 */
 /* ---- 内部: 扫描固定区, 恢复写指针和计数 ---- */
 static void scan_area(uint32_t base, uint32_t *write_addr, uint8_t *count)
 {
-    uint32_t newest_addr = base;
-    uint32_t newest_ts   = 0;
-    uint8_t  n           = 0;
+    /* 记录为追加写 (存满即停不覆盖), 物理顺序 = 写入顺序, 故按"最后一条有效记录
+       的地址"定位写指针, 不再用 timestamp 比较 —— RTC 掉电回退/首上电小值会令
+       按时间戳取最大者恢复出错位指针, 进而触发整块擦除丢数据. */
+    uint32_t last_addr = base;
+    uint8_t  have_last = 0;
+    uint8_t  n         = 0;
     uint8_t  buf[RECORD_SIZE];
 
     for (uint16_t offs = 0; offs < AREA_SIZE; offs += RECORD_SIZE) {
@@ -45,6 +48,7 @@ static void scan_area(uint32_t base, uint32_t *write_addr, uint8_t *count)
             break;
 
         if (buf[0] == 0xFF) {
+            /* 空槽: 追加写下该块尾部必为空, 直接跳到下一块 */
             uint32_t blk_end = (addr & ~(BLOCK_SIZE - 1)) + BLOCK_SIZE;
             uint32_t area_end = base + AREA_SIZE;
             if (blk_end > area_end) blk_end = area_end;
@@ -57,30 +61,27 @@ static void scan_area(uint32_t base, uint32_t *write_addr, uint8_t *count)
             continue;
 
         n++;
-
-        abnormal_record_t *rec = (abnormal_record_t *)buf;
-        if (rec->timestamp >= newest_ts) {
-            newest_ts   = rec->timestamp;
-            newest_addr = addr;
-        }
+        last_addr = addr;   /* 地址越大 = 越晚写入 */
+        have_last = 1;
     }
 
     *count = n;
 
-    if (n == 0) {
+    if (!have_last) {
         *write_addr = base;
-    } else {
-        uint32_t next = newest_addr + RECORD_SIZE;
-
-        uint32_t block_end = (newest_addr & ~(BLOCK_SIZE - 1)) + BLOCK_SIZE;
-        if (next + RECORD_SIZE > block_end)
-            next = block_end;
-
-        if (next >= base + AREA_SIZE)
-            next = base;
-
-        *write_addr = next;
+        return;
     }
+
+    /* 写指针 = 最后一条记录之后; 若该块已满则对齐到下一块起始 */
+    uint32_t next      = last_addr + RECORD_SIZE;
+    uint32_t block_end = (last_addr & ~(BLOCK_SIZE - 1)) + BLOCK_SIZE;
+    if (next + RECORD_SIZE > block_end)
+        next = block_end;
+
+    if (next >= base + AREA_SIZE)
+        next = base;   /* 已满 (MAX_RECORDS 封顶, 理论上不会到达) */
+
+    *write_addr = next;
 }
 
 /* ---- 内部: 前进写指针 ---- */
@@ -88,9 +89,11 @@ static void advance_write_ptr(uint32_t base, uint32_t *write_addr)
 {
     uint32_t next = *write_addr + RECORD_SIZE;
 
+    /* 跨块则对齐到下一块起始 (每块 16 条, 无跨块残页) */
     if ((next & ~(BLOCK_SIZE - 1)) != (*write_addr & ~(BLOCK_SIZE - 1)))
         next = (next & ~(BLOCK_SIZE - 1));
 
+    /* MAX_RECORDS=100 < 物理容量 112, 正常永不回卷; 此处仅作越界保护. */
     if (next >= base + AREA_SIZE)
         next = base;
 
@@ -114,13 +117,13 @@ static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint8_t *co
     rec.cell      = cell;
     rec.chg_state = chg_state;
 
-    /* 目标位置非空则擦除所在块 */
+    /* 目标位置必须为空 (追加写不变式). 非空说明写指针错位或 Flash 损坏 —— 此时
+       拒绝写入并返回 0, 绝不擦除整块, 以免连同同块最多 15 条有效记录一起抹掉.
+       (旧实现"非空即擦整块"与"追加写不覆盖"设计冲突, 且会放大指针错位的后果.) */
     {
         uint8_t test;
-        if (flash_read(*write_addr, &test, 1) == MD_OK && test != 0xFF) {
-            flash_sector_erase(*write_addr & ~(BLOCK_SIZE - 1));
-            flash_wait_unbusy();
-        }
+        if (flash_read(*write_addr, &test, 1) == MD_OK && test != 0xFF)
+            return 0;
     }
 
     if (flash_write(*write_addr, (uint8_t *)&rec, RECORD_SIZE) != MD_OK)
@@ -157,6 +160,9 @@ static uint8_t read_record_at(uint32_t base, uint32_t addr, abnormal_record_t *o
 static uint8_t read_by_index(uint32_t base, uint32_t write_addr, uint8_t count,
                               uint8_t index, abnormal_record_t *out)
 {
+    /* 追加写且 MAX_RECORDS(100) < 物理容量(112), 写指针不会回卷, 全部记录连续
+       落在 [base, write_addr) 内, 从 write_addr 倒序读即可, index=0 为最新.
+       (原环形第二段循环已删: 100 条封顶不覆盖, 不会回卷.) */
     if (index >= count)
         return 1;
 
@@ -169,16 +175,6 @@ static uint8_t read_by_index(uint32_t base, uint32_t write_addr, uint8_t count,
             if (found == index)
                 return 0;
             found++;
-        }
-    }
-
-    if (found <= index) {
-        for (i = AREA_SIZE - RECORD_SIZE; i > start_offs && found <= index; i -= RECORD_SIZE) {
-            if (read_record_at(base, base + i, out) == 0) {
-                if (found == index)
-                    return 0;
-                found++;
-            }
         }
     }
 
@@ -252,18 +248,18 @@ void abnormal_log_reset(void)
 void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv,
                                   uint8_t cell, uint8_t chg_state)
 {
-    if (hour_start != g_volt_ctx.hour_start) {
-        g_volt_ctx.hour_start  = hour_start;
+    /* 最差值按"自上次 commit() 起的提交窗口"累积, 不再按 RTC 整点重置.
+       提交节奏由 battery_mgr 的 SysTick 1h 计时决定; 此处若仍用 RTC 整点
+       重置, 会与提交不同步 —— 落在两次提交之间的整点会把当前窗口已累积的
+       峰值丢弃. commit() 写入后清零 worst_value/dirty, 下次首样本经 !dirty
+       分支重新装入, 不会遗漏. */
+    if (!g_volt_ctx.dirty || value_mv > g_volt_ctx.worst_value) {
         g_volt_ctx.worst_value = value_mv;
-        g_volt_ctx.extra  = cell;
-        g_volt_ctx.chg_state   = chg_state;
-        g_volt_ctx.dirty       = 1;
-    } else if (value_mv > g_volt_ctx.worst_value) {
-        g_volt_ctx.worst_value = value_mv;
-        g_volt_ctx.extra  = cell;
+        g_volt_ctx.extra       = cell;
         g_volt_ctx.chg_state   = chg_state;
         g_volt_ctx.dirty       = 1;
     }
+    g_volt_ctx.hour_start = hour_start;   /* 仅留作参考, 不再触发重置 */
 }
 
 uint8_t abnormal_log_voltage_commit(uint32_t timestamp)
@@ -300,18 +296,14 @@ uint8_t abnormal_log_voltage_count(void)
 void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c,
                                       uint8_t type, uint8_t chg_state)
 {
-    if (hour_start != g_temp_ctx.hour_start) {
-        g_temp_ctx.hour_start  = hour_start;
+    /* 同 voltage: 按 commit 提交窗口累积最差值, 不按 RTC 整点重置 (避免双时钟错相丢峰值). */
+    if (!g_temp_ctx.dirty || value_01c > g_temp_ctx.worst_value) {
         g_temp_ctx.worst_value = value_01c;
-        g_temp_ctx.extra  = type;
-        g_temp_ctx.chg_state   = chg_state;
-        g_temp_ctx.dirty       = 1;
-    } else if (value_01c > g_temp_ctx.worst_value) {
-        g_temp_ctx.worst_value = value_01c;
-        g_temp_ctx.extra  = type;
+        g_temp_ctx.extra       = type;
         g_temp_ctx.chg_state   = chg_state;
         g_temp_ctx.dirty       = 1;
     }
+    g_temp_ctx.hour_start = hour_start;   /* 仅留作参考, 不再触发重置 */
 }
 
 void abnormal_log_temperature_update_force(uint32_t hour_start, uint16_t value_01c,

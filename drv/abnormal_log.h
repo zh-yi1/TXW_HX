@@ -24,6 +24,10 @@ typedef enum {
 } chg_state_t;
 
 /* ---- 固定区异常记录 (16B) ---- */
+/* #pragma pack(1): timestamp 在偏移 1、value 在偏移 5, 均非对齐.
+   必须整体按字节访问 (经 buf[16] + memcpy 进出 Flash); 切勿对成员取址做强转
+   (如 *(uint32_t*)&rec.timestamp) —— Cortex-M0 无非对齐访问支持会触发 HardFault.
+   abnormal_log.c 已统一用 buf[RECORD_SIZE] + memcpy 处理. */
 #pragma pack(1)
 typedef struct {
     uint8_t  magic;         /* 0x5A 表示有效记录 */
@@ -42,7 +46,7 @@ void abnormal_log_init(void);
 void abnormal_log_reset(void);  /* V1.3: 恢复出厂设置 — 擦除全部异常记录 Flash 区并复位 RAM */
 #endif
 
-/* 电压异常: 更新当前小时最差值 (仅 RAM) */
+/* 电压异常: 更新当前提交窗口最差值(约1h, 自上次 commit 起) (仅 RAM) */
 void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t cell, uint8_t chg_state);
 
 /* 电压异常: 提交到 Flash, 满 100 条返回 0 */
@@ -54,10 +58,10 @@ uint8_t abnormal_log_voltage_read(uint8_t index, abnormal_record_t *out);
 /* 电压异常: 总条数 */
 uint8_t abnormal_log_voltage_count(void);
 
-/* 温度异常: 更新当前小时最差值 (仅 RAM) */
+/* 温度异常: 更新当前提交窗口最差值(约1h, 自上次 commit 起) (仅 RAM) */
 void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c, uint8_t type, uint8_t chg_state);
 
-/* 温度异常: 强制更新当前小时最差值 (仅 RAM) */
+/* 温度异常: 强制更新当前提交窗口最差值(约1h, 自上次 commit 起) (仅 RAM) */
 void abnormal_log_temperature_update_force(uint32_t hour_start, uint16_t value_01c, uint8_t type, uint8_t chg_state);
 
 /* 温度异常: 提交到 Flash, 满 100 条返回 0 */
