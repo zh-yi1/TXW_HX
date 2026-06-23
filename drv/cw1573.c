@@ -10,7 +10,7 @@ volatile cw1573_data_t      cw1573_raw;
 volatile cw1573_proc_data_t cw1573_info;
 volatile uint8_t            cw1573_comm_ok = 1;
 
-volatile uint8_t g_bat_high_temp;  /* 电芯高温: rntc_ohm >= 26000Ω */
+volatile uint8_t g_bat_high_temp;  /* 电芯高温: rntc_ohm <= 26000Ω (NTC 阻值越低越热, 26kΩ≈57℃) */
 
 uint8_t cw1573_cell_cnt = 4;
 static uint8_t cw1573_cfg_done  = 0;

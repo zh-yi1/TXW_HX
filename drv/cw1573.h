@@ -164,7 +164,7 @@ extern uint8_t cw1573_cell_cnt;
 extern volatile uint8_t            cw1573_comm_ok;
 extern volatile cw1573_data_t      cw1573_raw;
 extern volatile cw1573_proc_data_t cw1573_info;
-extern volatile uint8_t            g_bat_high_temp;  /* 电芯高温: rntc_ohm >= 26000Ω */
+extern volatile uint8_t            g_bat_high_temp;  /* 电芯高温: rntc_ohm <= 26000Ω (NTC 阻值越低越热, 26kΩ≈57℃) */
 
 void cw1573_proc(void);
 

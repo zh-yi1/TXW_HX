@@ -73,7 +73,7 @@ typedef struct {
     uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
     uint8_t  chg_state;             /* 充放电状态 */
     uint8_t  warning_chg_state;     /* 警告触发时的充放电状态 */
-    int16_t  temperature_01c;       /* 电池温度 0.1℃ (取 bat_ntc1/2 较高者) */
+    int16_t  temperature_01c;       /* 电池温度 0.1℃ (TEMP_NTC2_ONLY=1: 仅用 bat_ntc2) */
 } battery_mgr_ctx_t;
 
 static battery_mgr_ctx_t g_bat;
@@ -87,8 +87,9 @@ static battery_mgr_ctx_t g_bat;
  * ntc_resistance_to_temp — NTC 阻值 → 温度 (0.1℃)
  *
  * 使用线性插值查找表, 覆盖 -20℃ ~ 80℃.
- * NTC 数据由主机 (020) 通过 I2C 下发到 ui_data.bat_ntc1.
- * 阻值 = 0 表示主机尚未下发数据, 保持上次温度.
+ * NTC 物理上为单颗, 接在 CW1573 (TFT 侧); TFT 经 0x5C 上报主机,
+ * 主机再通过 bat_ntc2 回传 (TEMP_NTC2_ONLY=1 时仅用 bat_ntc2).
+ * 阻值 = 0 表示尚未收到数据, 保持上次温度.
  * ========================================================================== */
 static int16_t ntc_resistance_to_temp(uint32_t r_ohm)
 {
@@ -259,17 +260,17 @@ void battery_mgr_init(void)
 }
 
 /* ==========================================================================
- * battery_mgr_proc — 主轮询, 500ms 周期
+ * battery_mgr_proc — 主轮询, 50ms 周期 (BAT_MGR_POLL_MS)
  *
  * 数据来源:
  *   - 电芯电压: CW1573 AFE 本地采集
- *   - NTC 阻值: 主机 (020) 通过 I2C 下发 → ui_data.bat_ntc1
- *   - 温度保护状态: 主机 (020) 通过 I2C 下发 → ui_data.ntc_status
+ *   - NTC 阻值: CW1573 采集 → TFT 经 0x5C 上报主机 → 主机回传 ui_data.bat_ntc2
+ *   - 温度保护状态: 主机判定后通过 I2C 下发 → ui_data.ntc_status
  *
  * 判断逻辑:
  *   - 过压/欠压: TFT 本地判断 (CW1573 电芯电压)
- *   - 温度警告: 主机下发 ntc_status
- *   - 温度异常记录: TFT 本地换算后与阈值比较
+ *   - 温度警告/保护页面: 由主机 ntc_status 触发 (TFT 不做本地温度阈值判断)
+ *   - 温度异常记录: 随主机过温 (ntc_status) 触发, 记录本地换算的温度值
  * ========================================================================== */
 void battery_mgr_proc(void)
 {
@@ -314,7 +315,7 @@ void battery_mgr_proc(void)
         g_bat.temperature_01c = t2;
     /* else: 双 NTC 均无数据, 保持上次温度 */
 #else
-    /* ---- 1. 温度计算 (临时: 仅用 bat_ntc2) ---- */
+    /* ---- 1. 温度计算 (单 NTC: 仅用 bat_ntc2, 来自 CW1573 经主机回传) ---- */
     if (ui_data.bat_ntc2 != 0)
         g_bat.temperature_01c = ntc_resistance_to_temp(ui_data.bat_ntc2);
 #endif
