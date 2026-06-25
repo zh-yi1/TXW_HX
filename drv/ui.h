@@ -14,19 +14,19 @@
 #define SPI_MISO_PIN 			MD_GPIO_PIN_12
 
 #define LCD_RS					GPIOA
-#define LCD_RS_PIN				MD_GPIO_PIN_8
+#define LCD_RS_PIN				MD_GPIO_PIN_1	/* QFN20: TFT-SPI-DC @ Pin3 */
 
 #define LCD_RST					GPIOA
-#define LCD_RST_PIN				MD_GPIO_PIN_7
+#define LCD_RST_PIN				MD_GPIO_PIN_0	/* QFN20: TFT-SPI-RST @ Pin2 */
 
 #define LCD_CS					GPIOA
 #define LCD_CS_PIN				MD_GPIO_PIN_3
 
-#define LCD_BLK					GPIOA
-#define LCD_BLK_PIN				MD_GPIO_PIN_1
+#define LCD_BLK					GPIOB
+#define LCD_BLK_PIN				MD_GPIO_PIN_6	/* QFN20: LCD-BLK @ Pin20 (PB6) */
 
-#define FLASH_CS				GPIOA
-#define FLASH_CS_PIN			MD_GPIO_PIN_9
+#define FLASH_CS				GPIOB
+#define FLASH_CS_PIN			MD_GPIO_PIN_3	/* QFN20: SPI-NSS @ Pin17 (PB3) */
 
 #define TFT_EN					GPIOA
 #define TFT_EN_PIN				MD_GPIO_PIN_4
