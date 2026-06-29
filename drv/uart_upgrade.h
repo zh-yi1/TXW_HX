@@ -18,7 +18,7 @@
 
 #define APP_ADDR    0x1400
 #define BOOT_ADDR   0x0000
-#define CRC_CAL_PAGE_ADDR   0x7E00
+#define CRC_CAL_PAGE_ADDR   0xFE00
 #define GO_APP      0xFFFFFFFE
 #define GO_BOOT     0xFFFFFFFD
 
