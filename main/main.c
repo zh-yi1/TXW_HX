@@ -38,7 +38,7 @@ int main()
 static void sys_init(void)
 {
 	/* Configure system clock */
-	md_cmu_clock_config(MD_CMU_CLOCK_HRC, 48000000);
+	md_cmu_clock_config(MD_CMU_CLOCK_HRC, 52000000);
 
 	/* Initialize SysTick Interrupt */
 	md_init_1ms_tick();

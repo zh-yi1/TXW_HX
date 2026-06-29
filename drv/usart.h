@@ -22,7 +22,7 @@
 #define USART1_GPIO_FUNC    MD_GPIO_FUNC_7
 
 /* ---- Ring buffer ---- */
-#define USART_RX_BUF_SIZE   256
+#define USART_RX_BUF_SIZE   128
 
 /* ---- Exported variables ---- */
 extern volatile uint8_t  usart_rx_buf[USART_RX_BUF_SIZE];
