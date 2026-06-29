@@ -15,8 +15,7 @@
 #define KEY_SHORT_MAX_MS    1500    /* maximum press for a click (beyond → long-press) */
 #define KEY_DOUBLE_GAP_MS   50     /* minimum gap after release for 2nd click (filters bounce) */
 #define KEY_DOUBLE_WAIT_MS  500     /* maximum wait for 2nd click (then confirms single click) */
-#define KEY_LONG_MIN_MS     3000    /* minimum hold for long-press */
-#define KEY_LONG_MAX_MS     6000    /* maximum hold for long-press (exceed = ignore) */
+#define KEY_LONG_MIN_MS     5000    /* minimum hold for long-press (fires immediately, no wait for release) */
 #define KEY_COMBO_CLICKS    5       /* clicks needed before combo long-press */
 
 #define KEY_PRESSED()       (md_gpio_get_input_data(KEY_PORT, KEY_PIN) == 0)

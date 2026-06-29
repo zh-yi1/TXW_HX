@@ -108,41 +108,28 @@ void key_proc(void)
 				key_state      = KEY_STATE_WAIT_DOUBLE;
 				state_entry_ms = now;
 			}
-			else if (held >= KEY_LONG_MIN_MS
-			         && held < KEY_LONG_MAX_MS
-			         && !combo_fired)
-			{
-				key_long_press_cb();
-				burst_cnt = 0;
-				combo_cnt = 0;
-				key_state = KEY_STATE_IDLE;
-			}
 			else
 			{
-				/* too short, dead zone, or combo already fired */
+				/* too short, dead zone, or long-press already fired */
 				burst_cnt    = 0;
 				combo_cnt    = 0;
 				is_2nd_click = false;
 				key_state    = KEY_STATE_IDLE;
 			}
 		}
-		else if (held >= KEY_LONG_MIN_MS && held < KEY_LONG_MAX_MS)
+		else if (held >= KEY_LONG_MIN_MS && !combo_fired)
 		{
-			/* ----- long-press threshold reached ----- */
-			if (!combo_fired && combo_cnt >= KEY_COMBO_CLICKS)
+			/* ----- 5s threshold reached, fire immediately (no wait for release) ----- */
+			if (combo_cnt >= KEY_COMBO_CLICKS)
 			{
 				key_combo_cb();
-				combo_fired = true;
-				key_state   = KEY_STATE_LONG_HOLD;
 			}
-			/* else: stay in PRESS, long-press fires on release */
-		}
-		else if (held >= KEY_LONG_MAX_MS)
-		{
-			/* exceeded max hold — discard */
-			burst_cnt = 0;
-			combo_cnt = 0;
-			key_state = KEY_STATE_LONG_HOLD;
+			else
+			{
+				key_long_press_cb();
+			}
+			combo_fired = true;
+			key_state   = KEY_STATE_LONG_HOLD;
 		}
 		break;
 
