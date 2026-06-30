@@ -93,7 +93,7 @@ uint8_t ip3561q_read_reg(uint8_t reg, uint8_t *buf, uint8_t len)
  * ========================================================================== */
 static const uint8_t ip3561q_cfg_table[][2] = {
     { IP3561Q_REG_CTL1,         0x04 },   /* OC_MODE_SEL=1 */
-    { IP3561Q_REG_CTL2,         0x04 },   /* CELL_BALANCE_MODE=1 */
+    { IP3561Q_REG_CTL2,         0x34 },   /* CELL_BALANCE_MODE=1 */
     { IP3561Q_REG_CTL3,         0x0C },   /* IDLE_ADC_MODE=11 */
     { IP3561Q_REG_DOC1,         0x07 },   /* DOC1: 11A→27.5mV */
     { IP3561Q_REG_DOC2,         0x04 },   /* DOC2: 15A→37.5mV */
@@ -109,7 +109,8 @@ static const uint8_t ip3561q_cfg_table[][2] = {
     { IP3561Q_REG_UVL_UVRH,     0x20 },   /* UV低2位 + UVR高6位 */
     { IP3561Q_REG_BAL_H,        0xB9 },   /* 均衡=4.35V, 高8位 */
     { IP3561Q_REG_BAL_L_DLY,    0x8B },   /* 均衡低2位 + 延时 */
-    { IP3561Q_REG_MCU_CTL2,     0x40 },   /* IDLE_EN=1 */
+    // { IP3561Q_REG_MCU_CTL2,     0x40 },   /* IDLE_EN=1 */
+    { IP3561Q_REG_MCU_CTL2,     0x00 },   /* TODO：测试环境IDLE_EN=0后续改为1 */
 };
 
 #define IP3561Q_CFG_COUNT  (sizeof(ip3561q_cfg_table) / sizeof(ip3561q_cfg_table[0]))
@@ -259,10 +260,10 @@ void ip3561q_calc_data(ip3561q_data_t *raw, ip3561q_proc_data_t *p)
         }
     }
 
-    /* NTC2 阻值: 手册直接公式 Rntc(Ω) = NTC_ADC * 10000 / (32768 - NTC_ADC)
+    /* NTC1 阻值: 手册直接公式 Rntc(Ω) = NTC_ADC * 10000 / (32768 - NTC_ADC)
      * 手册注明 NTC bit15 恒为 0, 直接 unsigned 计算 */
     {
-        uint16_t ntc = raw->ntc_adc[1];  /* NTC2 */
+        uint16_t ntc = raw->ntc_adc[0];  /* NTC1 */
         if (ntc > 0 && ntc < 32768)
         {
             p->rntc_ohm = (uint32_t)ntc * 10000UL / (32768UL - ntc);
