@@ -3,9 +3,8 @@
 #include "rtc_timer.h"
 #include "ui.h"
 
-/* ---- CW1573 数据引用 (定义在 cw1573.c) ---- */
-extern volatile cw1573_proc_data_t cw1573_info;
-extern uint8_t cw1573_cell_cnt;
+/* ---- IP3561Q 数据引用 (定义在 ip3561q.c) ---- */
+extern volatile ip3561q_proc_data_t ip3561q_info;
 
 /* 禁用原因 (仅内部使用) */
 #define DISABLE_REASON_OV  1   /* 过压禁用 */
@@ -69,7 +68,7 @@ typedef struct {
     uint8_t  uv_recov_cnt[4];       /* 每节电芯欠压恢复持续次数 (>=10 = 持续 5s) */
     uint8_t  disabled;              /* 禁用标志 */
     uint8_t  disable_reason;        /* 禁用原因 (DISABLE_REASON_OV / DISABLE_REASON_UV) */
-    uint8_t  cw1573_noresp_cnt;     /* CW1573 连续无应答次数 (500ms/次, >=10 = 5s → 欠压) */
+    uint8_t  ip3561q_noresp_cnt;     /* IP3561Q 连续无应答次数 (500ms/次, >=10 = 5s → 欠压) */
     uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
     uint8_t  chg_state;             /* 充放电状态 */
     uint8_t  warning_chg_state;     /* 警告触发时的充放电状态 */
@@ -87,7 +86,7 @@ static battery_mgr_ctx_t g_bat;
  * ntc_resistance_to_temp — NTC 阻值 → 温度 (0.1℃)
  *
  * 使用线性插值查找表, 覆盖 -20℃ ~ 80℃.
- * NTC 物理上为单颗, 接在 CW1573 (TFT 侧); TFT 经 0x5C 上报主机,
+ * NTC 物理上为单颗, 接在 IP3561Q (TFT 侧); TFT 经 0x5C 上报主机,
  * 主机再通过 bat_ntc2 回传 (TEMP_NTC2_ONLY=1 时仅用 bat_ntc2).
  * 阻值 = 0 表示尚未收到数据, 保持上次温度.
  * ========================================================================== */
@@ -263,12 +262,12 @@ void battery_mgr_init(void)
  * battery_mgr_proc — 主轮询, 50ms 周期 (BAT_MGR_POLL_MS)
  *
  * 数据来源:
- *   - 电芯电压: CW1573 AFE 本地采集
- *   - NTC 阻值: CW1573 采集 → TFT 经 0x5C 上报主机 → 主机回传 ui_data.bat_ntc2
+ *   - 电芯电压: IP3561Q AFE 本地采集
+ *   - NTC 阻值: IP3561Q 采集 → TFT 经 0x5C 上报主机 → 主机回传 ui_data.bat_ntc2
  *   - 温度保护状态: 主机判定后通过 I2C 下发 → ui_data.ntc_status
  *
  * 判断逻辑:
- *   - 过压/欠压: TFT 本地判断 (CW1573 电芯电压)
+ *   - 过压/欠压: TFT 本地判断 (IP3561Q 电芯电压)
  *   - 温度警告/保护页面: 由主机 ntc_status 触发 (TFT 不做本地温度阈值判断)
  *   - 温度异常记录: 随主机过温 (ntc_status) 触发, 记录本地换算的温度值
  * ========================================================================== */
@@ -281,7 +280,7 @@ void battery_mgr_proc(void)
     uint8_t  v1, v2;
 #endif
 
-    if (!cw1573_is_ready())
+    if (!ip3561q_is_ready())
         return;
 
     now = md_get_tick();
@@ -295,9 +294,9 @@ void battery_mgr_proc(void)
         return;
 #endif
 
-    /* 更新 CW1573 处理数据 */
-    cw1573_calc_data((cw1573_data_t *)&cw1573_raw,
-                     (cw1573_proc_data_t *)&cw1573_info);
+    /* 更新 IP3561Q 处理数据 */
+    ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw,
+                     (ip3561q_proc_data_t *)&ip3561q_info);
 #if !TEMP_NTC2_ONLY
     /* ---- 1. 温度计算 (主机 NTC1/2 阻值 → 本地换算, 取较高者) ---- */
     t1 = 0; t2 = 0;
@@ -315,7 +314,7 @@ void battery_mgr_proc(void)
         g_bat.temperature_01c = t2;
     /* else: 双 NTC 均无数据, 保持上次温度 */
 #else
-    /* ---- 1. 温度计算 (单 NTC: 仅用 bat_ntc2, 来自 CW1573 经主机回传) ---- */
+    /* ---- 1. 温度计算 (单 NTC: 仅用 bat_ntc2, 来自 IP3561Q 经主机回传) ---- */
     if (ui_data.bat_ntc2 != 0)
         g_bat.temperature_01c = ntc_resistance_to_temp(ui_data.bat_ntc2);
 #endif
@@ -330,13 +329,13 @@ void battery_mgr_proc(void)
 
     /* ---- 4. 逐电芯检测 (TFT 本地判断) ---- */
 
-    /* 4.0 CW1573 通信异常检测: 连续 5s 无应答 → 欠压禁用
-     *     当电池欠压时 CW1573 掉电不工作, I2C 无 ACK,
-     *     此时 cw1573_info.vcell_mv[] 为旧数据 (v > 1.5V), 无法通过 4.1 的电压阈值检测,
+    /* 4.0 IP3561Q 通信异常检测: 连续 5s 无应答 → 欠压禁用
+     *     当电池欠压时 IP3561Q 掉电不工作, I2C 无 ACK,
+     *     此时 ip3561q_info.vcell_mv[] 为旧数据 (v > 1.5V), 无法通过 4.1 的电压阈值检测,
      *     因此通过通信状态判断: 连续无应答 5s 即判定欠压 */
-    if (!cw1573_comm_ok) {
-        g_bat.cw1573_noresp_cnt++;
-        if (g_bat.cw1573_noresp_cnt >= BAT_MGR_POLL_CNT(5)) {
+    if (!ip3561q_comm_ok) {
+        g_bat.ip3561q_noresp_cnt++;
+        if (g_bat.ip3561q_noresp_cnt >= BAT_MGR_POLL_CNT(5)) {
             g_bat.disabled = 1;
             g_bat.disable_reason = DISABLE_REASON_UV;
 
@@ -352,15 +351,15 @@ void battery_mgr_proc(void)
             ui_data.cur_page  = PAGE_DISABLED;
         }
     } else {
-        g_bat.cw1573_noresp_cnt = 0;
+        g_bat.ip3561q_noresp_cnt = 0;
     }
 
-    for (i = 0; i < cw1573_cell_cnt; i++) {
+    for (i = 0; i < IP3561Q_CELL_CNT; i++) {
 #if BAT_ENABLE_TEST_EN
         uint16_t v = vcell_mv[i];
 
 #else
-        uint16_t v = cw1573_info.vcell_mv[i];
+        uint16_t v = ip3561q_info.vcell_mv[i];
 #endif
 #if BAT_DISABLE_DETECT_EN
         /* 4.1 欠压禁用检测 (V < 1.5V 持续 > 5s) */
@@ -561,23 +560,23 @@ void battery_mgr_proc(void)
 
 uint16_t battery_mgr_cell_voltage_mv(uint8_t cell_idx)
 {
-    if (cell_idx >= 4 || !cw1573_is_ready())
+    if (cell_idx >= 4 || !ip3561q_is_ready())
         return 0;
-    return cw1573_info.vcell_mv[cell_idx];
+    return ip3561q_info.vcell_mv[cell_idx];
 }
 
 uint16_t battery_mgr_pack_voltage_mv(void)
 {
-    if (!cw1573_is_ready())
+    if (!ip3561q_is_ready())
         return 0;
-    return cw1573_info.pack_mv;
+    return ip3561q_info.vbat_mv;
 }
 
 int16_t battery_mgr_current_ma(void)
 {
-    if (!cw1573_is_ready())
+    if (!ip3561q_is_ready())
         return 0;
-    return cw1573_info.current_ma;
+    return ip3561q_info.current_ma;
 }
 
 int16_t battery_mgr_temperature_01c(void)

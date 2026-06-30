@@ -21,7 +21,7 @@ ui_data_t ui_data = {
 	.bat_temperature = 250,   /* 25.0℃ */
 	.bat_voltage = 0,
 	.bat_current = 0,
-	.bat_cc = 0,
+
 	.warning = WARNING_NONE,
 	.cur_page = PAGE_DEFAULT,
 	.last_page = PAGE_MAX,
@@ -119,7 +119,6 @@ void ui_proc(void)
 		{
 			abnormal_record_t rec;
 			uint8_t total = abnormal_log_voltage_count();
-			const char *model = NULL;
 			/* 仅在真正切页时复位索引, 强制重绘 (last_page=PAGE_ABNORMAL_UPDATA) 时不复位 */
 			if (ui_data.last_page != PAGE_ABNORMAL_UPDATA)
 				ui_data.abnormal_idx = 0;

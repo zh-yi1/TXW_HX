@@ -20,10 +20,10 @@ int main()
 
 		/* ---- 产测协议处理 (USART1) ---- */
 #ifndef DEBUG_EN
-		prod_test_proc();
+		// prod_test_proc();
 #endif /* !DEBUG_EN */
 
-		cw1573_proc();
+		ip3561q_proc();
 		rtc_timer_proc();
 		i2c_slave_proc();          /* 主机数据 → ui_data (先于 battery_mgr) */
 		battery_mgr_proc();        /* OV/UV + NTC 温度换算 */
@@ -60,8 +60,8 @@ static void sys_init(void)
 	//I2C从机初始化
 	i2c_slave_init();
 
-	//CW1573初始化
-	cw1573_init(4);
+	//IP3561Q初始化
+	ip3561q_init();
 
 	//TODO : 测试用，临时写入场测需要的数据
 	// static_cfg_erasure();
@@ -73,14 +73,14 @@ static void sys_init(void)
 	battery_mgr_init();
 
 	//USART1初始化 (测试回环)
-	usart_init(115200);
+	// usart_init(115200);
 
 	//定时器初始化-PWM
 	// timer_init();
 
 	//产测模块初始化
 #ifndef DEBUG_EN
-	prod_test_init();
+	// prod_test_init();
 #endif /* !DEBUG_EN */
 
 	LOGI("Hello World!\n");

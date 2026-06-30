@@ -11,7 +11,7 @@
 #include "lcd.h"
 #include "ui.h"
 #include "sw_i2c.h"
-#include "cw1573.h"
+#include "ip3561q.h"
 
 #include "sw_i2c_gen.h"
 #include "timer.h"

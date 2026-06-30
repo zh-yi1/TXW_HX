@@ -553,7 +553,7 @@ uint16_t calc_charge_remain_min(void)
     now = md_get_tick();
     if (now - last_ms >= 1000U) {
         last_ms = now;
-        ibat = (int32_t)cw1573_info.current_ma;
+        ibat = (int32_t)ip3561q_info.current_ma;
         ibat_buf[ibat_idx] = (ibat < 0) ? -ibat : ibat;
         ibat_idx++;
         if (ibat_idx >= IBAT_BUF_SIZE) {
@@ -581,7 +581,7 @@ uint16_t calc_charge_remain_min(void)
     total_cap_mah = total_cap_mah * derate / 100U;
 
     /* ----- 充电剩余时间（秒）----- */
-    if (ui_data.is_charge && cw1573_info.current_ma > 0)
+    if (ui_data.is_charge && ip3561q_info.current_ma > 0)
     {
         remain_cap = (uint32_t)(100U - ui_data.bat_power) * total_cap_mah / 100U;
         seconds    = (remain_cap * 3600UL / ibat_avg);

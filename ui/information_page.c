@@ -165,7 +165,6 @@ void information_page_3_init(void)
 void information_page_1_updata(void)
 {
     static uint32_t last_ms       = 0;
-    static uint8_t  model_idx     = 0;
     static uint8_t  last_max_cap  = 0xFF;
     static uint16_t last_cycle    = 0xFFFF;
     uint32_t now = md_get_tick();

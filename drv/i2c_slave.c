@@ -313,59 +313,57 @@ void I2C1_Handler(void)
 }
 
 /* ========================================================================
- * pull_sensor_data — 采集 CW1573 电池数据, 填入 reg_map (R 区域 §4.5) + ui_data
+ * pull_sensor_data — 采集 IP3561Q 电池数据, 填入 reg_map (R 区域 §4.5) + ui_data
  *
  * V1~V4 (0x50-0x57), VPACK (0x58-0x59), BAT_CURRENT (0x5A-0x5B),
  * NTC1 (0x5C-0x5F), OVP_PERMANENT (0x60), AFE_PROTECT1-3 (0x61-0x63)
  * ======================================================================== */
 static void pull_sensor_data(void)
 {
-    /* CW1573 未就绪: 填充默认值 (4.2V/cell, 100kΩ NTC) */
-    if (!cw1573_is_ready()) {
-        for (int i = 0; i < cw1573_cell_cnt; i++) {
-            cw1573_info.vcell_mv[i] = 4200;
+    /* IP3561Q 未就绪: 填充默认值 (4.2V/cell, 100kΩ NTC) */
+    if (!ip3561q_is_ready()) {
+        for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
+            ip3561q_info.vcell_mv[i] = 4200;
         }
-        cw1573_info.pack_mv     = 4200 * cw1573_cell_cnt;
-        cw1573_info.rntc_ohm    = 100000;
-        cw1573_info.current_ma  = 0;
-        cw1573_info.cc_mah      = 0;
+        ip3561q_info.vbat_mv     = 4200 * IP3561Q_CELL_CNT;
+        ip3561q_info.rntc_ohm    = 100000;
+        ip3561q_info.current_ma  = 0;
     } else {
-        cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
+        ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw, (ip3561q_proc_data_t *)&ip3561q_info);
     }
 
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
-    for (int i = 0; i < cw1573_cell_cnt; i++) {
-        uint16_t v = cw1573_info.vcell_mv[i];
+    for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
+        uint16_t v = ip3561q_info.vcell_mv[i];
         reg_write_u16(REG_V1_L + i * 2, v);
     }
 
     /* VPACK: 电池组总电压 (mV), 协议 §4.5 (4 串)
-       直接使用 cw1573_calc_data 已计算的 pack_mv，无需重复累加 */
+       直接使用 ip3561q_calc_data 已计算的 vbat_mv，无需重复累加 */
     {
-        uint16_t vp = cw1573_info.pack_mv;
+        uint16_t vp = ip3561q_info.vbat_mv;
         reg_write_u16(REG_VPACK_L, vp);
         ui_data.bat_voltage = vp;
     }
 
     /* BAT_CURRENT: 电池电流 (mA, 正=充电), 协议 §4.5 */
-    int16_t cur = (int16_t)cw1573_info.current_ma;
+    int16_t cur = (int16_t)ip3561q_info.current_ma;
     reg_write_u16(REG_BAT_CURRENT_L, (uint16_t)cur);
-    ui_data.bat_current = cw1573_info.current_ma;
+    ui_data.bat_current = ip3561q_info.current_ma;
 
     /* NTC1: 温度电阻值 (Ω), 协议 §4.2
-       直接使用 cw1573_calc_data 已计算的 rntc_ohm，无需重复计算 */
+       直接使用 ip3561q_calc_data 已计算的 rntc_ohm，无需重复计算 */
     {
-        uint32_t rntc = cw1573_info.rntc_ohm;
+        uint32_t rntc = ip3561q_info.rntc_ohm;
         reg_write_u32(REG_NTC1_0, rntc);
     }
     //TODO :温度如何计算
     // ui_data.bat_temperature = 0; /* 温度由主机通过 NTC 阻值自行计算 */
-    ui_data.bat_cc = cw1573_info.cc_mah;
 
-    /* AFE_PROTECT1-3: 映射 CW1573 原始状态寄存器, 协议 §4.5 */
-    i2c_reg_map[REG_AFE_PROTECT1] = cw1573_raw.state_flag0;
-    i2c_reg_map[REG_AFE_PROTECT2] = cw1573_raw.state_flag1;
-    i2c_reg_map[REG_AFE_PROTECT3] = cw1573_raw.state_flag2;
+    /* AFE_PROTECT1-3: 映射 IP3561Q 状态寄存器, 协议 §4.5 */
+    i2c_reg_map[REG_AFE_PROTECT1] = ip3561q_raw.status1;
+    i2c_reg_map[REG_AFE_PROTECT2] = ip3561q_raw.status2;
+    i2c_reg_map[REG_AFE_PROTECT3] = ip3561q_raw.status3;
 }
 
 #if FACTORY_RESET_EN
@@ -511,7 +509,7 @@ void i2c_slave_proc(void)
     /* 保护标志同步 → I2C 寄存器 (过压禁用/欠压禁用/过压保护, 任一有效写 0x5B) */
     i2c_reg_map[REG_OVP_PERMANENT] = battery_mgr_is_any_protection() ? 0x5B : 0x5A;
 
-    /* CW1573 采集 → reg_map (R) + ui_data */
+    /* IP3561Q 采集 → reg_map (R) + ui_data */
     pull_sensor_data();
 
     /* G020 下发数据 (W) → ui_data */

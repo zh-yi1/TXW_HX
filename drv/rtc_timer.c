@@ -21,7 +21,7 @@ static const uint32_t ts_block_addrs[] = {
 #define TS_ENTRY_SIZE       sizeof(timestamp_entry_t)  /* 7B */
 #define TS_ENTRIES_PER_BLOCK (TS_BLOCK_SIZE / TS_ENTRY_SIZE)  /* 36 */
 
-/* CRC-8: X^8 + X^2 + X + 1 (同 CW1573) */
+/* CRC-8: X^8 + X^2 + X + 1 */
 #define RTC_CRC8_POLY  0x07U
 
 /* ---- 内部函数 ---- */
