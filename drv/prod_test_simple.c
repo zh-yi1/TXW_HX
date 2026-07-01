@@ -20,6 +20,8 @@
 
 #include "global_define.h"
 
+#ifndef DEBUG_EN
+
 #ifdef PROD_TEST_SIMPLE_EN
 
 /* ---- 帧常量 ---- */
@@ -335,5 +337,7 @@ void prod_test_proc(void)
     while (usart_recv_available())
         pt_parse(usart_recv_byte());
 }
+
+#endif
 
 #endif /* PROD_TEST_SIMPLE_EN */

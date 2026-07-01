@@ -129,7 +129,6 @@ void     ip3561q_proc(void);
 #define IP3561Q_POLL_MS        500U
 #define IP3561Q_CFG_RETRY_MS  200U
 
-extern volatile uint8_t           ip3561q_comm_ok;
 extern volatile uint8_t           g_bat_high_temp;
 extern volatile ip3561q_data_t      ip3561q_raw;
 extern volatile ip3561q_proc_data_t ip3561q_info;

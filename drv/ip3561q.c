@@ -2,7 +2,6 @@
 
 volatile ip3561q_data_t      ip3561q_raw;
 volatile ip3561q_proc_data_t ip3561q_info;
-volatile uint8_t             ip3561q_comm_ok = 1;
 volatile uint8_t             g_bat_high_temp;  /* 电芯高温: rntc_ohm <= 26000Ω (NTC 阻值越低越热, 26kΩ≈57℃) */
 
 static uint8_t ip3561q_cfg_done = 0;
@@ -94,7 +93,8 @@ uint8_t ip3561q_read_reg(uint8_t reg, uint8_t *buf, uint8_t len)
 static const uint8_t ip3561q_cfg_table[][2] = {
     { IP3561Q_REG_CTL1,         0x04 },   /* OC_MODE_SEL=1 */
     { IP3561Q_REG_CTL2,         0x34 },   /* CELL_BALANCE_MODE=1 */
-    { IP3561Q_REG_CTL3,         0x0C },   /* IDLE_ADC_MODE=11 */
+    // { IP3561Q_REG_CTL3,         0x0C },   /* IDLE_ADC_MODE=11 */
+    { IP3561Q_REG_CTL3,         0x00 },   /* TODO：测试环境IDLE_ADC_MODE=00 */
     { IP3561Q_REG_DOC1,         0x07 },   /* DOC1: 11A→27.5mV */
     { IP3561Q_REG_DOC2,         0x04 },   /* DOC2: 15A→37.5mV */
     { IP3561Q_REG_COC,          0x02 },   /* COC: 5.5A→-13.75mV */
@@ -313,5 +313,5 @@ void ip3561q_proc(void)
         return;
     last_tick = now;
 
-    ip3561q_comm_ok = (ip3561q_read_all((ip3561q_data_t *)&ip3561q_raw) == 0) ? 1 : 0;
+    ip3561q_read_all((ip3561q_data_t *)&ip3561q_raw);
 }

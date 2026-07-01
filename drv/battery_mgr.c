@@ -68,7 +68,6 @@ typedef struct {
     uint8_t  uv_recov_cnt[4];       /* 每节电芯欠压恢复持续次数 (>=10 = 持续 5s) */
     uint8_t  disabled;              /* 禁用标志 */
     uint8_t  disable_reason;        /* 禁用原因 (DISABLE_REASON_OV / DISABLE_REASON_UV) */
-    uint8_t  ip3561q_noresp_cnt;     /* IP3561Q 连续无应答次数 (500ms/次, >=10 = 5s → 欠压) */
     uint8_t  warning;               /* 当前警告 (来自主机 ntc_status) */
     uint8_t  chg_state;             /* 充放电状态 */
     uint8_t  warning_chg_state;     /* 警告触发时的充放电状态 */
@@ -280,6 +279,10 @@ void battery_mgr_proc(void)
     uint8_t  v1, v2;
 #endif
 
+    /* 上电后前 1500ms 静默: 等待 IP3561Q 采集和主机 I2C 数据下发稳定 */
+    if (md_get_tick() < 2000)
+        return;
+
     if (!ip3561q_is_ready())
         return;
 
@@ -319,6 +322,8 @@ void battery_mgr_proc(void)
         g_bat.temperature_01c = ntc_resistance_to_temp(ui_data.bat_ntc2);
 #endif
 
+    LOGI("g_bat.temperature_01c = %d\r\n", g_bat.temperature_01c);
+
     /* ---- 2. 充放电状态 ---- */
     g_bat.chg_state = detect_chg_state();
 
@@ -328,31 +333,6 @@ void battery_mgr_proc(void)
     ts = rtc_get_timestamp();
 
     /* ---- 4. 逐电芯检测 (TFT 本地判断) ---- */
-
-    /* 4.0 IP3561Q 通信异常检测: 连续 5s 无应答 → 欠压禁用
-     *     当电池欠压时 IP3561Q 掉电不工作, I2C 无 ACK,
-     *     此时 ip3561q_info.vcell_mv[] 为旧数据 (v > 1.5V), 无法通过 4.1 的电压阈值检测,
-     *     因此通过通信状态判断: 连续无应答 5s 即判定欠压 */
-    if (!ip3561q_comm_ok) {
-        g_bat.ip3561q_noresp_cnt++;
-        if (g_bat.ip3561q_noresp_cnt >= BAT_MGR_POLL_CNT(5)) {
-            g_bat.disabled = 1;
-            g_bat.disable_reason = DISABLE_REASON_UV;
-
-#if BAT_DISABLE_WRITE_FLASH_EN
-            /* 写 Flash: 记录禁用原因 */
-            factory_cfg_t cfg;
-            factory_cfg_read(&cfg);
-            cfg.disable_reason = DISABLE_REASON_UV;
-            factory_cfg_write(&cfg);
-#endif
-
-            ui_data.last_page = ui_data.cur_page;
-            ui_data.cur_page  = PAGE_DISABLED;
-        }
-    } else {
-        g_bat.ip3561q_noresp_cnt = 0;
-    }
 
     for (i = 0; i < IP3561Q_CELL_CNT; i++) {
 #if BAT_ENABLE_TEST_EN
@@ -488,6 +468,7 @@ void battery_mgr_proc(void)
             if (st == 0x02) over_temp = 1;
             if (st == 0x01) low_temp  = 1;
         }
+        LOGI("ntc_status = %d bat_ntc1 = %d bat_ntc2 = %d\r\n", ntc, ui_data.bat_ntc1, ui_data.bat_ntc2);
 
         if (over_temp)
             {

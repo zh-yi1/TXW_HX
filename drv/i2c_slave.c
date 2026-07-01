@@ -1,8 +1,20 @@
 #include "i2c_slave.h"
 
-/* ---- 寄存器缓冲区 (协议 V1.3 最大地址 0x8F, 共 0x90=144 字节) ---- */
+/* ---- 寄存器缓冲区 (协议 V1.3 最大地址 0x8F, 共 0x90=144 字节) ----
+   编译期初始化: 上电即生效, 无需等待 i2c_slave_init(), 防止主机提前读取到零值 ---- */
 #define I2C_REG_MAP_SIZE  0x90
-volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE];
+volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE] = {
+    [REG_SOC]             = 0xFF,  /* 0xFF=未收到, 区分电量 0% */
+    [REG_FW_VERSION_L]    = 0x00,  /* V1.00 BCD */
+    [REG_FW_VERSION_H]    = 0x01,
+    [REG_TFT_ONLINE_CRC]  = 0x55,  /* 从机就绪标志 */
+    [REG_UPDATE_CRC]      = 0x00,  /* 默认非升级模式 */
+    [REG_OVP_PERMANENT]   = 0x5A,  /* 默认无过压 */
+    [REG_NTC1_0]          = 0xA0,  /* NTC1 阻值 100000Ω = 0x000186A0 (LE) */
+    [REG_NTC1_1]          = 0x86,
+    [REG_NTC1_2]          = 0x01,
+    [REG_NTC1_3]          = 0x00,
+};
 
 /* ---- 按键事件影子缓冲 (协议 §4.6) ---- */
 volatile uint8_t key_event_buf;
@@ -125,14 +137,6 @@ void i2c_slave_init(void)
 
     MD_I2C_ENABLE(I2C1);
     md_i2c_enable_ack(I2C1);
-
-    /* --- 初始化寄存器默认值 --- */
-    i2c_reg_map[REG_SOC]             = 0xFF;  /* 0xFF=未收到, 区分电量 0% */
-    i2c_reg_map[REG_FW_VERSION_L]    = 0x00;  /* V1.00, 由 proc 填充 */
-    i2c_reg_map[REG_FW_VERSION_H]    = 0x01;
-    i2c_reg_map[REG_TFT_ONLINE_CRC]  = 0x55;  /* 从机就绪标志 */
-    i2c_reg_map[REG_UPDATE_CRC]      = 0x00;  /* 默认非升级模式 */
-    i2c_reg_map[REG_OVP_PERMANENT]   = 0x5A;  /* 默认无过压, battery_mgr_init 可能覆盖为 0x5B */
 }
 
 /* ========================================================================
@@ -332,6 +336,7 @@ static void pull_sensor_data(void)
         ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw, (ip3561q_proc_data_t *)&ip3561q_info);
     }
 
+    LOGI("ip3561q_info.rntc_ohm = %d\r\n", ip3561q_info.rntc_ohm);
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
     for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
         uint16_t v = ip3561q_info.vcell_mv[i];
