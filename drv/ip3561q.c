@@ -88,48 +88,160 @@ uint8_t ip3561q_read_reg(uint8_t reg, uint8_t *buf, uint8_t len)
 }
 
 /* ==========================================================================
- *  配置寄存器写入 (按海信20K项目表格)
+ *  过流保护阈值计算 (根据数据手册公式, 使用工厂校准值)
+ *
+ *  DOC1 (0x04):  V_DOC1_SEL = V_DOC1_SEL_INIT + (Vdoc1 - 14)     / DOC1_STEP
+ *    DOC1_STEP = 2 + DOC1_COMP1/64 (mV),  DOC1_COMP1 为 0x2F[7:3] 5位有符号
+ *  DOC2 (0x05):  V_DOC2_SEL = V_DOC2_SEL_INIT + (Vdoc2 - 20)     / DOC2_STEP
+ *    DOC2_STEP = 4 + DOC2_COMP1*2/64 (mV), DOC2_COMP1 为 0x3E[7:3] 5位有符号
+ *  SC   (0x06):  V_SC_SEL   = V_SC_SEL_INIT   + (Vsc   - 40)     / SC_STEP
+ *    SC_STEP   = 8 + SC_COMP1*4/64 (mV),   SC_COMP1   为 0x7E[7:3] 5位有符号
+ *  COC  (0x07):  V_COC_SEL  = V_COC_SEL_INIT  + (10     - Vcoc)  / COC_STEP
+ *    COC_STEP  = -2 - COC_COMP1/64 (mV),   COC_COMP1  为 0x7F[7:3] 5位有符号
+ *
+ *  海信20K项目参数 (2.5mΩ采样电阻):
+ *    DOC1: 11A  → 27.5mV → 寄存器值 ≈ 0x07
+ *    DOC2: 15A  → 37.5mV → 寄存器值 ≈ 0x04
+ *    SC:   16A  → 40mV   → 寄存器值 ≈ 0x00 (保持出厂默认)
+ *    COC:  5.5A → 13.75mV→ 寄存器值 ≈ 0x02
  * ========================================================================== */
-static const uint8_t ip3561q_cfg_table[][2] = {
-    { IP3561Q_REG_CTL1,         0x04 },   /* OC_MODE_SEL=1 */
-    { IP3561Q_REG_CTL2,         0x34 },   /* CELL_BALANCE_MODE=1 */
-    // { IP3561Q_REG_CTL3,         0x0C },   /* IDLE_ADC_MODE=11 */
-    { IP3561Q_REG_CTL3,         0x00 },   /* TODO：测试环境IDLE_ADC_MODE=00 */
-    { IP3561Q_REG_DOC1,         0x07 },   /* DOC1: 11A→27.5mV */
-    { IP3561Q_REG_DOC2,         0x04 },   /* DOC2: 15A→37.5mV */
-    { IP3561Q_REG_COC,          0x02 },   /* COC: 5.5A→-13.75mV */
-    { IP3561Q_REG_IDLE_CK,      0x80 },   /* IDLE_CK=131kHz */
-    { IP3561Q_REG_SLEEP_IDLE,   0x40 },   /* IDLE均衡使能 */
-    { IP3561Q_REG_NTC_WDOG,     0x38 },   /* NTC_EN+UTC+UTD */
-    { IP3561Q_REG_CELL_PD,      0x40 },   /* 4串 */
-    { IP3561Q_REG_OV_H,         0x03 },   /* OV=4.5V, TH_OV高8位 */
-    { IP3561Q_REG_OVL_OVRH,     0x2E },   /* OV低2位 + OVR高6位 */
-    { IP3561Q_REG_OVRL_OVDLY,   0x60 },   /* OVR低4位 + OV延时 */
-    { IP3561Q_REG_UV_H,         0x1D },   /* UV=2.72V, TH_UV高8位 */
-    { IP3561Q_REG_UVL_UVRH,     0x20 },   /* UV低2位 + UVR高6位 */
-    { IP3561Q_REG_BAL_H,        0xB9 },   /* 均衡=4.35V, 高8位 */
-    { IP3561Q_REG_BAL_L_DLY,    0x8B },   /* 均衡低2位 + 延时 */
-    // { IP3561Q_REG_MCU_CTL2,     0x40 },   /* IDLE_EN=1 */
-    { IP3561Q_REG_MCU_CTL2,     0x00 },   /* TODO：测试环境IDLE_EN=0后续改为1 */
+
+/* 5-bit 有符号解析: bit4 为符号位, 补码表示 */
+static int8_t ip3561q_parse_comp_5bit(uint8_t reg_val)
+{
+    int8_t val = (int8_t)((reg_val & 0xF8U) << 3) >> 3;  /* 算术右移自动带符号扩展 */
+    return val;
+}
+
+static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
+                                        uint8_t *sc_val, uint8_t *coc_val)
+{
+    uint8_t  buf;
+    int8_t   comp1;
+    int16_t  step_64th;     /* 步长 × 64 (定点, 避免浮点) */
+    int16_t  delta_64th;    /* 差值 × 64 */
+    int16_t  result;
+
+    /* ---- 目标电压 (mV) ---- */
+    const int16_t Vdoc1_target = 28;   /* 11A × 2.5mΩ = 27.5mV, 取整28mV ≈ 11.2A */
+    const int16_t Vdoc2_target = 36;   /* 15A × 2.5mΩ = 37.5mV, 取整36mV ≈ 14.4A */
+    const int16_t Vsc_target   = 40;   /* 保持出厂默认 40mV */
+    const int16_t Vcoc_target  = 14;   /* 5.5A × 2.5mΩ = 13.75mV, 取整14mV ≈ 5.6A */
+
+    /* ---- DOC1 (0x04) ---- */
+    ip3561q_read_reg(IP3561Q_REG_DOC1, doc1_val, 1);          /* V_DOC1_SEL_INIT */
+    ip3561q_read_reg(IP3561Q_REG_DOC1_COMP, &buf, 1);
+    comp1     = ip3561q_parse_comp_5bit(buf);
+    step_64th = (int16_t)(2 * 64 + comp1);                    /* (2 + comp1/64) × 64 */
+    if (step_64th <= 0) step_64th = 128;                      /* 安全保护: 最小 2mV */
+    delta_64th = (int16_t)((Vdoc1_target - 14) * 64);
+    result     = (int16_t)(*doc1_val) + delta_64th / step_64th;
+    if (result < 0)   result = 0;
+    if (result > 255) result = 255;
+    *doc1_val = (uint8_t)result;
+
+    /* ---- DOC2 (0x05) ---- */
+    ip3561q_read_reg(IP3561Q_REG_DOC2, doc2_val, 1);          /* V_DOC2_SEL_INIT */
+    ip3561q_read_reg(IP3561Q_REG_DOC2_COMP, &buf, 1);
+    comp1     = ip3561q_parse_comp_5bit(buf);
+    step_64th = (int16_t)(4 * 64 + comp1 * 2);                /* (4 + comp1*2/64) × 64 */
+    if (step_64th <= 0) step_64th = 256;
+    delta_64th = (int16_t)((Vdoc2_target - 20) * 64);
+    result     = (int16_t)(*doc2_val) + delta_64th / step_64th;
+    if (result < 0)   result = 0;
+    if (result > 255) result = 255;
+    *doc2_val = (uint8_t)result;
+
+    /* ---- SC (0x06) ---- */
+    ip3561q_read_reg(IP3561Q_REG_SC, sc_val, 1);              /* V_SC_SEL_INIT */
+    ip3561q_read_reg(IP3561Q_REG_SC_COMP, &buf, 1);
+    comp1     = ip3561q_parse_comp_5bit(buf);
+    step_64th = (int16_t)(8 * 64 + comp1 * 4);                /* (8 + comp1*4/64) × 64 */
+    if (step_64th <= 0) step_64th = 512;
+    delta_64th = (int16_t)((Vsc_target - 40) * 64);
+    result     = (int16_t)(*sc_val) + delta_64th / step_64th;
+    if (result < 0)   result = 0;
+    if (result > 255) result = 255;
+    *sc_val = (uint8_t)result;
+
+    /* ---- COC (0x07) ---- */
+    ip3561q_read_reg(IP3561Q_REG_COC, coc_val, 1);            /* V_COC_SEL_INIT */
+    ip3561q_read_reg(IP3561Q_REG_COC_COMP, &buf, 1);
+    comp1     = ip3561q_parse_comp_5bit(buf);
+    step_64th = (int16_t)(-2 * 64 - comp1);                   /* (-2 - comp1/64) × 64, 负步长! */
+    if (step_64th >= 0) step_64th = -128;                     /* 安全保护: 最大 -2mV */
+    delta_64th = (int16_t)((10 - Vcoc_target) * 64);          /* COC_INIT=10, Vcoc=目标绝对值 */
+    result     = (int16_t)(*coc_val) + delta_64th / step_64th;
+    if (result < 0)   result = 0;
+    if (result > 255) result = 255;
+    *coc_val = (uint8_t)result;
+}
+
+/* ==========================================================================
+ *  配置寄存器写入 (按海信20K项目寄存器操作手册)
+ *
+ *  注意: 0x04-0x07 由 ip3561q_calc_oc_thresholds() 动态计算,
+ *        补偿寄存器 (0x2F/0x3E/0x7E/0x7F) 为工厂校准值, 不写入
+ * ========================================================================== */
+static const uint8_t ip3561q_cfg_static[][2] = {
+    { IP3561Q_REG_CTL1,         0x04 },   /* OC_MODE_SEL=1: 放电过流只关DO, 充电过流只关CO */
+    { IP3561Q_REG_CTL2,         0x34 },   /* NTC1/2使能, NTC3/4不使能, 均衡始终开启 */
+    { IP3561Q_REG_CTL3,         0x0C },   /* IDLE下CADC+VADC分时采样, 功耗最小 */
+    { IP3561Q_REG_IDLE_CK,      0x80 },   /* IDLE时钟131kHz, 电压保护延时×2 */
+    { IP3561Q_REG_SLEEP_IDLE,   0x40 },   /* IDLE下均衡不使能, 节省功耗 */
+    { IP3561Q_REG_NTC_WDOG,     0x38 },   /* NTC总使能 + 充电低温 + 放电低温 */
+    { IP3561Q_REG_CELL_PD,      0x40 },   /* 4串电池 */
+    { IP3561Q_REG_OV_H,         0xC0 },   /* OV=4.5V, TH_OV=0x300, 高8位=0xC0 */
+    { IP3561Q_REG_OVL_OVRH,     0x2E },   /* OV低2位=0 + OVR高6位=0x2E (4.35V) */
+    { IP3561Q_REG_OVRL_OVDLY,   0x60 },   /* OVR低4位=0x6, 组合0x2E6 (4.35V); OV延时65ms */
+    { IP3561Q_REG_UV_H,         0x74 },   /* UV=2.72V, TH_UV=0x1D0, 高8位=0x74 */
+    { IP3561Q_REG_UVL_UVRH,     0x20 },   /* UV低2位=0 + UVR高6位=0x20 (3.00V) */
+    { IP3561Q_REG_UVRL_UVDLY,   0x00 },   /* UVR低4位=0; UV延时65ms */
+    { IP3561Q_REG_BAL_H,        0xB9 },   /* 均衡=4.35V, TH_BAL=0x2E6, 高8位=0xB9 */
+    { IP3561Q_REG_BAL_L_DLY,    0x8B },   /* 均衡低2位=0x2 (组合0x2E6); 延时65ms */
+    { IP3561Q_REG_MCU_CTL2,     0x40 },   /* IDLE使能, 功耗约80μA */
 };
 
-#define IP3561Q_CFG_COUNT  (sizeof(ip3561q_cfg_table) / sizeof(ip3561q_cfg_table[0]))
+#define IP3561Q_CFG_STATIC_COUNT \
+    (sizeof(ip3561q_cfg_static) / sizeof(ip3561q_cfg_static[0]))
 
 static uint8_t ip3561q_config_regs(void)
 {
     uint8_t i;
     uint8_t rbuf;
     uint8_t res = 1;
+    uint8_t doc1_val, doc2_val, sc_val, coc_val;
 
-    for (i = 0; i < IP3561Q_CFG_COUNT; i++)
+    /* Step 1: 读取工厂校准值, 计算 0x04-0x07 过流保护阈值 */
+    ip3561q_calc_oc_thresholds(&doc1_val, &doc2_val, &sc_val, &coc_val);
+
+    /* Step 2: 写入固定配置寄存器 (0x00-0x03, 0x0A-0x17, 0x42 等) */
+    for (i = 0; i < IP3561Q_CFG_STATIC_COUNT; i++)
     {
-        uint8_t reg  = ip3561q_cfg_table[i][0];
-        uint8_t val  = ip3561q_cfg_table[i][1];
+        uint8_t reg  = ip3561q_cfg_static[i][0];
+        uint8_t val  = ip3561q_cfg_static[i][1];
 
         ip3561q_write_reg(reg, &val, 1);
         if (ip3561q_read_reg(reg, &rbuf, 1) || rbuf != val)
             res = 0;
     }
+
+    /* Step 3: 写入计算后的过流保护阈值 (0x04-0x07) */
+    ip3561q_write_reg(IP3561Q_REG_DOC1, &doc1_val, 1);
+    if (ip3561q_read_reg(IP3561Q_REG_DOC1, &rbuf, 1) || rbuf != doc1_val)
+        res = 0;
+
+    ip3561q_write_reg(IP3561Q_REG_DOC2, &doc2_val, 1);
+    if (ip3561q_read_reg(IP3561Q_REG_DOC2, &rbuf, 1) || rbuf != doc2_val)
+        res = 0;
+
+    ip3561q_write_reg(IP3561Q_REG_SC, &sc_val, 1);
+    if (ip3561q_read_reg(IP3561Q_REG_SC, &rbuf, 1) || rbuf != sc_val)
+        res = 0;
+
+    ip3561q_write_reg(IP3561Q_REG_COC, &coc_val, 1);
+    if (ip3561q_read_reg(IP3561Q_REG_COC, &rbuf, 1) || rbuf != coc_val)
+        res = 0;
 
     return res;
 }
