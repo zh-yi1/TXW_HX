@@ -90,6 +90,10 @@
 #define REG_AFE_PROTECT1        0x61
 #define REG_AFE_PROTECT2        0x62
 #define REG_AFE_PROTECT3        0x63
+#define REG_NTC2_0              0x64
+#define REG_NTC2_1              0x65
+#define REG_NTC2_2              0x66
+#define REG_NTC2_3              0x67
 
 /* 按键事件 §4.6 (0x70) — 主机 ← 从机 (R) / 主机 → 从机 (W) */
 #define REG_KEY_EVENT           0x70

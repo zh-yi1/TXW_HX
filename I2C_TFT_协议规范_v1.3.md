@@ -201,7 +201,8 @@ static uint8_t tft_calc_crc(const uint8_t *data, uint8_t len)
 | 0x61      | AFE_PROTECT1  | 1 Byte   | Bit 标志         | AFE 状态 STATUS0 (参照规格书 0x00)     | R    |
 | 0x62      | AFE_PROTECT2  | 1 Byte   | Bit 标志         | AFE 状态 STATUS1 (参照规格书 0x01)     | R    |
 | 0x63      | AFE_PROTECT3  | 1 Byte   | Bit 标志         | AFE 状态 STATUS2 (参照规格书 0x02)     | R    |
-| 0x64~0x6F | 预留          | -        | -                | -                                      | -    |
+| 0x64~0x67 | NTC1          | 4 Byte   | uint32 LE, Ω     | 温度 NTC2 阻值                         | R    |
+| 0x68~0x6F | 预留          | -        | -                | -                                      | -    |
 
 > **OVP_PERMANENT (0x60):** 0x5A 为密钥，bit0 为 1 表示系统过压永久失效，需要写入 Flash。
 

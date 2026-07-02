@@ -10,10 +10,14 @@ volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE] = {
     [REG_TFT_ONLINE_CRC]  = 0x55,  /* 从机就绪标志 */
     [REG_UPDATE_CRC]      = 0x00,  /* 默认非升级模式 */
     [REG_OVP_PERMANENT]   = 0x5A,  /* 默认无过压 */
-    [REG_NTC1_0]          = 0xA0,  /* NTC1 阻值 100000Ω = 0x000186A0 (LE) */
-    [REG_NTC1_1]          = 0x86,
-    [REG_NTC1_2]          = 0x01,
+    [REG_NTC1_0]          = 0x10,  /* NTC1 阻值 10000Ω = 0x00002710 (LE) */
+    [REG_NTC1_1]          = 0x27,
+    [REG_NTC1_2]          = 0x00,
     [REG_NTC1_3]          = 0x00,
+    [REG_NTC2_0]          = 0x10,  /* NTC2 阻值 10000Ω = 0x00002710 (LE) */
+    [REG_NTC2_1]          = 0x27,
+    [REG_NTC2_2]          = 0x00,
+    [REG_NTC2_3]          = 0x00,
 };
 
 /* ---- 按键事件影子缓冲 (协议 §4.6) ---- */
@@ -320,23 +324,28 @@ void I2C1_Handler(void)
  * pull_sensor_data — 采集 IP3561Q 电池数据, 填入 reg_map (R 区域 §4.5) + ui_data
  *
  * V1~V4 (0x50-0x57), VPACK (0x58-0x59), BAT_CURRENT (0x5A-0x5B),
- * NTC1 (0x5C-0x5F), OVP_PERMANENT (0x60), AFE_PROTECT1-3 (0x61-0x63)
+ * NTC2 (0x5C-0x5F), OVP_PERMANENT (0x60), AFE_PROTECT1-3 (0x61-0x63),
+ * NTC1 (0x64-0x67)
  * ======================================================================== */
 static void pull_sensor_data(void)
 {
-    /* IP3561Q 未就绪: 填充默认值 (4.2V/cell, 100kΩ NTC) */
     if (!ip3561q_is_ready()) {
         for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
             ip3561q_info.vcell_mv[i] = 4200;
         }
         ip3561q_info.vbat_mv     = 4200 * IP3561Q_CELL_CNT;
-        ip3561q_info.rntc_ohm    = 100000;
+        ip3561q_info.rntc1_ohm    = 10000;
+        ip3561q_info.rntc2_ohm   = 10000;
         ip3561q_info.current_ma  = 0;
     } else {
         ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw, (ip3561q_proc_data_t *)&ip3561q_info);
     }
 
-    LOGI("ip3561q_info.rntc_ohm = %d\r\n", ip3561q_info.rntc_ohm);
+    ui_data.bat_ntc1 = ip3561q_info.rntc2_ohm;
+    ui_data.bat_ntc2 = ip3561q_info.rntc1_ohm;
+
+    LOGI("ip3561q_info.rntc1_ohm = %d\r\n", ip3561q_info.rntc1_ohm);
+    LOGI("ip3561q_info.rntc2_ohm = %d\r\n", ip3561q_info.rntc2_ohm);
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
     for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
         uint16_t v = ip3561q_info.vcell_mv[i];
@@ -356,11 +365,13 @@ static void pull_sensor_data(void)
     reg_write_u16(REG_BAT_CURRENT_L, (uint16_t)cur);
     ui_data.bat_current = ip3561q_info.current_ma;
 
-    /* NTC1: 温度电阻值 (Ω), 协议 §4.2
+    /* NTC1: 温度电阻值 (Ω), 协议 §4.5 (0x64-0x67)
        直接使用 ip3561q_calc_data 已计算的 rntc_ohm，无需重复计算 */
     {
-        uint32_t rntc = ip3561q_info.rntc_ohm;
+        uint32_t rntc = ip3561q_info.rntc1_ohm;
         reg_write_u32(REG_NTC1_0, rntc);
+        rntc = ip3561q_info.rntc2_ohm;
+        reg_write_u32(REG_NTC2_0, rntc);
     }
     //TODO :温度如何计算
     // ui_data.bat_temperature = 0; /* 温度由主机通过 NTC 阻值自行计算 */
@@ -413,8 +424,8 @@ static void apply_host_data(void)
 
     /* ---- NTC 数据 (协议 §4.3) ---- */
     ui_data.ntc_status = i2c_reg_map[REG_NTC_STATUS];
-    ui_data.bat_ntc1   = reg_read_u32(REG_BAT_NTC1_0);
-    ui_data.bat_ntc2   = reg_read_u32(REG_BAT_NTC2_0);
+    // ui_data.bat_ntc1   = reg_read_u32(REG_BAT_NTC1_0);//不使用020传的数据了，使用本地的
+    // ui_data.bat_ntc2   = reg_read_u32(REG_BAT_NTC2_0);
     ui_data.pcb_ntc1   = reg_read_u32(REG_PCB_NTC1_0);
     ui_data.pcb_ntc2   = reg_read_u32(REG_PCB_NTC2_0);
 

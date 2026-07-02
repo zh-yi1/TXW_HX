@@ -2,7 +2,7 @@
 
 volatile ip3561q_data_t      ip3561q_raw;
 volatile ip3561q_proc_data_t ip3561q_info;
-volatile uint8_t             g_bat_high_temp;  /* 电芯高温: rntc_ohm <= 26000Ω (NTC 阻值越低越热, 26kΩ≈57℃) */
+volatile uint8_t             g_bat_high_temp;  /* 电芯高温: rntc_ohm <= 3340Ω (NTC 阻值越低越热, 3.34kΩ≈57℃) */
 
 static uint8_t ip3561q_cfg_done = 0;
 
@@ -378,16 +378,30 @@ void ip3561q_calc_data(ip3561q_data_t *raw, ip3561q_proc_data_t *p)
         uint16_t ntc = raw->ntc_adc[0];  /* NTC1 */
         if (ntc > 0 && ntc < 32768)
         {
-            p->rntc_ohm = (uint32_t)ntc * 10000UL / (32768UL - ntc);
+            p->rntc1_ohm = (uint32_t)ntc * 10000UL / (32768UL - ntc);
         }
         else
         {
-            p->rntc_ohm = 0;
+            p->rntc1_ohm = 0;
         }
     }
 
-    /* 高温标志: NTC 阻值 ≤ 26kΩ (≈57℃, 用于 key_wake_host 唤醒主机) */
-    g_bat_high_temp = (p->rntc_ohm > 0 && p->rntc_ohm <= 26000UL) ? 1 : 0;
+    /* NTC2 阻值: 同上公式 */
+    {
+        uint16_t ntc = raw->ntc_adc[1];  /* NTC2 */
+        if (ntc > 0 && ntc < 32768)
+        {
+            p->rntc2_ohm = (uint32_t)ntc * 10000UL / (32768UL - ntc);
+        }
+        else
+        {
+            p->rntc2_ohm = 0;
+        }
+    }
+
+    /* 高温标志: 任意 NTC 阻值 ≤ 3.34kΩ (≈57℃, 用于 key_wake_host 唤醒主机) */
+    g_bat_high_temp = ((p->rntc1_ohm  > 0 && p->rntc1_ohm  <= 3340UL) ||
+                       (p->rntc2_ohm > 0 && p->rntc2_ohm <= 3340UL)) ? 1 : 0;
 
     /* 电流: I(mA) = ADC_signed * 375 / 256 */
     {
