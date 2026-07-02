@@ -83,7 +83,7 @@ static void sys_init(void)
 	// prod_test_init();
 #endif /* !DEBUG_EN */
 
-	LOGI("Hello World!\n");
+	LOGI("System Init Version: [%s]!\n", VERSION);
 }
 
 void SystemInit(void){}

@@ -187,10 +187,10 @@ static const uint8_t ip3561q_cfg_static[][2] = {
     { IP3561Q_REG_CTL1,         0x04 },   /* OC_MODE_SEL=1: 放电过流只关DO, 充电过流只关CO */
     { IP3561Q_REG_CTL2,         0x34 },   /* NTC1/2使能, NTC3/4不使能, 均衡始终开启 */
     { IP3561Q_REG_CTL3,         0x0C },   /* IDLE下CADC+VADC分时采样, 功耗最小 */
-    { IP3561Q_REG_IDLE_CK,      0x80 },   /* IDLE时钟131kHz, 电压保护延时×2 */
+    // { IP3561Q_REG_IDLE_CK,      0x80 },   /* IDLE时钟131kHz, 电压保护延时×2 */
     { IP3561Q_REG_SLEEP_IDLE,   0x40 },   /* IDLE下均衡不使能, 节省功耗 */
     { IP3561Q_REG_NTC_WDOG,     0x38 },   /* NTC总使能 + 充电低温 + 放电低温 */
-    { IP3561Q_REG_CELL_PD,      0x40 },   /* 4串电池 */
+    // { IP3561Q_REG_CELL_PD,      0x40 },   /* 4串电池 */
     { IP3561Q_REG_OV_H,         0xC0 },   /* OV=4.5V, TH_OV=0x300, 高8位=0xC0 */
     { IP3561Q_REG_OVL_OVRH,     0x2E },   /* OV低2位=0 + OVR高6位=0x2E (4.35V) */
     { IP3561Q_REG_OVRL_OVDLY,   0x60 },   /* OVR低4位=0x6, 组合0x2E6 (4.35V); OV延时65ms */
@@ -199,7 +199,7 @@ static const uint8_t ip3561q_cfg_static[][2] = {
     { IP3561Q_REG_UVRL_UVDLY,   0x00 },   /* UVR低4位=0; UV延时65ms */
     { IP3561Q_REG_BAL_H,        0xB9 },   /* 均衡=4.35V, TH_BAL=0x2E6, 高8位=0xB9 */
     { IP3561Q_REG_BAL_L_DLY,    0x8B },   /* 均衡低2位=0x2 (组合0x2E6); 延时65ms */
-    { IP3561Q_REG_MCU_CTL2,     0x40 },   /* IDLE使能, 功耗约80μA */
+    { IP3561Q_REG_MCU_CTL2,     0x00 },   /* IDLE使能, 功耗约80μA */
 };
 
 #define IP3561Q_CFG_STATIC_COUNT \
@@ -211,6 +211,11 @@ static uint8_t ip3561q_config_regs(void)
     uint8_t rbuf;
     uint8_t res = 1;
     uint8_t doc1_val, doc2_val, sc_val, coc_val;
+    uint8_t cell_pd_val = 0x40;
+
+    ip3561q_write_reg(IP3561Q_REG_CELL_PD, &cell_pd_val, 1);
+    if (ip3561q_read_reg(IP3561Q_REG_CELL_PD, &rbuf, 1) || rbuf != cell_pd_val)
+        res = 0;
 
     /* Step 1: 读取工厂校准值, 计算 0x04-0x07 过流保护阈值 */
     ip3561q_calc_oc_thresholds(&doc1_val, &doc2_val, &sc_val, &coc_val);

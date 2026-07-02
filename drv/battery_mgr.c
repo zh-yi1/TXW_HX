@@ -21,7 +21,7 @@ extern volatile ip3561q_proc_data_t ip3561q_info;
 #define BAT_ANOMALY_TIMEOUT_MS  100UL  /* 100ms */
 
 /* 温度源选择: 0=双NTC取高者 1=仅用NTC2 */
-#define TEMP_NTC2_ONLY  1
+#define TEMP_NTC2_ONLY  0
 
 /* ==========================================================================
  *  NTC 阻值-温度查找表 (R25=10KΩ±1%, B25/85=3435K±1%)
@@ -301,7 +301,7 @@ void battery_mgr_proc(void)
     ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw,
                      (ip3561q_proc_data_t *)&ip3561q_info);
 #if !TEMP_NTC2_ONLY
-    /* ---- 1. 温度计算 (主机 NTC1/2 阻值 → 本地换算, 取较高者) ---- */
+    /* ---- 1. 温度计算 (主机 NTC1/2 阻值 → 本地换算) ---- */
     t1 = 0; t2 = 0;
     v1 = (ui_data.bat_ntc1 != 0);
     v2 = (ui_data.bat_ntc2 != 0);
@@ -310,7 +310,13 @@ void battery_mgr_proc(void)
     if (v2) t2 = ntc_resistance_to_temp(ui_data.bat_ntc2);
 
     if (v1 && v2)
-        g_bat.temperature_01c = (t1 > t2) ? t1 : t2;
+    {
+        /* 两个都大于0度取最高温, 有任一小于等于0度取最低温 */
+        if (t1 > 0 && t2 > 0)
+            g_bat.temperature_01c = (t1 > t2) ? t1 : t2;
+        else
+            g_bat.temperature_01c = (t1 < t2) ? t1 : t2;
+    }
     else if (v1)
         g_bat.temperature_01c = t1;
     else if (v2)
