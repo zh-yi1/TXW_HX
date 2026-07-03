@@ -16,6 +16,7 @@
 #define BAT_OV_RECOVER_MV   4400U   /* 过压保护恢复阈值 mV (滞回) */
 #define BAT_OV_DISABLE_MV   4600U   /* 过压禁用阈值 mV */
 #define BAT_UV_DISABLE_MV   1500U   /* 欠压禁用阈值 mV */
+#define BAT_OV_PROT_ENTER_S 1U      /* 过压保护进入持续秒数 */
 #define BAT_OV_RECOVER_S    5U      /* 过压保护恢复持续秒数 */
 #define BAT_OV_DISABLE_S    1U      /* 过压禁用持续秒数 */
 #define BAT_UV_DISABLE_S    5U      /* 欠压禁用持续秒数 */
@@ -47,7 +48,6 @@ int16_t  battery_mgr_temperature_01c(void);               /* 温度 0.1℃ (由�
 
 uint8_t  battery_mgr_is_disabled(void);                   /* 是否已禁用 (OV/UV) */
 uint8_t  battery_mgr_get_disable_reason(void);            /* 禁用原因 1=OV 2=UV */
-uint8_t  battery_mgr_get_warning(void);                   /* 当前警告类型 (主机 ntc_status) */
 uint8_t  battery_mgr_get_chg_state(void);                 /* 当前充放电状态 */
 uint8_t  battery_mgr_get_warning_chg_state(void);         /* 警告触发时的充放电状态 */
 uint8_t  battery_mgr_is_any_protection(void);             /* 任意保护标志: OV禁用/UV禁用/OV保护 */

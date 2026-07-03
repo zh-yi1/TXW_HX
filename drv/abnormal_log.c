@@ -266,6 +266,16 @@ void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv,
     }
 }
 
+void abnormal_log_voltage_update_force(uint32_t hour_start, uint16_t value_mv,
+                                       uint8_t cell, uint8_t chg_state)
+{
+    g_volt_ctx.hour_start  = hour_start;
+    g_volt_ctx.worst_value = value_mv;
+    g_volt_ctx.extra       = cell;
+    g_volt_ctx.chg_state   = chg_state;
+    g_volt_ctx.dirty       = 1;
+}
+
 uint8_t abnormal_log_voltage_commit(uint32_t timestamp)
 {
     if (!g_volt_ctx.dirty)

@@ -45,6 +45,9 @@ void abnormal_log_reset(void);  /* V1.3: 恢复出厂设置 — 擦除全部异�
 /* 电压异常: 更新当前小时最差值 (仅 RAM) */
 void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t cell, uint8_t chg_state);
 
+/* 电压异常: 强制更新当前小时最差值 (仅 RAM) */
+void abnormal_log_voltage_update_force(uint32_t hour_start, uint16_t value_mv, uint8_t cell, uint8_t chg_state);
+
 /* 电压异常: 提交到 Flash, 满 100 条返回 0 */
 uint8_t abnormal_log_voltage_commit(uint32_t timestamp);
 
