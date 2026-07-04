@@ -106,11 +106,10 @@ uint8_t ip3561q_read_reg(uint8_t reg, uint8_t *buf, uint8_t len)
  *    COC:  5.5A → 13.75mV→ 寄存器值 ≈ 0x02
  * ========================================================================== */
 
-/* 5-bit 有符号解析: bit4 为符号位, 补码表示 */
+/* 5-bit 有符号解析: bit7 即符号位, 强转后算术右移自动带符号扩展 */
 static int8_t ip3561q_parse_comp_5bit(uint8_t reg_val)
 {
-    int8_t val = (int8_t)((reg_val & 0xF8U) << 3) >> 3;  /* 算术右移自动带符号扩展 */
-    return val;
+    return (int8_t)reg_val >> 3;
 }
 
 static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
