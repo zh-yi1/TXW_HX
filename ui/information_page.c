@@ -15,6 +15,11 @@
 
 #define NUM_40_ADDR(d)  (FLASH_ADDR_NUM_40_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_40)
 
+/* 总电压显示固定布局 (按 "00-00V" 最大宽度 61px 居中于 240 屏) */
+#define VOLT_LABEL_X   60
+#define VOLT_LABEL_Y   113
+#define VOLT_DIGIT_X   118     /* 60 + 53(label) + 5(gap) */
+
 /* 在指定区域居中绘制数值 + 单位图标 (支持负数) */
 static void draw_value_in_area(range_t r, int16_t value, uint32_t unit_addr,
                                uint8_t unit_w, uint8_t unit_h, uint32_t neg_addr)
@@ -78,6 +83,22 @@ static void draw_value_in_area(range_t r, int16_t value, uint32_t unit_addr,
     Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_40_H - unit_h, unit_addr);
 }
 
+/* 将 mV 值格式化为电压字符串 "XX<sep>XXV" (buf 至少 8 字节) */
+static void fmt_voltage(char *buf, uint16_t mv, char sep)
+{
+    uint8_t v_int = mv / 1000;
+    uint8_t v_dec = (mv % 1000) / 10;
+    uint8_t p = 0;
+
+    if (v_int >= 10) { buf[p++] = '0' + v_int / 10; v_int %= 10; }
+    buf[p++] = '0' + v_int;
+    buf[p++] = sep;
+    buf[p++] = '0' + v_dec / 10;
+    buf[p++] = '0' + v_dec % 10;
+    buf[p++] = 'V';
+    buf[p]   = '\0';
+}
+
 void information_page_1_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
@@ -127,18 +148,8 @@ void information_page_3_init(void)
         {
             const char *model;
             uint16_t mv = ui_data.cell_voltage_mv[i];
-            uint8_t v_int = mv / 1000;
-            uint8_t v_dec = (mv % 1000) / 10;
-            uint8_t p = 0;
 
-            /* 格式化 "X.XXV" */
-            if (v_int >= 10) { buf[p++] = '0' + v_int / 10; v_int %= 10; }
-            buf[p++] = '0' + v_int;
-            buf[p++] = '.';
-            buf[p++] = '0' + v_dec / 10;
-            buf[p++] = '0' + v_dec % 10;
-            buf[p++] = 'V';
-            buf[p]   = '\0';
+            fmt_voltage(buf, mv, '.');
 
             if      (i == 0) model = ui_data.bat_model_1;
             else if (i == 1) model = ui_data.bat_model_2;
@@ -150,10 +161,20 @@ void information_page_3_init(void)
         }
     }
 
-    //运行时间
-    Dispphoto_Dispaly_flash(36, 113, FLASH_ADDR_RUN_TIME);
-    // TODO ：运行时间值,当前是假的
-    Dispphoto_Dispaly_flash(116, 113, FLASH_ADDR_TIME_FAKE);
+    /* 总电压 = 4 节电芯之和 (mV), 固定位置, 标签不动 */
+    {
+        uint32_t total_mv;
+        char buf[8];
+
+        total_mv = (uint32_t)ui_data.cell_voltage_mv[0] + ui_data.cell_voltage_mv[1]
+                 + ui_data.cell_voltage_mv[2] + ui_data.cell_voltage_mv[3];
+
+        fmt_voltage(buf, (uint16_t)total_mv, '-');
+
+        Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y, FLASH_ADDR_TOTAL_VOLTAGE);
+        digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
+                             DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+    }
 }
 
 /* ============================ 数据更新 ============================ */
@@ -211,31 +232,46 @@ void information_page_2_updata(void)
 
 void information_page_3_updata(void)
 {
-    static uint16_t last_mv[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    /* 比较用百分位 (10mV), 与显示精度一致, 避免 mV 级抖动触发无意义刷新 */
+    static uint16_t last_mv_cv[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
     uint8_t i;
 
     for (i = 0; i < 4; i++)
     {
-        if (ui_data.cell_voltage_mv[i] != last_mv[i])
+        uint16_t mv_cv = ui_data.cell_voltage_mv[i] / 10;
+
+        if (mv_cv != last_mv_cv[i])
         {
             char buf[8];
-            uint16_t mv = ui_data.cell_voltage_mv[i];
-            uint8_t v_int = mv / 1000;
-            uint8_t v_dec = (mv % 1000) / 10;
-            uint8_t p = 0;
 
-            /* 格式化 "X.XXV" */
-            if (v_int >= 10) { buf[p++] = '0' + v_int / 10; v_int %= 10; }
-            buf[p++] = '0' + v_int;
-            buf[p++] = '.';
-            buf[p++] = '0' + v_dec / 10;
-            buf[p++] = '0' + v_dec % 10;
-            buf[p++] = 'V';
-            buf[p]   = '\0';
+            fmt_voltage(buf, ui_data.cell_voltage_mv[i], '.');
 
             digit_display_string(buf, 13, 52 + i * 14,
                                  DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
-            last_mv[i] = mv;
+            last_mv_cv[i] = mv_cv;
+        }
+    }
+
+    /* 总电压 — 总和变化时更新 */
+    {
+        static uint32_t last_total_cv = 0xFFFFFFFF;
+        uint32_t total_mv;
+        uint32_t total_cv;
+
+        total_mv = (uint32_t)ui_data.cell_voltage_mv[0] + ui_data.cell_voltage_mv[1]
+                 + ui_data.cell_voltage_mv[2] + ui_data.cell_voltage_mv[3];
+        total_cv = total_mv / 10;
+
+        if (total_cv != last_total_cv)
+        {
+            char buf[8];
+
+            fmt_voltage(buf, (uint16_t)total_mv, '-');
+
+            digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
+                                 DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+
+            last_total_cv = total_cv;
         }
     }
 }

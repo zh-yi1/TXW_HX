@@ -4,10 +4,10 @@
  * P25Q64SH Flash Image Address Map (64 Mb = 8 MB)
  * Sector size: 4096 bytes (4 KB)
  *
- * Images:       616
- * Categories:   50
- * Flash used:   2313682 bytes (2259.5 KB)
- * Sectors used: 565 / 2048
+ * Images:       619
+ * Categories:   53
+ * Flash used:   2325970 bytes (2271.5 KB)
+ * Sectors used: 568 / 2048
  * Capacity:     8192 KB (8 MB)
  *
  * Category layout:
@@ -38,29 +38,32 @@
  *   DISCHARGE_HIGH_TEMP_PRO              base=0x1D3000  stride=22146  count=1     sectors=[467 – 472]
  *   FREE                                 base=0x1D9000  stride=3266   count=1     sectors=[473]
  *   HIGH_TMP_TEXT                        base=0x1DA000  stride=22146  count=1     sectors=[474 – 479]
- *   ICON                                 base=0x1E0000  stride=12866  count=9     sectors=[480 – 508]
- *   LOW_TMP_TEXT                         base=0x1FD000  stride=22146  count=1     sectors=[509 – 514]
- *   MAX_CAP                              base=0x203000  stride=2114   count=1     sectors=[515]
- *   NOAMAL_HIGH_TEMP_INF                 base=0x204000  stride=1986   count=1     sectors=[516]
- *   NOAMAL_HIGH_TEMP_PRO                 base=0x205000  stride=22146  count=1     sectors=[517 – 522]
- *   NUM_24                               base=0x20B000  stride=738    count=11    sectors=[523 – 524]
- *   NUM_32                               base=0x20D000  stride=1346   count=10    sectors=[525 – 528]
- *   NUM_40                               base=0x211000  stride=1986   count=11    sectors=[529 – 534]
- *   ORANGE_NUM_48                        base=0x217000  stride=3906   count=10    sectors=[535 – 544]
- *   OVER_CURRENT                         base=0x221000  stride=12866  count=1     sectors=[545 – 548]
- *   PERCENT_BLUE                         base=0x225000  stride=1218   count=1     sectors=[549]
- *   PERCENT_ORANG                        base=0x226000  stride=1218   count=1     sectors=[550]
- *   PERCENT_SMALL                        base=0x227000  stride=578    count=1     sectors=[551]
- *   POWER                                base=0x228000  stride=578    count=1     sectors=[552]
- *   RUN_TIME                             base=0x229000  stride=2166   count=1     sectors=[553]
- *   TEMP_NO_ABNORMAL                     base=0x22A000  stride=3306   count=1     sectors=[554]
- *   TIME_FAKE                            base=0x22B000  stride=2706   count=1     sectors=[555]
- *   TMP_PROTECT                          base=0x22C000  stride=1986   count=1     sectors=[556]
- *   UPDATA                               base=0x22D000  stride=13046  count=1     sectors=[557 – 560]
- *   USB                                  base=0x231000  stride=770    count=3     sectors=[561]
- *   VOLTAGE_NO_ABNORMAL                  base=0x232000  stride=3306   count=1     sectors=[562]
- *   VOLTAGE_PROTECTION                   base=0x233000  stride=1986   count=1     sectors=[563]
- *   X_166102A_1C_16                      base=0x234000  stride=3538   count=1     sectors=[564]
+ *   HOUR                                 base=0x1E0000  stride=1026   count=1     sectors=[480]
+ *   ICON                                 base=0x1E1000  stride=12866  count=9     sectors=[481 – 509]
+ *   LOW_TMP_TEXT                         base=0x1FE000  stride=22146  count=1     sectors=[510 – 515]
+ *   MAX_CAP                              base=0x204000  stride=2114   count=1     sectors=[516]
+ *   MINUTE                               base=0x205000  stride=546    count=1     sectors=[517]
+ *   NOAMAL_HIGH_TEMP_INF                 base=0x206000  stride=1986   count=1     sectors=[518]
+ *   NOAMAL_HIGH_TEMP_PRO                 base=0x207000  stride=22146  count=1     sectors=[519 – 524]
+ *   NUM_24                               base=0x20D000  stride=738    count=11    sectors=[525 – 526]
+ *   NUM_32                               base=0x20F000  stride=1346   count=10    sectors=[527 – 530]
+ *   NUM_40                               base=0x213000  stride=1986   count=11    sectors=[531 – 536]
+ *   ORANGE_NUM_48                        base=0x219000  stride=3906   count=10    sectors=[537 – 546]
+ *   OVER_CURRENT                         base=0x223000  stride=12866  count=1     sectors=[547 – 550]
+ *   PERCENT_BLUE                         base=0x227000  stride=1218   count=1     sectors=[551]
+ *   PERCENT_ORANG                        base=0x228000  stride=1218   count=1     sectors=[552]
+ *   PERCENT_SMALL                        base=0x229000  stride=578    count=1     sectors=[553]
+ *   POWER                                base=0x22A000  stride=578    count=1     sectors=[554]
+ *   RUN_TIME                             base=0x22B000  stride=2166   count=1     sectors=[555]
+ *   TEMP_NO_ABNORMAL                     base=0x22C000  stride=3306   count=1     sectors=[556]
+ *   TIME_FAKE                            base=0x22D000  stride=2706   count=1     sectors=[557]
+ *   TMP_PROTECT                          base=0x22E000  stride=1986   count=1     sectors=[558]
+ *   TOTAL_VOLTAGE                        base=0x22F000  stride=1794   count=1     sectors=[559]
+ *   UPDATA                               base=0x230000  stride=13046  count=1     sectors=[560 – 563]
+ *   USB                                  base=0x234000  stride=770    count=3     sectors=[564]
+ *   VOLTAGE_NO_ABNORMAL                  base=0x235000  stride=3306   count=1     sectors=[565]
+ *   VOLTAGE_PROTECTION                   base=0x236000  stride=1986   count=1     sectors=[566]
+ *   X_166102A_1C_16                      base=0x237000  stride=3538   count=1     sectors=[567]
  */
 
 #ifndef __FLASH_IMAGE_ADDR_H__
@@ -178,95 +181,107 @@
 #define FLASH_STRIDE_HIGH_TMP_TEXT       22146
 #define FLASH_COUNT_HIGH_TMP_TEXT        1
 
-#define FLASH_ADDR_ICON_BASE    (0x00000000 + 0x1E0000)
+#define FLASH_ADDR_HOUR_BASE    (0x00000000 + 0x1E0000)
+#define FLASH_STRIDE_HOUR       1026
+#define FLASH_COUNT_HOUR        1
+
+#define FLASH_ADDR_ICON_BASE    (0x00000000 + 0x1E1000)
 #define FLASH_STRIDE_ICON       12866
 #define FLASH_COUNT_ICON        9
 
-#define FLASH_ADDR_LOW_TMP_TEXT_BASE    (0x00000000 + 0x1FD000)
+#define FLASH_ADDR_LOW_TMP_TEXT_BASE    (0x00000000 + 0x1FE000)
 #define FLASH_STRIDE_LOW_TMP_TEXT       22146
 #define FLASH_COUNT_LOW_TMP_TEXT        1
 
-#define FLASH_ADDR_MAX_CAP_BASE    (0x00000000 + 0x203000)
+#define FLASH_ADDR_MAX_CAP_BASE    (0x00000000 + 0x204000)
 #define FLASH_STRIDE_MAX_CAP       2114
 #define FLASH_COUNT_MAX_CAP        1
 
-#define FLASH_ADDR_NOAMAL_HIGH_TEMP_INF_BASE    (0x00000000 + 0x204000)
+#define FLASH_ADDR_MINUTE_BASE    (0x00000000 + 0x205000)
+#define FLASH_STRIDE_MINUTE       546
+#define FLASH_COUNT_MINUTE        1
+
+#define FLASH_ADDR_NOAMAL_HIGH_TEMP_INF_BASE    (0x00000000 + 0x206000)
 #define FLASH_STRIDE_NOAMAL_HIGH_TEMP_INF       1986
 #define FLASH_COUNT_NOAMAL_HIGH_TEMP_INF        1
 
-#define FLASH_ADDR_NOAMAL_HIGH_TEMP_PRO_BASE    (0x00000000 + 0x205000)
+#define FLASH_ADDR_NOAMAL_HIGH_TEMP_PRO_BASE    (0x00000000 + 0x207000)
 #define FLASH_STRIDE_NOAMAL_HIGH_TEMP_PRO       22146
 #define FLASH_COUNT_NOAMAL_HIGH_TEMP_PRO        1
 
-#define FLASH_ADDR_NUM_24_BASE    (0x00000000 + 0x20B000)
+#define FLASH_ADDR_NUM_24_BASE    (0x00000000 + 0x20D000)
 #define FLASH_STRIDE_NUM_24       738
 #define FLASH_COUNT_NUM_24        11
 
-#define FLASH_ADDR_NUM_32_BASE    (0x00000000 + 0x20D000)
+#define FLASH_ADDR_NUM_32_BASE    (0x00000000 + 0x20F000)
 #define FLASH_STRIDE_NUM_32       1346
 #define FLASH_COUNT_NUM_32        10
 
-#define FLASH_ADDR_NUM_40_BASE    (0x00000000 + 0x211000)
+#define FLASH_ADDR_NUM_40_BASE    (0x00000000 + 0x213000)
 #define FLASH_STRIDE_NUM_40       1986
 #define FLASH_COUNT_NUM_40        11
 
-#define FLASH_ADDR_ORANGE_NUM_48_BASE    (0x00000000 + 0x217000)
+#define FLASH_ADDR_ORANGE_NUM_48_BASE    (0x00000000 + 0x219000)
 #define FLASH_STRIDE_ORANGE_NUM_48       3906
 #define FLASH_COUNT_ORANGE_NUM_48        10
 
-#define FLASH_ADDR_OVER_CURRENT_BASE    (0x00000000 + 0x221000)
+#define FLASH_ADDR_OVER_CURRENT_BASE    (0x00000000 + 0x223000)
 #define FLASH_STRIDE_OVER_CURRENT       12866
 #define FLASH_COUNT_OVER_CURRENT        1
 
-#define FLASH_ADDR_PERCENT_BLUE_BASE    (0x00000000 + 0x225000)
+#define FLASH_ADDR_PERCENT_BLUE_BASE    (0x00000000 + 0x227000)
 #define FLASH_STRIDE_PERCENT_BLUE       1218
 #define FLASH_COUNT_PERCENT_BLUE        1
 
-#define FLASH_ADDR_PERCENT_ORANG_BASE    (0x00000000 + 0x226000)
+#define FLASH_ADDR_PERCENT_ORANG_BASE    (0x00000000 + 0x228000)
 #define FLASH_STRIDE_PERCENT_ORANG       1218
 #define FLASH_COUNT_PERCENT_ORANG        1
 
-#define FLASH_ADDR_PERCENT_SMALL_BASE    (0x00000000 + 0x227000)
+#define FLASH_ADDR_PERCENT_SMALL_BASE    (0x00000000 + 0x229000)
 #define FLASH_STRIDE_PERCENT_SMALL       578
 #define FLASH_COUNT_PERCENT_SMALL        1
 
-#define FLASH_ADDR_POWER_BASE    (0x00000000 + 0x228000)
+#define FLASH_ADDR_POWER_BASE    (0x00000000 + 0x22A000)
 #define FLASH_STRIDE_POWER       578
 #define FLASH_COUNT_POWER        1
 
-#define FLASH_ADDR_RUN_TIME_BASE    (0x00000000 + 0x229000)
+#define FLASH_ADDR_RUN_TIME_BASE    (0x00000000 + 0x22B000)
 #define FLASH_STRIDE_RUN_TIME       2166
 #define FLASH_COUNT_RUN_TIME        1
 
-#define FLASH_ADDR_TEMP_NO_ABNORMAL_BASE    (0x00000000 + 0x22A000)
+#define FLASH_ADDR_TEMP_NO_ABNORMAL_BASE    (0x00000000 + 0x22C000)
 #define FLASH_STRIDE_TEMP_NO_ABNORMAL       3306
 #define FLASH_COUNT_TEMP_NO_ABNORMAL        1
 
-#define FLASH_ADDR_TIME_FAKE_BASE    (0x00000000 + 0x22B000)
+#define FLASH_ADDR_TIME_FAKE_BASE    (0x00000000 + 0x22D000)
 #define FLASH_STRIDE_TIME_FAKE       2706
 #define FLASH_COUNT_TIME_FAKE        1
 
-#define FLASH_ADDR_TMP_PROTECT_BASE    (0x00000000 + 0x22C000)
+#define FLASH_ADDR_TMP_PROTECT_BASE    (0x00000000 + 0x22E000)
 #define FLASH_STRIDE_TMP_PROTECT       1986
 #define FLASH_COUNT_TMP_PROTECT        1
 
-#define FLASH_ADDR_UPDATA_BASE    (0x00000000 + 0x22D000)
+#define FLASH_ADDR_TOTAL_VOLTAGE_BASE    (0x00000000 + 0x22F000)
+#define FLASH_STRIDE_TOTAL_VOLTAGE       1794
+#define FLASH_COUNT_TOTAL_VOLTAGE        1
+
+#define FLASH_ADDR_UPDATA_BASE    (0x00000000 + 0x230000)
 #define FLASH_STRIDE_UPDATA       13046
 #define FLASH_COUNT_UPDATA        1
 
-#define FLASH_ADDR_USB_BASE    (0x00000000 + 0x231000)
+#define FLASH_ADDR_USB_BASE    (0x00000000 + 0x234000)
 #define FLASH_STRIDE_USB       770
 #define FLASH_COUNT_USB        3
 
-#define FLASH_ADDR_VOLTAGE_NO_ABNORMAL_BASE    (0x00000000 + 0x232000)
+#define FLASH_ADDR_VOLTAGE_NO_ABNORMAL_BASE    (0x00000000 + 0x235000)
 #define FLASH_STRIDE_VOLTAGE_NO_ABNORMAL       3306
 #define FLASH_COUNT_VOLTAGE_NO_ABNORMAL        1
 
-#define FLASH_ADDR_VOLTAGE_PROTECTION_BASE    (0x00000000 + 0x233000)
+#define FLASH_ADDR_VOLTAGE_PROTECTION_BASE    (0x00000000 + 0x236000)
 #define FLASH_STRIDE_VOLTAGE_PROTECTION       1986
 #define FLASH_COUNT_VOLTAGE_PROTECTION        1
 
-#define FLASH_ADDR_X_166102A_1C_16_BASE    (0x00000000 + 0x234000)
+#define FLASH_ADDR_X_166102A_1C_16_BASE    (0x00000000 + 0x237000)
 #define FLASH_STRIDE_X_166102A_1C_16       3538
 #define FLASH_COUNT_X_166102A_1C_16        1
 
@@ -1969,147 +1984,153 @@
 #define FLASH_SIZE_FREE                       3266
 #define FLASH_ADDR_HIGH_TMP_TEXT              (0x00000000 + 0x1DA000)
 #define FLASH_SIZE_HIGH_TMP_TEXT              22146
-#define FLASH_ADDR_BATTERY                    (0x00000000 + 0x1E0000)
+#define FLASH_ADDR_HOUR                       (0x00000000 + 0x1E0000)
+#define FLASH_SIZE_HOUR                       1026
+#define FLASH_ADDR_BATTERY                    (0x00000000 + 0x1E1000)
 #define FLASH_SIZE_BATTERY                    1218
-#define FLASH_ADDR_CHARGING_BLUE              (0x00000000 + 0x1E3242)
+#define FLASH_ADDR_CHARGING_BLUE              (0x00000000 + 0x1E4242)
 #define FLASH_SIZE_CHARGING_BLUE              1218
-#define FLASH_ADDR_CHARGING_ORANGE            (0x00000000 + 0x1E6484)
+#define FLASH_ADDR_CHARGING_ORANGE            (0x00000000 + 0x1E7484)
 #define FLASH_SIZE_CHARGING_ORANGE            1218
-#define FLASH_ADDR_DEGREE                     (0x00000000 + 0x1E96C6)
+#define FLASH_ADDR_DEGREE                     (0x00000000 + 0x1EA6C6)
 #define FLASH_SIZE_DEGREE                     578
-#define FLASH_ADDR_TEMP_BLUE                  (0x00000000 + 0x1EC908)
+#define FLASH_ADDR_TEMP_BLUE                  (0x00000000 + 0x1ED908)
 #define FLASH_SIZE_TEMP_BLUE                  12866
-#define FLASH_ADDR_TEMP_ORANGE                (0x00000000 + 0x1EFB4A)
+#define FLASH_ADDR_TEMP_ORANGE                (0x00000000 + 0x1F0B4A)
 #define FLASH_SIZE_TEMP_ORANGE                12866
-#define FLASH_ADDR_TIME                       (0x00000000 + 0x1F2D8C)
+#define FLASH_ADDR_TIME                       (0x00000000 + 0x1F3D8C)
 #define FLASH_SIZE_TIME                       1218
-#define FLASH_ADDR_TYPE_C                     (0x00000000 + 0x1F5FCE)
+#define FLASH_ADDR_TYPE_C                     (0x00000000 + 0x1F6FCE)
 #define FLASH_SIZE_TYPE_C                     1090
-#define FLASH_ADDR_USB                        (0x00000000 + 0x1F9210)
+#define FLASH_ADDR_USB                        (0x00000000 + 0x1FA210)
 #define FLASH_SIZE_USB                        1090
-#define FLASH_ADDR_LOW_TMP_TEXT               (0x00000000 + 0x1FD000)
+#define FLASH_ADDR_LOW_TMP_TEXT               (0x00000000 + 0x1FE000)
 #define FLASH_SIZE_LOW_TMP_TEXT               22146
-#define FLASH_ADDR_MAX_CAP                    (0x00000000 + 0x203000)
+#define FLASH_ADDR_MAX_CAP                    (0x00000000 + 0x204000)
 #define FLASH_SIZE_MAX_CAP                    2114
-#define FLASH_ADDR_NOAMAL_HIGH_TEMP_INF       (0x00000000 + 0x204000)
+#define FLASH_ADDR_MINUTE                     (0x00000000 + 0x205000)
+#define FLASH_SIZE_MINUTE                     546
+#define FLASH_ADDR_NOAMAL_HIGH_TEMP_INF       (0x00000000 + 0x206000)
 #define FLASH_SIZE_NOAMAL_HIGH_TEMP_INF       1986
-#define FLASH_ADDR_NOAMAL_HIGH_TEMP_PRO       (0x00000000 + 0x205000)
+#define FLASH_ADDR_NOAMAL_HIGH_TEMP_PRO       (0x00000000 + 0x207000)
 #define FLASH_SIZE_NOAMAL_HIGH_TEMP_PRO       22146
-#define FLASH_ADDR_NUM_24_0                   (0x00000000 + 0x20B000)
+#define FLASH_ADDR_NUM_24_0                   (0x00000000 + 0x20D000)
 #define FLASH_SIZE_NUM_24_0                   738
-#define FLASH_ADDR_NUM_24_1                   (0x00000000 + 0x20B2E2)
+#define FLASH_ADDR_NUM_24_1                   (0x00000000 + 0x20D2E2)
 #define FLASH_SIZE_NUM_24_1                   738
-#define FLASH_ADDR_NUM_24_2                   (0x00000000 + 0x20B5C4)
+#define FLASH_ADDR_NUM_24_2                   (0x00000000 + 0x20D5C4)
 #define FLASH_SIZE_NUM_24_2                   738
-#define FLASH_ADDR_NUM_24_3                   (0x00000000 + 0x20B8A6)
+#define FLASH_ADDR_NUM_24_3                   (0x00000000 + 0x20D8A6)
 #define FLASH_SIZE_NUM_24_3                   738
-#define FLASH_ADDR_NUM_24_4                   (0x00000000 + 0x20BB88)
+#define FLASH_ADDR_NUM_24_4                   (0x00000000 + 0x20DB88)
 #define FLASH_SIZE_NUM_24_4                   738
-#define FLASH_ADDR_NUM_24_5                   (0x00000000 + 0x20BE6A)
+#define FLASH_ADDR_NUM_24_5                   (0x00000000 + 0x20DE6A)
 #define FLASH_SIZE_NUM_24_5                   738
-#define FLASH_ADDR_NUM_24_6                   (0x00000000 + 0x20C14C)
+#define FLASH_ADDR_NUM_24_6                   (0x00000000 + 0x20E14C)
 #define FLASH_SIZE_NUM_24_6                   738
-#define FLASH_ADDR_NUM_24_7                   (0x00000000 + 0x20C42E)
+#define FLASH_ADDR_NUM_24_7                   (0x00000000 + 0x20E42E)
 #define FLASH_SIZE_NUM_24_7                   738
-#define FLASH_ADDR_NUM_24_8                   (0x00000000 + 0x20C710)
+#define FLASH_ADDR_NUM_24_8                   (0x00000000 + 0x20E710)
 #define FLASH_SIZE_NUM_24_8                   738
-#define FLASH_ADDR_NUM_24_9                   (0x00000000 + 0x20C9F2)
+#define FLASH_ADDR_NUM_24_9                   (0x00000000 + 0x20E9F2)
 #define FLASH_SIZE_NUM_24_9                   738
-#define FLASH_ADDR_NUM_24                     (0x00000000 + 0x20CCD4)
+#define FLASH_ADDR_NUM_24                     (0x00000000 + 0x20ECD4)
 #define FLASH_SIZE_NUM_24                     642
-#define FLASH_ADDR_NUM_32_0                   (0x00000000 + 0x20D000)
+#define FLASH_ADDR_NUM_32_0                   (0x00000000 + 0x20F000)
 #define FLASH_SIZE_NUM_32_0                   1346
-#define FLASH_ADDR_NUM_32_1                   (0x00000000 + 0x20D542)
+#define FLASH_ADDR_NUM_32_1                   (0x00000000 + 0x20F542)
 #define FLASH_SIZE_NUM_32_1                   1346
-#define FLASH_ADDR_NUM_32_2                   (0x00000000 + 0x20DA84)
+#define FLASH_ADDR_NUM_32_2                   (0x00000000 + 0x20FA84)
 #define FLASH_SIZE_NUM_32_2                   1346
-#define FLASH_ADDR_NUM_32_3                   (0x00000000 + 0x20DFC6)
+#define FLASH_ADDR_NUM_32_3                   (0x00000000 + 0x20FFC6)
 #define FLASH_SIZE_NUM_32_3                   1346
-#define FLASH_ADDR_NUM_32_4                   (0x00000000 + 0x20E508)
+#define FLASH_ADDR_NUM_32_4                   (0x00000000 + 0x210508)
 #define FLASH_SIZE_NUM_32_4                   1346
-#define FLASH_ADDR_NUM_32_5                   (0x00000000 + 0x20EA4A)
+#define FLASH_ADDR_NUM_32_5                   (0x00000000 + 0x210A4A)
 #define FLASH_SIZE_NUM_32_5                   1346
-#define FLASH_ADDR_NUM_32_6                   (0x00000000 + 0x20EF8C)
+#define FLASH_ADDR_NUM_32_6                   (0x00000000 + 0x210F8C)
 #define FLASH_SIZE_NUM_32_6                   1346
-#define FLASH_ADDR_NUM_32_7                   (0x00000000 + 0x20F4CE)
+#define FLASH_ADDR_NUM_32_7                   (0x00000000 + 0x2114CE)
 #define FLASH_SIZE_NUM_32_7                   1346
-#define FLASH_ADDR_NUM_32_8                   (0x00000000 + 0x20FA10)
+#define FLASH_ADDR_NUM_32_8                   (0x00000000 + 0x211A10)
 #define FLASH_SIZE_NUM_32_8                   1346
-#define FLASH_ADDR_NUM_32_9                   (0x00000000 + 0x20FF52)
+#define FLASH_ADDR_NUM_32_9                   (0x00000000 + 0x211F52)
 #define FLASH_SIZE_NUM_32_9                   1346
-#define FLASH_ADDR_NUM_40_0                   (0x00000000 + 0x211000)
+#define FLASH_ADDR_NUM_40_0                   (0x00000000 + 0x213000)
 #define FLASH_SIZE_NUM_40_0                   1986
-#define FLASH_ADDR_NUM_40_1                   (0x00000000 + 0x2117C2)
+#define FLASH_ADDR_NUM_40_1                   (0x00000000 + 0x2137C2)
 #define FLASH_SIZE_NUM_40_1                   1986
-#define FLASH_ADDR_NUM_40_2                   (0x00000000 + 0x211F84)
+#define FLASH_ADDR_NUM_40_2                   (0x00000000 + 0x213F84)
 #define FLASH_SIZE_NUM_40_2                   1986
-#define FLASH_ADDR_NUM_40_3                   (0x00000000 + 0x212746)
+#define FLASH_ADDR_NUM_40_3                   (0x00000000 + 0x214746)
 #define FLASH_SIZE_NUM_40_3                   1986
-#define FLASH_ADDR_NUM_40_4                   (0x00000000 + 0x212F08)
+#define FLASH_ADDR_NUM_40_4                   (0x00000000 + 0x214F08)
 #define FLASH_SIZE_NUM_40_4                   1986
-#define FLASH_ADDR_NUM_40_5                   (0x00000000 + 0x2136CA)
+#define FLASH_ADDR_NUM_40_5                   (0x00000000 + 0x2156CA)
 #define FLASH_SIZE_NUM_40_5                   1986
-#define FLASH_ADDR_NUM_40_6                   (0x00000000 + 0x213E8C)
+#define FLASH_ADDR_NUM_40_6                   (0x00000000 + 0x215E8C)
 #define FLASH_SIZE_NUM_40_6                   1986
-#define FLASH_ADDR_NUM_40_7                   (0x00000000 + 0x21464E)
+#define FLASH_ADDR_NUM_40_7                   (0x00000000 + 0x21664E)
 #define FLASH_SIZE_NUM_40_7                   1986
-#define FLASH_ADDR_NUM_40_8                   (0x00000000 + 0x214E10)
+#define FLASH_ADDR_NUM_40_8                   (0x00000000 + 0x216E10)
 #define FLASH_SIZE_NUM_40_8                   1986
-#define FLASH_ADDR_NUM_40_9                   (0x00000000 + 0x2155D2)
+#define FLASH_ADDR_NUM_40_9                   (0x00000000 + 0x2175D2)
 #define FLASH_SIZE_NUM_40_9                   1986
-#define FLASH_ADDR_NUM_40                     (0x00000000 + 0x215D94)
+#define FLASH_ADDR_NUM_40                     (0x00000000 + 0x217D94)
 #define FLASH_SIZE_NUM_40                     1506
-#define FLASH_ADDR_ORANGE_NUM_48_0            (0x00000000 + 0x217000)
+#define FLASH_ADDR_ORANGE_NUM_48_0            (0x00000000 + 0x219000)
 #define FLASH_SIZE_ORANGE_NUM_48_0            3906
-#define FLASH_ADDR_ORANGE_NUM_48_1            (0x00000000 + 0x217F42)
+#define FLASH_ADDR_ORANGE_NUM_48_1            (0x00000000 + 0x219F42)
 #define FLASH_SIZE_ORANGE_NUM_48_1            3906
-#define FLASH_ADDR_ORANGE_NUM_48_2            (0x00000000 + 0x218E84)
+#define FLASH_ADDR_ORANGE_NUM_48_2            (0x00000000 + 0x21AE84)
 #define FLASH_SIZE_ORANGE_NUM_48_2            3906
-#define FLASH_ADDR_ORANGE_NUM_48_3            (0x00000000 + 0x219DC6)
+#define FLASH_ADDR_ORANGE_NUM_48_3            (0x00000000 + 0x21BDC6)
 #define FLASH_SIZE_ORANGE_NUM_48_3            3906
-#define FLASH_ADDR_ORANGE_NUM_48_4            (0x00000000 + 0x21AD08)
+#define FLASH_ADDR_ORANGE_NUM_48_4            (0x00000000 + 0x21CD08)
 #define FLASH_SIZE_ORANGE_NUM_48_4            3906
-#define FLASH_ADDR_ORANGE_NUM_48_5            (0x00000000 + 0x21BC4A)
+#define FLASH_ADDR_ORANGE_NUM_48_5            (0x00000000 + 0x21DC4A)
 #define FLASH_SIZE_ORANGE_NUM_48_5            3906
-#define FLASH_ADDR_ORANGE_NUM_48_6            (0x00000000 + 0x21CB8C)
+#define FLASH_ADDR_ORANGE_NUM_48_6            (0x00000000 + 0x21EB8C)
 #define FLASH_SIZE_ORANGE_NUM_48_6            3906
-#define FLASH_ADDR_ORANGE_NUM_48_7            (0x00000000 + 0x21DACE)
+#define FLASH_ADDR_ORANGE_NUM_48_7            (0x00000000 + 0x21FACE)
 #define FLASH_SIZE_ORANGE_NUM_48_7            3906
-#define FLASH_ADDR_ORANGE_NUM_48_8            (0x00000000 + 0x21EA10)
+#define FLASH_ADDR_ORANGE_NUM_48_8            (0x00000000 + 0x220A10)
 #define FLASH_SIZE_ORANGE_NUM_48_8            3906
-#define FLASH_ADDR_ORANGE_NUM_48_9            (0x00000000 + 0x21F952)
+#define FLASH_ADDR_ORANGE_NUM_48_9            (0x00000000 + 0x221952)
 #define FLASH_SIZE_ORANGE_NUM_48_9            3906
-#define FLASH_ADDR_OVER_CURRENT               (0x00000000 + 0x221000)
+#define FLASH_ADDR_OVER_CURRENT               (0x00000000 + 0x223000)
 #define FLASH_SIZE_OVER_CURRENT               12866
-#define FLASH_ADDR_PERCENT_BLUE               (0x00000000 + 0x225000)
+#define FLASH_ADDR_PERCENT_BLUE               (0x00000000 + 0x227000)
 #define FLASH_SIZE_PERCENT_BLUE               1218
-#define FLASH_ADDR_PERCENT_ORANG              (0x00000000 + 0x226000)
+#define FLASH_ADDR_PERCENT_ORANG              (0x00000000 + 0x228000)
 #define FLASH_SIZE_PERCENT_ORANG              1218
-#define FLASH_ADDR_PERCENT_SMALL              (0x00000000 + 0x227000)
+#define FLASH_ADDR_PERCENT_SMALL              (0x00000000 + 0x229000)
 #define FLASH_SIZE_PERCENT_SMALL              578
-#define FLASH_ADDR_POWER_W                    (0x00000000 + 0x228000)
+#define FLASH_ADDR_POWER_W                    (0x00000000 + 0x22A000)
 #define FLASH_SIZE_POWER_W                    578
-#define FLASH_ADDR_RUN_TIME                   (0x00000000 + 0x229000)
+#define FLASH_ADDR_RUN_TIME                   (0x00000000 + 0x22B000)
 #define FLASH_SIZE_RUN_TIME                   2166
-#define FLASH_ADDR_TEMP_NO_ABNORMAL           (0x00000000 + 0x22A000)
+#define FLASH_ADDR_TEMP_NO_ABNORMAL           (0x00000000 + 0x22C000)
 #define FLASH_SIZE_TEMP_NO_ABNORMAL           3306
-#define FLASH_ADDR_TIME_FAKE                  (0x00000000 + 0x22B000)
+#define FLASH_ADDR_TIME_FAKE                  (0x00000000 + 0x22D000)
 #define FLASH_SIZE_TIME_FAKE                  2706
-#define FLASH_ADDR_TMP_PROTECT                (0x00000000 + 0x22C000)
+#define FLASH_ADDR_TMP_PROTECT                (0x00000000 + 0x22E000)
 #define FLASH_SIZE_TMP_PROTECT                1986
-#define FLASH_ADDR_UPDATA                     (0x00000000 + 0x22D000)
+#define FLASH_ADDR_TOTAL_VOLTAGE              (0x00000000 + 0x22F000)
+#define FLASH_SIZE_TOTAL_VOLTAGE              1794
+#define FLASH_ADDR_UPDATA                     (0x00000000 + 0x230000)
 #define FLASH_SIZE_UPDATA                     13046
-#define FLASH_ADDR_USB_1                      (0x00000000 + 0x231000)
+#define FLASH_ADDR_USB_1                      (0x00000000 + 0x234000)
 #define FLASH_SIZE_USB_1                      770
-#define FLASH_ADDR_USB_2                      (0x00000000 + 0x231302)
+#define FLASH_ADDR_USB_2                      (0x00000000 + 0x234302)
 #define FLASH_SIZE_USB_2                      770
-#define FLASH_ADDR_USB_3                      (0x00000000 + 0x231604)
+#define FLASH_ADDR_USB_3                      (0x00000000 + 0x234604)
 #define FLASH_SIZE_USB_3                      770
-#define FLASH_ADDR_VOLTAGE_NO_ABNORMAL        (0x00000000 + 0x232000)
+#define FLASH_ADDR_VOLTAGE_NO_ABNORMAL        (0x00000000 + 0x235000)
 #define FLASH_SIZE_VOLTAGE_NO_ABNORMAL        3306
-#define FLASH_ADDR_VOLTAGE_PROTECTION         (0x00000000 + 0x233000)
+#define FLASH_ADDR_VOLTAGE_PROTECTION         (0x00000000 + 0x236000)
 #define FLASH_SIZE_VOLTAGE_PROTECTION         1986
-#define FLASH_ADDR_X_166102A_1C_16            (0x00000000 + 0x234000)
+#define FLASH_ADDR_X_166102A_1C_16            (0x00000000 + 0x237000)
 #define FLASH_SIZE_X_166102A_1C_16            3538
 
 #endif /* __FLASH_IMAGE_ADDR_H__ */

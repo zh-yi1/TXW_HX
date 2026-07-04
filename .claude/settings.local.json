@@ -10,7 +10,9 @@
       "Bash(python -c ' *)",
       "Bash(sed -i '/\\(ui_data.bat_power > 10\\) = \\(ui_data.bat_power > 10\\);/d' ui/default_page.c)",
       "Bash(sed -i 's/int area_x, area_y, area_w, area_h;/int area_x, area_y, area_w;/' ui/default_page.c)",
-      "Bash(sed -i 's/int x, total_w;//' ui/default_page.c)"
+      "Bash(sed -i 's/int x, total_w;//' ui/default_page.c)",
+      "Bash(python3 -c ' *)",
+      "WebFetch(domain:www.puya-semi.com)"
     ]
   }
 }
