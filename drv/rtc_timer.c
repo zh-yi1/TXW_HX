@@ -105,7 +105,7 @@ static void move_to_next_block(void)
                    (sizeof(ts_block_addrs) / sizeof(ts_block_addrs[0]));
 
     /* 先擦除下一块 */
-    flash_sector_erase(ts_block_addrs[next]);
+    flash_page_erase(ts_block_addrs[next]);
     flash_wait_unbusy();
 
     g_ts_block_idx = next;
@@ -177,11 +177,11 @@ void rtc_timer_reinit(void)
 
     /* start_timestamp 变了 → 擦除旧时间戳块，避免重启后恢复出混合时间 */
     if (g_time_synced) {
-        flash_sector_erase(ts_block_addrs[0]);
+        flash_page_erase(ts_block_addrs[0]);
         flash_wait_unbusy();
-        flash_sector_erase(ts_block_addrs[1]);
+        flash_page_erase(ts_block_addrs[1]);
         flash_wait_unbusy();
-        flash_sector_erase(ts_block_addrs[2]);
+        flash_page_erase(ts_block_addrs[2]);
         flash_wait_unbusy();
     }
 
@@ -307,11 +307,11 @@ void rtc_reset_running_time(void)
     g_last_second_tick = md_get_tick();
 
     /* 擦除全部时间戳块, 防止重启后 scan 恢复 */
-    flash_sector_erase(ts_block_addrs[0]);
+    flash_page_erase(ts_block_addrs[0]);
     flash_wait_unbusy();
-    flash_sector_erase(ts_block_addrs[1]);
+    flash_page_erase(ts_block_addrs[1]);
     flash_wait_unbusy();
-    flash_sector_erase(ts_block_addrs[2]);
+    flash_page_erase(ts_block_addrs[2]);
     flash_wait_unbusy();
 
     /* 复位写指针到块 0 起始 */
@@ -357,7 +357,7 @@ void factory_cfg_write(const factory_cfg_t *cfg)
         local.crc8 = crc;
     }
 
-    flash_sector_erase(addr);
+    flash_page_erase(addr);
     flash_wait_unbusy();
     flash_write(addr, (uint8_t *)&local, sizeof(factory_cfg_t));
     flash_wait_unbusy();

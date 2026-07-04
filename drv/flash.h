@@ -7,7 +7,7 @@
 
 md_status_t flash_read(uint32_t addr, unsigned char *buf, uint16_t size);
 md_status_t flash_write(uint32_t addr, unsigned char *buf, uint16_t size);
-md_status_t flash_sector_erase(uint32_t addr);
+md_status_t flash_page_erase(uint32_t addr);
 uint32_t flash_read_id(void);
 md_status_t flash_wait_unbusy(void);
 

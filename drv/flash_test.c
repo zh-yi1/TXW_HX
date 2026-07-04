@@ -30,7 +30,7 @@ void flash_test_run(void)
 
     /* ---- 1: 预擦除 16 个 256B 页 (每次擦 1 页) ---- */
     case 1:
-        flash_sector_erase(TEST_ADDR + idx * 256);
+        flash_page_erase(TEST_ADDR + idx * 256);
         if (++idx >= 16) {
             idx   = 0;
             state = 2;
@@ -75,7 +75,7 @@ void flash_test_run(void)
     /* ---- 4: 测试擦除 256B ---- */
     case 4:
         LOGI("ERASE 256B...\r\n");
-        flash_sector_erase(TEST_ADDR);
+        flash_page_erase(TEST_ADDR);
         state = 5;
         break;
 

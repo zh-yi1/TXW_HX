@@ -65,6 +65,10 @@ static void scan_area(uint32_t base, uint32_t *write_addr, uint8_t *count)
         }
     }
 
+    /* 防御: 避免重启后 count 超过软件上限导致写永久阻塞 */
+    if (n > MAX_RECORDS)
+        n = MAX_RECORDS;
+
     *count = n;
 
     if (n == 0) {
@@ -118,15 +122,13 @@ static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint8_t *co
     {
         uint8_t test;
         if (flash_read(*write_addr, &test, 1) == MD_OK && test != 0xFF) {
-            flash_sector_erase(*write_addr & ~(BLOCK_SIZE - 1));
-            flash_wait_unbusy();
+            flash_page_erase(*write_addr & ~(BLOCK_SIZE - 1));
         }
     }
 
     if (flash_write(*write_addr, (uint8_t *)&rec, RECORD_SIZE) != MD_OK)
         return 0;
 
-    flash_wait_unbusy();
     (*count)++;
     advance_write_ptr(base, write_addr);
     return 1;
@@ -137,10 +139,7 @@ static uint8_t read_record_at(uint32_t base, uint32_t addr, abnormal_record_t *o
 {
     uint8_t buf[RECORD_SIZE];
 
-    if (addr < base)
-        addr = base + AREA_SIZE - RECORD_SIZE;
-
-    if (addr >= base + AREA_SIZE)
+    if (addr < base || addr >= base + AREA_SIZE)
         return 1;
 
     if (flash_read(addr, buf, RECORD_SIZE) != MD_OK)
@@ -219,14 +218,12 @@ void abnormal_log_reset(void)
 
     /* 擦除电压异常区 (7 × 256B) */
     for (i = 0; i < AREA_BLOCKS; i++) {
-        flash_sector_erase(VOLT_BASE + (uint32_t)i * BLOCK_SIZE);
-        flash_wait_unbusy();
+        flash_page_erase(VOLT_BASE + (uint32_t)i * BLOCK_SIZE);
     }
 
     /* 擦除温度异常区 (7 × 256B) */
     for (i = 0; i < AREA_BLOCKS; i++) {
-        flash_sector_erase(TEMP_BASE + (uint32_t)i * BLOCK_SIZE);
-        flash_wait_unbusy();
+        flash_page_erase(TEMP_BASE + (uint32_t)i * BLOCK_SIZE);
     }
 
     /* 复位电压异常 RAM 上下文 */

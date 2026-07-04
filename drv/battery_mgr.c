@@ -452,7 +452,7 @@ void static_cfg_load_to_ui(void)
 
 void static_cfg_erasure(void)
 {
-    flash_sector_erase(FLASH_DATA_BASE + FLASH_OFFS_FACTORY_CFG);
+    flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_FACTORY_CFG);
     flash_wait_unbusy();
 }
 
@@ -462,13 +462,13 @@ void abnormal_log_erasure(void)
     uint8_t i;
 
     for (i = 0; i < 7; i++) {
-        flash_sector_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_VOLTAGE
+        flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_VOLTAGE
                            + (uint32_t)i * 256);
         flash_wait_unbusy();
     }
 
     for (i = 0; i < 7; i++) {
-        flash_sector_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_TEMPERATURE
+        flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_TEMPERATURE
                            + (uint32_t)i * 256);
         flash_wait_unbusy();
     }
