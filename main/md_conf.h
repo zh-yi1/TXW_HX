@@ -9,7 +9,7 @@
 #define MD_ADC
 #define MD_DMA
 #define MD_SPI
-/* #define MD_IWDT */
+#define MD_IWDT
 /* #define MD_WWDT */
 /* #define MD_CRC */
 #define MD_USART
