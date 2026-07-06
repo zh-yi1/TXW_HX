@@ -86,13 +86,6 @@ typedef enum
 	PAGE_MAX,
 } page_t;
 
-/* 设备状态 */
-typedef enum
-{
-	DEV_STATE_NORMAL = 0,  /* 正常状态 */
-	DEV_STATE_SLEEP  = 1,  /* 休眠状态 */
-} dev_state_t;
-
 /* 警告类型 */
 typedef enum
 {
@@ -175,7 +168,6 @@ extern ui_data_t ui_data;
 void ui_init(void);
 void ui_proc(void);
 void key_single_click_ui_proc(void);
-void key_double_click_ui_proc(void);
 bool key_long_press_ui_proc(void);
 
 

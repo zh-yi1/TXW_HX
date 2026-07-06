@@ -142,4 +142,34 @@ void USART1_Handler(void)
 }
 #endif /* !DEBUG_EN */
 
+/**
+ * @brief  EXTI12_15 IRQ handler — PA15 按键唤醒
+ *         STOP 模式: 下降沿唤醒 MCU, 标记 WAKEUP_CAUSE_KEY
+ *         NORMAL 模式: 仅清标志, 无副作用
+ * @retval None
+ */
+void EXTI12_15_Handler(void)
+{
+    if (md_gpio_is_enabled_external_interrupt(MD_GPIO_PIN_15)
+        && md_gpio_get_flag(MD_GPIO_PIN_15))
+    {
+        md_gpio_clear_flag(MD_GPIO_PIN_15);
+        g_wakeup_cause = WAKEUP_CAUSE_KEY;
+    }
+}
+
+/**
+ * @brief  IWDT IRQ handler — 定时唤醒 (60s)
+ *         NORMAL 模式: 每60s触发, 喂狗无副作用
+ *         STOP  模式: 唤醒 MCU, 标记 WAKEUP_CAUSE_IWDG
+ * @retval None
+ */
+void IWDT_Handler(void)
+{
+    IWDT_UNLOCK();
+    md_iwdt_clear_flag_interrupt();
+    IWDT_LOCK();
+
+    g_wakeup_cause = WAKEUP_CAUSE_IWDG;
+}
 

@@ -9,6 +9,7 @@
 #include "dma.h"
 #include "flash.h"
 #include "lcd.h"
+#include "power_mgr.h"
 #include "ui.h"
 #include "sw_i2c.h"
 #include "ip3561q.h"

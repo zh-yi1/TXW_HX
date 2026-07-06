@@ -322,7 +322,6 @@ void battery_mgr_proc(void)
         g_bat.temperature_01c = ntc_resistance_to_temp(ui_data.bat_ntc2);
 #endif
 
-    LOGI("g_bat.temperature_01c = %d\r\n", g_bat.temperature_01c);
 
     /* ---- 2. 充放电状态 ---- */
     g_bat.chg_state = detect_chg_state();
@@ -468,7 +467,6 @@ void battery_mgr_proc(void)
             if (st == 0x02) over_temp = 1;
             if (st == 0x01) low_temp  = 1;
         }
-        LOGI("ntc_status = %d bat_ntc1 = %d bat_ntc2 = %d\r\n", ntc, ui_data.bat_ntc1, ui_data.bat_ntc2);
 
         if (over_temp)
             {

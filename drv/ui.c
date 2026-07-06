@@ -77,8 +77,9 @@ void ui_init(void)
 //处理不同页面内容
 void ui_proc(void)
 {
-	/* 休眠状态下不刷新界面 */
-	if (ui_data.dev_state == DEV_STATE_SLEEP)
+	/* 灭屏状态下不刷新界面 */
+	if (ui_data.dev_state == DEV_STATE_SLEEP_ACTIVE
+	    || ui_data.dev_state == DEV_STATE_SLEEP_PASSIVE)
 		return;
 
 	calc_charge_remain_min();  /* V1.3: 剩余充满时间估算 */
@@ -259,24 +260,6 @@ void key_single_click_ui_proc(void)
 	default:
 		break;
 	}	
-}
-
-void key_double_click_ui_proc(void)
-{
-	switch (ui_data.cur_page)
-	{
-		case PAGE_DEFAULT:
-		case PAGE_INFO_1:
-		case PAGE_INFO_2:
-		case PAGE_INFO_3:
-			LCD_BLK_HIGH();
-			DispColor(BLACK);
-			ui_data.dev_state = DEV_STATE_SLEEP;
-			break;
-
-		default:
-			break;
-	}
 }
 
 bool key_long_press_ui_proc(void)
