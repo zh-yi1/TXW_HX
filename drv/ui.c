@@ -87,6 +87,7 @@ void ui_proc(void)
 	/* 检测界面切换，切换时初始化新界面 */
 	if (ui_data.cur_page != ui_data.last_page)
 	{
+		LOGI("[UI] ui_proc: cur_page=%d, last_page=%d\r\n", ui_data.cur_page, ui_data.last_page);
 		switch (ui_data.cur_page)
 		{
 		case PAGE_DEFAULT:

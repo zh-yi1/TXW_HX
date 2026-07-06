@@ -1,13 +1,37 @@
 #include "global_define.h"
 
 /**
- * @brief  NMI IRQ handler
- * @retval None
- */
+  * @brief  CMU IRQ handler
+  * @retval None
+  */
+void CMU_Handler(void)
+{
+    if ((md_cmu_is_enabled_hosc_stp_interrupt()) && (md_cmu_is_active_flag_hosc_stp()))
+    {
+        SYSCFG_UNLOCK();
+        md_cmu_clear_flag_hosc_stp();
+        SYSCFG_LOCK();
+        /* system rescue code in hosc fault  */
+    }
+
+    return;
+}
+
+/**
+  * @brief  NMI handler
+  * @retval None
+  */
 void NMI_Handler(void)
 {
-	/* Added Emergency operation */
-	return;
+    if ((md_cmu_is_enabled_hosc_nmi_interrupt()) && (md_cmu_is_active_flag_hosc_stp()))
+    {
+        SYSCFG_UNLOCK();
+        md_cmu_clear_flag_hosc_stp();
+        SYSCFG_LOCK();
+        /* system rescue code in hosc fault  */
+    }
+
+    return;
 }
 
 /**

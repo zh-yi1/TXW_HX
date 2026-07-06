@@ -79,9 +79,6 @@ static void sys_init(void)
 	//USART1初始化 (测试回环)
 	usart_init(115200);
 
-	//定时器初始化-PWM
-	// timer_init();
-
 	//产测模块初始化
 #ifndef DEBUG_EN
 	// prod_test_init();

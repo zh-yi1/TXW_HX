@@ -15,7 +15,6 @@
 #include "ip3561q.h"
 
 #include "sw_i2c_gen.h"
-#include "timer.h"
 #include "key.h"
 #include "i2c_slave.h"
 #ifdef UPGRADE_EN
@@ -41,11 +40,11 @@
 /* ========================================================================== */
 /*  Debug printf wrapper — 由 md_conf.h 的 DEBUG_EN 统一控制                   */
 /* ========================================================================== */
-// #ifdef DEBUG_EN
-// #define LOGI(fmt, ...)  printf(fmt, ##__VA_ARGS__)
-// #else
-// #define LOGI(fmt, ...)  ((void)0)
-// #endif
+#ifdef DEBUG_EN
+#define LOGI(fmt, ...)  printf(fmt, ##__VA_ARGS__)
+#else
 #define LOGI(fmt, ...)  ((void)0)
+#endif
+// #define LOGI(fmt, ...)  ((void)0)
 #endif /* __GLOBAL_DEFINE_H */
 

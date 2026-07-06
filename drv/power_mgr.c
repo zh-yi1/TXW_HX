@@ -7,6 +7,9 @@ static uint8_t g_in_stop = 0;               /* 防止重复进入 STOP */
 /* ---- 唤醒原因 (ISR 写入, exit流程读取) ---- */
 volatile wakeup_cause_t g_wakeup_cause = WAKEUP_CAUSE_NONE;
 
+/* ---- 唤醒标记: 防止唤醒后秒进SLEEP ---- */
+static volatile uint8_t s_just_woke_up = 0;
+
 /* ---- 前向声明 ---- */
 static void power_mgr_io_low_power_config(void);
 static void power_mgr_exit_stop_lite(void);
@@ -28,9 +31,10 @@ static void screen_off(void)
  * ======================================================================== */
 static void wake_screen(void)
 {
+    s_just_woke_up = 1;             /* 通知 power_mgr_proc 刷新活动时间 */
     LCD_BLK_LOW();
     ui_data.dev_state = DEV_STATE_NORMAL;
-    ui_data.cur_page  = PAGE_DEFAULT;
+    ui_data.cur_page  = PAGE_INFO_1;
     ui_data.last_page = PAGE_MAX;   /* 强制刷新 */
 }
 
@@ -137,25 +141,19 @@ static void power_mgr_exit_stop_lite(void)
  * ======================================================================== */
 static void power_mgr_exit_stop_full(void)
 {
-    dma_init();             /* SPI DMA */
-    ui_init();              /* GPIO + SPI + LCD */
-    key_init();             /* PA15 恢复输入上拉 */
-    i2c_slave_init();       /* I2C1 从机 */
-    ip3561q_init();         /* AFE 通信 */
-    timer_init();           /* 背光 PWM */
-	usart_init(115200);  /* 场测或debug */
+    s_just_woke_up = 1;
+    dma_init();
+    ui_init();
+    key_init();
+    i2c_slave_init();
+    ip3561q_init();
 
-    /* 亮屏 */
     LCD_BLK_LOW();
-
-    /* 通知主机 (预留) */
-    power_mgr_notify_host_wakeup();
-
-    LOGI("[PWR] back to main loop\r\n");
+    LOGI("[PWR] exit_stop_full: done\r\n");
 
     /* 恢复 UI 状态 */
     ui_data.dev_state = DEV_STATE_NORMAL;
-    ui_data.cur_page  = PAGE_DEFAULT;
+    ui_data.cur_page  = PAGE_INFO_1;
     ui_data.last_page = PAGE_MAX;   /* 强制刷新 */
 }
 
@@ -178,7 +176,6 @@ void power_mgr_enter_stop(void)
 
     /* 首次进入: 关显示 (只执行一次) */
     LCD_BLK_HIGH();
-    ad16c4t_timer_pwm_set(0);
     WriteComm(0x28);    /* Display OFF */
     WriteComm(0x10);    /* Sleep In */
 
@@ -189,27 +186,22 @@ void power_mgr_enter_stop(void)
         /* 清零唤醒原因 */
         g_wakeup_cause = WAKEUP_CAUSE_NONE;
 
-        /* 关外设时钟 */
-        SYSCFG_UNLOCK();
-        md_cmu_disable_perh_all();
-        SYSCFG_LOCK();
+        /* 进STOP前喂狗, 确保计数器从满载开始 */
+        IWDT_UNLOCK();
+        md_iwdt_clear_flag_interrupt();
+        IWDT_LOCK();
 
-        /* 数据同步 + 进入 STOP */
-        __DSB();
-        md_pmu_stop_enter();    /* __WFI() — 等 PA15 或 IWDT 唤醒 */
+        md_pmu_stop_enter();    /* PMU配置 + SLEEPDEEP + __WFI() */
 
         /* ─── 唤醒后 ─── */
         md_pmu_clear_flag_cwuf();
-        md_cmu_clock_config(MD_CMU_CLOCK_HRC, 52000000);
-        md_init_1ms_tick();
-        SYSCFG_UNLOCK();
-        md_cmu_enable_perh_all();
-        SYSCFG_LOCK();
+        usart_init(115200);     /* 先恢复串口看日志 */
+        LOGI("[PWR] === WFI exit, cause=%d ===\r\n", g_wakeup_cause);
 
         if (g_wakeup_cause == WAKEUP_CAUSE_KEY) {
-            LOGI("[PWR] wakeup: KEY -> full restore\r\n");
-            /* 按键唤醒: 全恢复 -> 退出 */
+            LOGI("[PWR] KEY wakeup -> exit_stop_full START\r\n");
             power_mgr_exit_stop_full();
+            LOGI("[PWR] exit_stop_full DONE, back to main\r\n");
             g_in_stop = 0;
         }
         else if (g_wakeup_cause == WAKEUP_CAUSE_IWDG) {
@@ -259,6 +251,12 @@ void power_mgr_proc(void)
                        || ui_data.usb_a_status != 0);
 
     key_event_t key_ev = key_get_event();
+
+    /* 刚从 STOP/SLEEP 唤醒 → 刷新时间戳, 防止秒进 SLEEP */
+    if (s_just_woke_up) {
+        s_just_woke_up = 0;
+        last_activity_ms = now;
+    }
 
     /* 有 USB 活动或按键事件 -> 刷新活动时间戳 */
     if (usb_active || key_ev != KEY_EVENT_NONE)
