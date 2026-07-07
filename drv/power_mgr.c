@@ -178,8 +178,16 @@ void power_mgr_enter_stop(void)
         /* 清零唤醒原因 */
         g_wakeup_cause = WAKEUP_CAUSE_NONE;
 
-        /* 进STOP前喂狗, 确保计数器从满载开始 */
+        // 强制记录时间
+        rtc_save_checkpoint();
+
+        /* 进STOP前喂狗, 确保计数器从满载开始.
+           注意: md_iwdt_clear_flag_interrupt() 只清中断标志, 不重载下计数器;
+           计数器是自由包裹的, 进STOP时停在任意相位, 会导致STOP后第一次
+           IWDG唤醒提前到来(实测7~16s)却被按20s补偿, 时间累积偏快.
+           这里重写LOAD触发计数器重装到满刻度, 保证第一次唤醒=20s. */
         IWDT_UNLOCK();
+        // md_iwdt_set_count_overload(32000UL * POWER_MGR_IWDG_WAKEUP_SEC);
         md_iwdt_clear_flag_interrupt();
         IWDT_LOCK();
 
@@ -221,9 +229,15 @@ void power_mgr_enter_stop(void)
             LOGI("[PWR] wakeup: IWDG\r\n");
             /* IWDT 唤醒: 读 AFE -> 计算 -> 判断 */
             power_mgr_exit_stop_lite();
-            ip3561q_proc();
-            ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw,
-                              (ip3561q_proc_data_t *)&ip3561q_info);
+            for (int i = 0; i < 5; i++)
+            {
+                ip3561q_proc();
+                ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw,
+                                  (ip3561q_proc_data_t *)&ip3561q_info);
+                LOGI("[PWR] rntc1 = %d rntc2 = %d\r\n",
+                     ip3561q_info.rntc1_ohm, ip3561q_info.rntc2_ohm);
+                md_delay_1ms(100);
+            }
 #ifdef DEBUG_STOP
             LOGI("[PWR] DEBUG: full restore\r\n");
             /* 调试模式: 任意唤醒都亮屏 */
@@ -235,7 +249,7 @@ void power_mgr_enter_stop(void)
                 LOGI("[PWR] high temp! -> full restore\r\n");
                 /* 高温: 全恢复 + 告警页 -> 退出 */
                 power_mgr_exit_stop_full();
-                ui_data.cur_page = PAGE_OVER_TEMP;
+                ui_data.cur_page = PAGE_DEFAULT;
                 ui_data.dev_state = DEV_STATE_NORMAL;
                 g_in_stop = 0;
             }

@@ -208,8 +208,6 @@ void key_combo_cb(void)
  * ======================================================================== */
 void key_wake_host(void)
 {
-	//TODO: 实现唤醒主机功能
-	return;
 	/* 仅在主机休眠且电芯高温时唤醒主机 */
 	if (!i2c_is_host_sleeping() || !g_bat_high_temp)
 		return;

@@ -244,7 +244,7 @@ void rtc_timer_proc(void)
         time_str[18] = (char)('0' + s % 10);
         time_str[19] = '\0';
 
-        usart_send_string(time_str);
+        LOGI("%s", time_str);
         last_print_seconds = g_running_seconds;
     }
 #endif /* RTC_TIME_PRINT_EN */
@@ -444,6 +444,10 @@ void rtc_timer_compensate_stop(uint32_t seconds)
 {
     if (!g_time_synced || seconds == 0)
         return;
-    g_running_seconds  += seconds;
-    g_last_second_tick += seconds * 1000;
+    g_running_seconds += seconds;
+    /* STOP 期间 SysTick 冻结, md_get_tick() 未前进; 已通过上面手动补秒.
+       这里必须把 g_last_second_tick 重基到当前 tick, 否则它领先于 now,
+       会导致 rtc_timer_proc 中 (now - g_last_second_tick) uint32 下溢,
+       一次性加上 ~UINT32_MAX/1000 秒 (约 49.7 天). */
+    g_last_second_tick = md_get_tick();
 }

@@ -373,8 +373,8 @@ static void battery_mgr_check_temp_warning(uint32_t ts, uint32_t now)
         if (st == 0x01) low_temp  = 1;
 #endif
     }
-    LOGI("ntc_status = %d bat_ntc1 = %d bat_ntc2 = %d\r\n",
-         ntc, ui_data.bat_ntc1, ui_data.bat_ntc2);
+    // LOGI("ntc_status = %d bat_ntc1 = %d bat_ntc2 = %d\r\n",
+    //      ntc, ui_data.bat_ntc1, ui_data.bat_ntc2);
 
     if (over_temp) {
         g_bat.warning_chg_state = g_bat.chg_state;
@@ -454,6 +454,14 @@ void static_cfg_erasure(void)
 {
     flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_FACTORY_CFG);
     flash_wait_unbusy();
+
+    /* 同时擦除时间戳块, 避免 rtc_timer_init 恢复出旧累计秒数导致时间错乱 */
+    flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_TIMESTAMP_BLOCK0);
+    flash_wait_unbusy();
+    flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_TIMESTAMP_BLOCK1);
+    flash_wait_unbusy();
+    flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_TIMESTAMP_BLOCK2);
+    flash_wait_unbusy();
 }
 
 /* 擦除全部异常记录区 (电压 + 温度, 各 7 块 × 256B) */
@@ -478,7 +486,7 @@ void static_cfg_save_test(void)
 {
     factory_cfg_t cfg;
     cfg.magic = 0x55;
-    cfg.start_timestamp = 1783048561;
+    cfg.start_timestamp = 1783434033;
     strcpy(cfg.bat_model[0], "DFLKSKLDGSJ");
     strcpy(cfg.bat_model[1], "218399MMGKF");
     strcpy(cfg.bat_model[2], "90494UTJGNG");
@@ -534,7 +542,7 @@ void battery_mgr_proc(void)
 
     /* 1. 温度计算 */
     battery_mgr_update_temperature();
-    LOGI("g_bat.temperature_01c = %d\r\n", g_bat.temperature_01c);
+    // LOGI("g_bat.temperature_01c = %d\r\n", g_bat.temperature_01c);
 
     /* 2. 充放电状态 */
     g_bat.chg_state = detect_chg_state();

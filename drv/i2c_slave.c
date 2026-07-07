@@ -344,8 +344,8 @@ static void pull_sensor_data(void)
     ui_data.bat_ntc1 = ip3561q_info.rntc2_ohm;
     ui_data.bat_ntc2 = ip3561q_info.rntc1_ohm;
 
-    LOGI("ip3561q_info.rntc1_ohm = %d\r\n", ip3561q_info.rntc1_ohm);
-    LOGI("ip3561q_info.rntc2_ohm = %d\r\n", ip3561q_info.rntc2_ohm);
+    // LOGI("ip3561q_info.rntc1_ohm = %d\r\n", ip3561q_info.rntc1_ohm);
+    // LOGI("ip3561q_info.rntc2_ohm = %d\r\n", ip3561q_info.rntc2_ohm);
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
     for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
         uint16_t v = ip3561q_info.vcell_mv[i];
