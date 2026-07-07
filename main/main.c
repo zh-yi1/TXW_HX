@@ -31,6 +31,7 @@ int main()
 
 		key_wake_host();           /* 主机休眠+高温 → KEY_PIN 拉低唤醒 */
 		key_proc();
+		power_mgr_proc();          /* 检查 SLEEP+host_sleeping → 进 STOP */
 		ui_proc();
 	}
 }
@@ -56,6 +57,9 @@ static void sys_init(void)
 
 	//按键初始化
 	key_init();
+
+	//低功耗模块初始化 (PA15 EXTI + WWDT)
+	power_mgr_init();
 
 	//I2C从机初始化
 	i2c_slave_init();

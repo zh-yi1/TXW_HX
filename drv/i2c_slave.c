@@ -24,7 +24,7 @@ volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE] = {
 volatile uint8_t key_event_buf;
 
 /* ---- 主机通信检测: 最后一次 I2C 地址匹配时刻 (tick), 连续 5s 无匹配→主机休眠 ---- */
-volatile uint32_t g_i2c_addr_match_tick;
+volatile uint32_t g_i2c_addr_match_tick = 0;
 
 /* ---- ISR 内部状态 ---- */
 typedef struct {

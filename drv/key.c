@@ -8,6 +8,7 @@ static uint8_t     burst_cnt       = 0;   /* presses in current burst, for singl
 static uint8_t     combo_cnt       = 0;   /* total presses for combo tracking */
 static bool        is_2nd_click    = false;
 static bool        combo_fired     = false;
+static key_event_t g_key_event     = KEY_EVENT_NONE;   /* 按键事件, 供 power_mgr 使用 */
 
 #define KEY_IDLE_RESET_MS   3000    /* reset combo_cnt after 3s idle */
 
@@ -25,6 +26,13 @@ uint32_t key_get_last_ms(void)
 	return last_press_ms;
 }
 
+key_event_t key_get_event(void)
+{
+	key_event_t ev = g_key_event;
+	g_key_event = KEY_EVENT_NONE;
+	return ev;
+}
+
 void key_proc(void)
 {
 	static uint32_t last_ms = 0;
@@ -33,30 +41,6 @@ void key_proc(void)
 	if (now - last_ms < KEY_SAMPLE_MS)
 		return;
 	last_ms = now;
-
-	/* 30s 无按键操作 且 三个 USB 端口均空闲 → 自动休眠 */
-	if (ui_data.dev_state == DEV_STATE_NORMAL
-	    && now - last_press_ms >= 30000
-	    && ui_data.usb_c1_status == 0
-	    && ui_data.usb_c2_status == 0
-	    && ui_data.usb_a_status == 0)
-	{
-		LCD_BLK_HIGH();
-		DispColor(BLACK);
-		ui_data.dev_state = DEV_STATE_SLEEP;
-	}
-	/* USB端口有设备插入则唤醒 */
-	else if (ui_data.dev_state == DEV_STATE_SLEEP
-	         && (ui_data.usb_c1_status != 0
-	             || ui_data.usb_c2_status != 0
-	             || ui_data.usb_a_status != 0))
-	{
-		LCD_BLK_LOW();
-		ui_data.dev_state = DEV_STATE_NORMAL;
-		ui_data.cur_page  = PAGE_DEFAULT;
-		ui_data.last_page = PAGE_MAX;  /* 强制触发界面重刷 */
-		last_press_ms = now;           /* 重置空闲计时 */
-	}
 
 	uint32_t elapsed = now - state_entry_ms;
 	uint32_t held    = now - press_start_ms;
@@ -172,41 +156,26 @@ void key_proc(void)
 }
 
 void key_single_click_cb(void)
-{	
-	if (ui_data.dev_state == DEV_STATE_SLEEP)
-	{
-		/* 休眠 → 唤醒: 开背光, 进入主界面 */
-		LCD_BLK_LOW();
-		ui_data.dev_state = DEV_STATE_NORMAL;
-		ui_data.cur_page  = PAGE_DEFAULT;
-		ui_data.last_page = PAGE_MAX;  /* 强制触发界面重刷 */
-	}
-	else
-	{
+{
+	g_key_event = KEY_EVENT_CLICK;  /* 通知 power_mgr */
+
 	key_single_click_ui_proc();
-	}
 	/* 设置按键事件 bit0: 单击 (写入影子缓冲, 由 i2c_slave_proc 原子交换) */
 	key_event_buf |= 0x01;
-	LOGI("Wake up from sleep\n");
 }
 
 void key_double_click_cb(void)
 {
-	/* 休眠状态下忽略双击 */
-	if (ui_data.dev_state == DEV_STATE_SLEEP)
-		return;
-
-	key_double_click_ui_proc();
-
-	/* 设置按键事件 bit1: 双击 (写入影子缓冲) */
-	key_event_buf |= 0x02;
+	g_key_event = KEY_EVENT_DOUBLE;  /* 通知 power_mgr */
 }
 
 void key_long_press_cb(void)
 {
+	g_key_event = KEY_EVENT_LONG;
 
-	/* 休眠状态下忽略长按 */
-	if (ui_data.dev_state == DEV_STATE_SLEEP)
+	/* 灭屏状态下忽略长按 */
+	if (ui_data.dev_state == DEV_STATE_SLEEP_ACTIVE
+	    || ui_data.dev_state == DEV_STATE_SLEEP_PASSIVE)
 		return;
 
 	bool ret = key_long_press_ui_proc();
@@ -219,6 +188,8 @@ void key_long_press_cb(void)
 
 void key_combo_cb(void)
 {
+	g_key_event = KEY_EVENT_COMBO;
+
 #ifdef UPGRADE_EN
 	/* 仅充电时允许触发升级模式: 设置标志位, main() 循环中处理 */
 	if (ui_data.is_charge) {
@@ -237,8 +208,13 @@ void key_combo_cb(void)
  * ======================================================================== */
 void key_wake_host(void)
 {
-	if (!i2c_is_host_sleeping() && !g_bat_high_temp)
+	//TODO: 实现唤醒主机功能
+	return;
+	/* 仅在主机休眠且电芯高温时唤醒主机 */
+	if (!i2c_is_host_sleeping() || !g_bat_high_temp)
 		return;
+
+	LOGI("[KEY] wake host\r\n");
 
 	/* KEY_PIN 切输出, 拉低 5ms 产生唤醒脉冲 */
 	md_gpio_set_pin_mode_output(KEY_PORT, KEY_PIN);
@@ -248,6 +224,6 @@ void key_wake_host(void)
 	/* 恢复 KEY_PIN 为输入上拉 */
 	key_init();
 
-	/* 重置计时, 避免主机未就绪前重复唤醒 */
+	/* 重置计时, 给主机充足时间启动 I2C 通信 */
 	g_i2c_addr_match_tick = md_get_tick();
 }
