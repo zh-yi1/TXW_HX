@@ -10,7 +10,7 @@
 #ifdef DEBUG_STOP
   #define POWER_MGR_IWDG_WAKEUP_SEC   20U    /* 20s 定时唤醒 */
 #else
-  #define POWER_MGR_IWDG_WAKEUP_SEC   20U    /* 60s 定时唤醒 */
+  #define POWER_MGR_IWDG_WAKEUP_SEC   120U    /* 60s 定时唤醒 */
 #endif
 
 /* ---- 设备电源状态 ---- */
