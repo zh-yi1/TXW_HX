@@ -2,14 +2,15 @@
 #define __POWER_MGR_H
 
 /* ---- 调试模式: 灭屏5s进STOP, 20s定时唤醒, 任意唤醒均亮屏 ---- */
-#define DEBUG_STOP
+// #define DEBUG_STOP
+#define UART_DEBUG
 
 #define POWER_MGR_SLEEP_IDLE_MS     30000U    /* 30s 无操作进 SLEEP */
 
 #ifdef DEBUG_STOP
   #define POWER_MGR_IWDG_WAKEUP_SEC   20U    /* 20s 定时唤醒 */
 #else
-  #define POWER_MGR_IWDG_WAKEUP_SEC   60U    /* 60s 定时唤醒 */
+  #define POWER_MGR_IWDG_WAKEUP_SEC   20U    /* 60s 定时唤醒 */
 #endif
 
 /* ---- 设备电源状态 ---- */

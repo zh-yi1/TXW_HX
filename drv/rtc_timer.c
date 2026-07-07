@@ -438,3 +438,12 @@ void rtc_unix_to_datetime(uint32_t ts, uint16_t *year, uint8_t *month,
     *min   = (uint8_t)(s / 60UL);
     *sec   = (uint8_t)(s % 60UL);
 }
+
+/* STOP 唤醒后补偿丢失的时间 */
+void rtc_timer_compensate_stop(uint32_t seconds)
+{
+    if (!g_time_synced || seconds == 0)
+        return;
+    g_running_seconds  += seconds;
+    g_last_second_tick += seconds * 1000;
+}

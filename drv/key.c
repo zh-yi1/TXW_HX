@@ -208,8 +208,13 @@ void key_combo_cb(void)
  * ======================================================================== */
 void key_wake_host(void)
 {
-	if (!i2c_is_host_sleeping() && !g_bat_high_temp)
+	//TODO: 实现唤醒主机功能
+	return;
+	/* 仅在主机休眠且电芯高温时唤醒主机 */
+	if (!i2c_is_host_sleeping() || !g_bat_high_temp)
 		return;
+
+	LOGI("[KEY] wake host\r\n");
 
 	/* KEY_PIN 切输出, 拉低 5ms 产生唤醒脉冲 */
 	md_gpio_set_pin_mode_output(KEY_PORT, KEY_PIN);
@@ -219,6 +224,6 @@ void key_wake_host(void)
 	/* 恢复 KEY_PIN 为输入上拉 */
 	key_init();
 
-	/* 重置计时, 避免主机未就绪前重复唤醒 */
+	/* 重置计时, 给主机充足时间启动 I2C 通信 */
 	g_i2c_addr_match_tick = md_get_tick();
 }
