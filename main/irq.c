@@ -197,3 +197,19 @@ void IWDT_Handler(void)
     g_wakeup_cause = WAKEUP_CAUSE_IWDG;
 }
 
+/**
+  * @brief  EXTI4_7 IRQ handler — PA5 I2C SCL 唤醒
+  *         STOP 模式: SCL 下降沿唤醒 MCU, 标记 WAKEUP_CAUSE_I2C_SCL
+  *         NORMAL 模式: 仅清标志, 无副作用 (PA5 复用为 I2C, EXTI 已关闭)
+  * @retval None
+  */
+void EXTI4_7_Handler(void)
+{
+    if (md_gpio_is_enabled_external_interrupt(MD_GPIO_PIN_5)
+        && md_gpio_get_flag(MD_GPIO_PIN_5))
+    {
+        md_gpio_clear_flag(MD_GPIO_PIN_5);
+        g_wakeup_cause = WAKEUP_CAUSE_I2C_SCL;
+    }
+}
+

@@ -16,6 +16,8 @@ static void power_mgr_exit_stop_lite(void);
 static void power_mgr_exit_stop_full(void);
 static void screen_off(void);
 static void wake_screen(void);
+static void power_mgr_arm_scl_wakeup(void);
+static void power_mgr_disarm_scl_wakeup(void);
 
 /* ========================================================================
  * screen_off — 灭屏 (不进 STOP，仅关背光+黑屏)
@@ -44,6 +46,32 @@ static void wake_screen(void)
 void power_mgr_notify_host_wakeup(void)
 {
     /* TODO: 通过 I2C 寄存器通知主机 MCU 已唤醒, 协议待定 */
+}
+
+/* ========================================================================
+ * power_mgr_arm_scl_wakeup — 进 STOP 前: PA5(I2C1 SCL) 切为输入上拉 +
+ *                             下降沿 EXTI, 主机拉低 SCL 即可唤醒 MCU
+ * ======================================================================== */
+static void power_mgr_arm_scl_wakeup(void)
+{
+    md_gpio_set_pin_mode_input(GPIOA, MD_GPIO_PIN_5);
+    md_gpio_set_pin_push_up(GPIOA, MD_GPIO_PIN_5);
+    md_gpio_set_interrupt_port(GPIOA, MD_GPIO_PIN_5);
+    md_gpio_enable_trailing_edge_trigger(MD_GPIO_PIN_5);
+    md_gpio_enable_external_interrupt(MD_GPIO_PIN_5);
+    md_gpio_interrupt_filter_enable(MD_GPIO_PIN_5);
+    md_mcu_irq_config(EXTI4_7_IRQn, 0, ENABLE);
+}
+
+/* ========================================================================
+ * power_mgr_disarm_scl_wakeup — 唤醒后: 关闭 PA5 EXTI, 清标志
+ *   避免恢复 I2C 后 SCL 时钟边沿触发中断; i2c_slave_init() 会把 PA5
+ *   重新切回 FUNC_2 复用功能。
+ * ======================================================================== */
+static void power_mgr_disarm_scl_wakeup(void)
+{
+    md_gpio_disable_external_interrupt(MD_GPIO_PIN_5);
+    md_gpio_clear_flag(MD_GPIO_PIN_5);
 }
 
 /* ========================================================================
@@ -77,8 +105,11 @@ static void power_mgr_io_low_power_config(void)
     /* PA1(LCD_RS)/PA7/PA8/PA9/PA10(SPI CLK)/PA11(SPI MOSI)/PA12(SPI MISO)/PA14(SW_SDA) */
     GPIOA->MODE &= ~(MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_1) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_7) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_8) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_9) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_10) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_11) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_12) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_14));
 
-    /* PA5(I2C1 SCL)/PA6(I2C1 SDA) — 外部上拉, 模拟模式安全 */
-    GPIOA->MODE &= ~(MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_5) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_6));
+    /* PA6(I2C1 SDA) — 外部上拉, 模拟模式安全 */
+    GPIOA->MODE &= ~MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_6);
+
+    /* PA5(I2C1 SCL) — 切为输入上拉 + 下降沿 EXTI, 主机拉低唤醒 */
+    power_mgr_arm_scl_wakeup();
 
     /* PB0(USART RX)/PB1(USART TX)/PB5(SW_SCL) */
     GPIOB->MODE &= ~(MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_0) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_1) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_5));
@@ -122,8 +153,8 @@ static void power_mgr_io_low_power_config(void)
  * ======================================================================== */
 static void power_mgr_exit_stop_lite(void)
 {
-    i2c_slave_init(); /* I2C1 从机: 读取主机数据 */
-    ip3561q_init();   /* AFE: 读取电池数据 */
+    power_mgr_disarm_scl_wakeup(); /* 关 PA5 EXTI, 避免恢复 I2C 后误触发 */
+    i2c_slave_init();              /* I2C1 从机: 读取主机数据 */
 }
 
 /* ========================================================================
@@ -132,6 +163,7 @@ static void power_mgr_exit_stop_lite(void)
 static void power_mgr_exit_stop_full(void)
 {
     s_just_woke_up = 1;
+    ip3561q_init();   /* AFE: 读取电池数据 (亮屏/UI 显示需要) */
     dma_init();
     ui_init();
     key_init();
@@ -224,11 +256,20 @@ void power_mgr_enter_stop(void)
             LOGI("[PWR] exit_stop_full DONE, back to main\r\n");
             g_in_stop = 0;
         }
+        else if (g_wakeup_cause == WAKEUP_CAUSE_I2C_SCL)
+        {
+            LOGI("[PWR] I2C SCL wakeup -> exit_stop_full START\r\n");
+            power_mgr_exit_stop_lite();
+            power_mgr_exit_stop_full();
+            LOGI("[PWR] exit_stop_full DONE, back to main\r\n");
+            g_in_stop = 0;
+        }
         else if (g_wakeup_cause == WAKEUP_CAUSE_IWDG)
         {
             LOGI("[PWR] wakeup: IWDG\r\n");
             /* IWDT 唤醒: 读 AFE -> 计算 -> 判断 */
             power_mgr_exit_stop_lite();
+            ip3561q_init();   /* AFE: 采样温度需要 (lite 不再初始化) */
             for (int i = 0; i < 5; i++)
             {
                 ip3561q_proc();

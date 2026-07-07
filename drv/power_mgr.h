@@ -23,9 +23,10 @@ typedef enum {
 
 /* ---- 唤醒原因 (ISR 标记, exit流程读取) ---- */
 typedef enum {
-    WAKEUP_CAUSE_NONE  = 0,
-    WAKEUP_CAUSE_KEY   = 1,   /* PA15 下降沿 */
-    WAKEUP_CAUSE_IWDG  = 2,   /* IWDT 超时 */
+    WAKEUP_CAUSE_NONE     = 0,
+    WAKEUP_CAUSE_KEY      = 1,   /* PA15 下降沿 */
+    WAKEUP_CAUSE_IWDG     = 2,   /* IWDT 超时 */
+    WAKEUP_CAUSE_I2C_SCL  = 3,   /* PA5(I2C SCL) 下降沿, 主机拉低唤醒 */
 } wakeup_cause_t;
 
 /* ---- ISR 可访问 ---- */
