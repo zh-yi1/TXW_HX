@@ -13,7 +13,7 @@
 
 /* ---- 过压/欠压检测阈值 (TFT 本地判断, 基于 IP3561Q 电芯电压) ---- */
 #define BAT_OV_PROT_MV      4540U   /* 过压保护记录阈值 mV */
-#define BAT_OV_RECOVER_MV   4400U   /* 过压保护恢复阈值 mV (滞回) */
+#define BAT_OV_RECOVER_MV   4200U   /* 过压保护恢复阈值 mV (滞回) */
 #define BAT_OV_DISABLE_MV   4600U   /* 过压禁用阈值 mV */
 #define BAT_UV_DISABLE_MV   1500U   /* 欠压禁用阈值 mV */
 #define BAT_OV_PROT_ENTER_S 1U      /* 过压保护进入持续秒数 */
