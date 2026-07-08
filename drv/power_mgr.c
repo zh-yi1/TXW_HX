@@ -100,72 +100,75 @@ void power_mgr_init(void)
  * ======================================================================== */
 static void power_mgr_io_low_power_config(void)
 {
-    /* ---- 模拟模式 (高阻态) ---- */
-    /* MODE=00 + PUPD=00 = 真正高阻, 无内部上拉漏电 */
+    md_gpio_init_t gi;
 
-    /* PA7/PA8/PA9/PA10(SPI CLK)/PA11(SPI MOSI)/PA12(SPI MISO)/PA14(SW_SDA) */
-    uint32_t pa_analog_mask = MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_7)  | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_8)  |
-                             MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_9)  | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_10) |
-                             MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_11) | MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_12) |
-                             MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_14);
-    GPIOA->PUPD &= ~pa_analog_mask;
-    GPIOA->MODE &= ~pa_analog_mask;
+    /* ====================================================================
+     * 模拟输入 + 无上下拉 = 真正高阻态
+     *   适用: SPI 总线、未用脚、外部已有上拉的 I2C 脚
+     * ==================================================================== */
+    md_gpio_init_struct(&gi);
+    gi.mode = MD_GPIO_MODE_CLOSE;
+    gi.pupd = MD_GPIO_FLOATING;  /* 无内部上拉/下拉 */
 
-    /* PA6(I2C1 SDA) — 外部 4.7k 上拉, 关内部上拉+模拟 */
-    GPIOA->PUPD &= ~MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_6);
-    GPIOA->MODE &= ~MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_6);
+    /* SPI 总线: PA10(SCLK)/PA11(MOSI)/PA12(MISO) */
+    md_gpio_init(SPI_CLK,  SPI_CLK_PIN,  &gi);
+    md_gpio_init(SPI_MOSI, SPI_MOSI_PIN, &gi);
+    md_gpio_init(SPI_MISO, SPI_MISO_PIN, &gi);
 
-    /* PB5(I2C SCL) — 软I2C主机, 外部上拉, 关内部上拉+模拟高阻 */
-    GPIOB->PUPD &= ~MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_5);
-    GPIOB->MODE &= ~MD_GPIO_PIN_TWO_MSK(MD_GPIO_PIN_5);
+    /* PA6(I2C1 SDA) — 外部 4.7k 上拉 */
+    md_gpio_init(GPIOA, MD_GPIO_PIN_6, &gi);
 
-    /* PA5(I2C1 SCL) — 切为输入上拉 + 下降沿 EXTI, 主机拉低唤醒 */
+    /* PB5(I2C SCL) — 软I2C主机, 外部上拉 */
+    md_gpio_init(GPIOB, MD_GPIO_PIN_5, &gi);
+
+    /* PA14(I2C SDA) — 软I2C数据脚, 外部上拉 */
+    md_gpio_init(GPIOA, MD_GPIO_PIN_14, &gi);
+
+    /* PA5(I2C1 SCL) — 输入上拉 + 下降沿 EXTI 唤醒 */
     power_mgr_arm_scl_wakeup();
 
-    /* PB0(USART RX)/PB1(USART TX): 悬空脚, 推挽输出低防穿通电流 */
-    GPIOB->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_0);
-    CLEAR_BIT(GPIOB->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_0));
-    md_gpio_set_pin_low(GPIOB, MD_GPIO_PIN_0);
+    /* ====================================================================
+     * 推挽输出低
+     * ==================================================================== */
+    md_gpio_init_struct(&gi);
+    gi.mode = MD_GPIO_MODE_OUTPUT;
+    gi.pupd = 0;
 
-    GPIOB->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_1);
-    CLEAR_BIT(GPIOB->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_1));
+    /* PB0/PB1 — 悬空脚, 输出低防穿通电流 */
+    md_gpio_init(GPIOB, MD_GPIO_PIN_0, &gi);
+    md_gpio_set_pin_low(GPIOB, MD_GPIO_PIN_0);
+    md_gpio_init(GPIOB, MD_GPIO_PIN_1, &gi);
     md_gpio_set_pin_low(GPIOB, MD_GPIO_PIN_1);
 
-    /* ---- 推挽输出低 ---- */
+    /* PA4(TFT_EN) — SCT2401 EN=低, 关断升压 */
+    md_gpio_init(TFT_EN, TFT_EN_PIN, &gi);
+    md_gpio_set_pin_low(TFT_EN, TFT_EN_PIN);
 
-    /* PA1 LCD_RS(DC) -> 高 (测试功耗) */
-    GPIOA->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_1);
-    CLEAR_BIT(GPIOA->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_1));
-    md_gpio_set_pin_high(GPIOA, MD_GPIO_PIN_1);
+    /* ====================================================================
+     * 推挽输出高
+     * ==================================================================== */
 
-    /* PA0 LCD_RST -> 高 (测试: 非复位态功耗对比) */
-    GPIOA->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_0);
-    CLEAR_BIT(GPIOA->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_0));
-    md_gpio_set_pin_high(GPIOA, MD_GPIO_PIN_0);
+    /* PA1(LCD_RS/DC) — 高, 配合 CS 高确保屏幕接口静止 */
+    md_gpio_init(LCD_RS, LCD_RS_PIN, &gi);
+    md_gpio_set_pin_high(LCD_RS, LCD_RS_PIN);
 
-    /* PA4 TFT_EN -> 低 */
-    GPIOA->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_4);
-    CLEAR_BIT(GPIOA->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_4));
-    md_gpio_set_pin_low(GPIOA, MD_GPIO_PIN_4);
+    /* PA0(LCD_RST) — 高, 屏幕非复位态省内部上拉电流 */
+    md_gpio_init(LCD_RST, LCD_RST_PIN, &gi);
+    md_gpio_set_pin_high(LCD_RST, LCD_RST_PIN);
 
-    /* PB6 LCD_BLK -> 高 (P-MOS关断, 背光灭) */
-    GPIOB->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_6);
-    CLEAR_BIT(GPIOB->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_6));
-    md_gpio_set_pin_high(GPIOB, MD_GPIO_PIN_6);
+    /* PB6(LCD_BLK) — 高, P-MOS 关断背光灭 */
+    md_gpio_init(LCD_BLK, LCD_BLK_PIN, &gi);
+    md_gpio_set_pin_high(LCD_BLK, LCD_BLK_PIN);
 
-    /* ---- 推挽输出高 (片选不选中) ---- */
+    /* PA3(LCD_CS) — 高, 屏幕 SPI 取消选中 */
+    md_gpio_init(LCD_CS, LCD_CS_PIN, &gi);
+    md_gpio_set_pin_high(LCD_CS, LCD_CS_PIN);
 
-    /* PA3 LCD_CS -> 高 */
-    GPIOA->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_3);
-    CLEAR_BIT(GPIOA->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_3));
-    md_gpio_set_pin_high(GPIOA, MD_GPIO_PIN_3);
+    /* PB3(FLASH_CS) — 高, Flash 进入待机模式 */
+    md_gpio_init(FLASH_CS, FLASH_CS_PIN, &gi);
+    md_gpio_set_pin_high(FLASH_CS, FLASH_CS_PIN);
 
-    /* PB3 FLASH_CS -> 高 */
-    GPIOB->MODE |= MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_3);
-    CLEAR_BIT(GPIOB->OD, MD_GPIO_PIN_TWO_1_MSK(MD_GPIO_PIN_3));
-    md_gpio_set_pin_high(GPIOB, MD_GPIO_PIN_3);
-
-    /* PA15 KEY: 保持输入上拉 (唤醒引脚, 不动) */
+    /* PA15(KEY) — 保持输入上拉, 唤醒引脚, 不动 */
 }
 
 /* ========================================================================
