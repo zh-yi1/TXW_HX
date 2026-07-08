@@ -132,7 +132,7 @@ static void power_mgr_io_low_power_config(void)
      * ==================================================================== */
     md_gpio_init_struct(&gi);
     gi.mode = MD_GPIO_MODE_OUTPUT;
-    gi.pupd = 0;
+    gi.pupd = MD_GPIO_FLOATING;
 
     /* PB0/PB1 — 悬空脚, 输出低防穿通电流 */
     md_gpio_init(GPIOB, MD_GPIO_PIN_0, &gi);
