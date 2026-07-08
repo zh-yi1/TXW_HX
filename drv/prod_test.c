@@ -19,6 +19,7 @@
 
 static prod_test_rt_t pt_rt;     /* 运行时状态 */
 static prod_test_data_t pt_data; /* 名词解释全部数据 (先填测试值, 后续接真实数据) */
+static uint32_t s_pt_enter_tick = 0; /* 进入场测时刻 (tick), 用于 3min 低功耗屏蔽 */
 
 /*
  * USART 输出辅助 — 替代 LOGI.
@@ -441,6 +442,7 @@ static void pt_handle_mode_ctrl(uint8_t param)
     case PT_MODE_ENTER_TEST:
         pt_rt.state = PT_TEST_MODE;
         pt_rt.unlocked = 0;
+        s_pt_enter_tick = md_get_tick(); /* 记录进入时刻, 3min 内不进低功耗 */
         pt_report_all();
         break;
 
@@ -460,6 +462,8 @@ static void pt_handle_mode_ctrl(uint8_t param)
     case PT_MODE_NG_LOCK:
         pt_rt.state = PT_NG_LOCK;
         pt_rt.unlocked = 0;
+        if (s_pt_enter_tick == 0)
+            s_pt_enter_tick = md_get_tick(); /* 直接 NG 锁定也记录进场时刻 */
         pt_rt.ng_lock_tick = md_get_tick();
         pt_rt.ng_led_toggle = 0;
         pt_send_line("ACK=NG");
@@ -782,6 +786,18 @@ void prod_test_proc(void)
 
     if (pt_rt.state == PT_NG_LOCK)
         pt_proc_ng_lock();
+}
+
+/* ========================================================================== */
+/*  场测低功耗屏蔽: 进入场测后 3min 内阻止进低功耗                              */
+/* ========================================================================== */
+uint8_t prod_test_is_sleep_blocked(void)
+{
+    if (pt_rt.state == PT_IDLE)
+        return 0;
+    if ((md_get_tick() - s_pt_enter_tick) < PROD_TEST_SLEEP_BLOCK_MS)
+        return 1;
+    return 0;
 }
 
 #endif /* !PROD_TEST_SIMPLE_EN && !DEBUG_EN */

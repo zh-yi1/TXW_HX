@@ -53,6 +53,9 @@ static uint8_t fl;
 static uint8_t fc;
 static uint8_t fpc;
 
+/* ---- 场测低功耗屏蔽 ---- */
+static uint32_t s_pt_enter_tick = 0; /* 首次收到指令的时刻 */
+
 #define PT_PUTC(c)  usart_send_byte((uint8_t)(c))
 #define PT_PUTS(s)  usart_send_string(s)
 
@@ -251,6 +254,10 @@ static void pt_cmd_sync_time(const uint8_t *params, uint8_t len)
 /* ========================================================================== */
 static void pt_dispatch(uint8_t cmd, const uint8_t *params, uint8_t len)
 {
+    /* 首次收到指令 → 记录进入场测时刻, 3min 内不进低功耗 */
+    if (s_pt_enter_tick == 0)
+        s_pt_enter_tick = md_get_tick();
+
     switch (cmd) {
     case 0x01:  /* 上报 */
         if (len >= 1) pt_cmd_report(params[0]);
@@ -336,6 +343,18 @@ void prod_test_proc(void)
 {
     while (usart_recv_available())
         pt_parse(usart_recv_byte());
+}
+
+/* ========================================================================== */
+/*  场测低功耗屏蔽: 收到开始指令后 3min 内阻止进低功耗                           */
+/* ========================================================================== */
+uint8_t prod_test_is_sleep_blocked(void)
+{
+    if (s_pt_enter_tick == 0)
+        return 0;
+    if ((md_get_tick() - s_pt_enter_tick) < PROD_TEST_SLEEP_BLOCK_MS)
+        return 1;
+    return 0;
 }
 
 #endif

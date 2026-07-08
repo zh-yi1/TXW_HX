@@ -68,6 +68,9 @@ typedef enum {
 /* ---- 解锁密钥 (PDF §7.1, 不可修改) ---- */
 #define UNLOCK_KEY          0x12345678U
 
+/* ---- 场测低功耗屏蔽: 进入场测后 3min 内不进低功耗 ---- */
+#define PROD_TEST_SLEEP_BLOCK_MS  180000U  /* 3 分钟 */
+
 /* ---- Flash 存储地址 ---- */
 #define PROD_DATA_FLASH_ADDR    0x7800U
 #define PROD_DATA_FLASH_SIZE    512U
@@ -119,6 +122,13 @@ void prod_test_init(void);
 void prod_test_proc(void);
 uint32_t Secure_Sign(const uint8_t *uid, uint32_t key);
 uint8_t  CheckUnlock(const uint8_t *uid, uint16_t uid_len, uint32_t unlock_code);
+
+/* 场测低功耗屏蔽: 返回 1 表示当前应阻止进入低功耗 */
+#if !defined(DEBUG_EN)
+uint8_t prod_test_is_sleep_blocked(void);
+#else
+__STATIC_INLINE uint8_t prod_test_is_sleep_blocked(void) { return 0; }
+#endif
 
 /* ---- 辅助: 字节转十六进制字符 ---- */
 static __inline uint8_t pt_nibble_to_hex(uint8_t nibble)

@@ -345,6 +345,8 @@ void power_mgr_proc(void)
 
     /* ---- NORMAL: 正常亮屏 ---- */
     case DEV_STATE_NORMAL:
+        if (prod_test_is_sleep_blocked())
+            break; /* 场测模式 3min 内不灭屏 */
         if (key_ev == KEY_EVENT_DOUBLE)
         {
             screen_off();
@@ -363,6 +365,13 @@ void power_mgr_proc(void)
 
     /* ---- SLEEP_ACTIVE: 主动灭屏 (双击触发) ---- */
     case DEV_STATE_SLEEP_ACTIVE:
+        if (prod_test_is_sleep_blocked())
+        {
+            wake_screen();
+            last_activity_ms = now;
+            LOGI("[PWR] -> NORMAL (test mode)\r\n");
+            break;
+        }
         if (key_ev == KEY_EVENT_CLICK)
         {
             wake_screen();
@@ -379,6 +388,13 @@ void power_mgr_proc(void)
 
     /* ---- SLEEP_PASSIVE: 被动灭屏 ---- */
     case DEV_STATE_SLEEP_PASSIVE:
+        if (prod_test_is_sleep_blocked())
+        {
+            wake_screen();
+            last_activity_ms = now;
+            LOGI("[PWR] -> NORMAL (test mode)\r\n");
+            break;
+        }
         if (key_ev == KEY_EVENT_CLICK)
         {
             wake_screen();
