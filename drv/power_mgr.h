@@ -3,7 +3,7 @@
 
 /* ---- 调试模式: 灭屏5s进STOP, 20s定时唤醒, 任意唤醒均亮屏 ---- */
 // #define DEBUG_STOP
-#define UART_DEBUG
+// #define UART_DEBUG
 
 #define POWER_MGR_SLEEP_IDLE_MS     30000U    /* 30s 无操作进 SLEEP */
 

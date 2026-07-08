@@ -219,7 +219,7 @@ void power_mgr_enter_stop(void)
            IWDG唤醒提前到来(实测7~16s)却被按20s补偿, 时间累积偏快.
            这里重写LOAD触发计数器重装到满刻度, 保证第一次唤醒=20s. */
         IWDT_UNLOCK();
-        // md_iwdt_set_count_overload(32000UL * POWER_MGR_IWDG_WAKEUP_SEC);
+        md_iwdt_set_count_overload(32000UL * POWER_MGR_IWDG_WAKEUP_SEC);
         md_iwdt_clear_flag_interrupt();
         IWDT_LOCK();
 
@@ -247,6 +247,7 @@ void power_mgr_enter_stop(void)
             if (elapsed > 0 && elapsed < POWER_MGR_IWDG_WAKEUP_SEC * 2)
                 rtc_timer_compensate_stop(elapsed);
         }
+        rtc_timer_proc();
 
         if (g_wakeup_cause == WAKEUP_CAUSE_KEY)
         {

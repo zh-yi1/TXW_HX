@@ -486,7 +486,7 @@ void static_cfg_save_test(void)
 {
     factory_cfg_t cfg;
     cfg.magic = 0x55;
-    cfg.start_timestamp = 1783434033;
+    cfg.start_timestamp = 1783507680;
     strcpy(cfg.bat_model[0], "DFLKSKLDGSJ");
     strcpy(cfg.bat_model[1], "218399MMGKF");
     strcpy(cfg.bat_model[2], "90494UTJGNG");

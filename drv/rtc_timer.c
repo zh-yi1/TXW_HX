@@ -1,5 +1,21 @@
 #include "rtc_timer.h"
 
+/* ---- LSI 时基漂移校准 ----
+ * IWDT 用 ES32F0100 的内部低速 RC (LSI, 标称 ±5%) 作为时钟源,
+ * 真实 IWDG 周期可能比标称 20s 偏慢 ~0.1~0.5%. 由于本设备无外部
+ * 时基, 无法在线测量, 此处加一个可调静态补偿 (单位 ms): 每次
+ * rtc_timer_compensate_stop 会把该值计入 awake_ms 累积, 让 extra_sec
+ * 平均频率上升以补偿 LSI 漂移.
+ *
+ * 调参方法: 观察长时间 STOP 循环后设备时间相对真实时间的累积漂移,
+ *   偏慢 X 秒 / N 周期 -> 设置 RTC_LSI_BOOST_MS ≈ (X * 1000) / N
+ *
+ * 实测样机约 +100ms/周期 (30 周期慢 ~3s) 即可校平.
+ */
+#ifndef RTC_LSI_BOOST_MS
+#define RTC_LSI_BOOST_MS   0U
+#endif
+
 /* ---- 内部状态 ---- */
 static uint32_t g_start_timestamp;     /* 起始 Unix 时间戳 */
 static uint32_t g_running_seconds;     /* 累计运行秒数 */
@@ -244,7 +260,7 @@ void rtc_timer_proc(void)
         time_str[18] = (char)('0' + s % 10);
         time_str[19] = '\0';
 
-        LOGI("%s", time_str);
+        LOGI("%s\r\n", time_str);
         last_print_seconds = g_running_seconds;
     }
 #endif /* RTC_TIME_PRINT_EN */
@@ -439,15 +455,41 @@ void rtc_unix_to_datetime(uint32_t ts, uint16_t *year, uint8_t *month,
     *sec   = (uint8_t)(s % 60UL);
 }
 
-/* STOP 唤醒后补偿丢失的时间 */
+/* STOP 唤醒后补偿丢失的时间.
+   每个 STOP 周期实际耗时 = IWDG睡眠N秒 + ~600ms awake工作 (NTC读取/存盘等).
+   原实现只补 N 秒, 并把 awake 期间 SysTick 走过的进度丢弃, 导致每周期慢
+   ~0.6s. 这里把上次补偿以来的 tick 增量 (即上一周期的 awake 毫秒数) 一并
+   累计: 整秒加进 g_running_seconds, 余数部分用 g_last_second_tick 回拨
+   的方式携带, 既不丢精度也不会被 rtc_timer_proc 二次累加.
+
+   另外: IWDG 用 LSI 作时钟源 (ES32F0100 内部低速 RC, 标称 ±5%), 真实 IWDG
+   周期可能比标称偏慢 0.1%~0.5%. 这部分时基漂移在芯片内部无法在线测量, 故
+   用静态 RTC_LSI_BOOST_MS 每周期累加 compensate, 等效提高 extra_sec 平均
+   频率. 调参见文件顶部 RTC_LSI_BOOST_MS 注释. */
 void rtc_timer_compensate_stop(uint32_t seconds)
 {
     if (!g_time_synced || seconds == 0)
         return;
-    g_running_seconds += seconds;
-    /* STOP 期间 SysTick 冻结, md_get_tick() 未前进; 已通过上面手动补秒.
-       这里必须把 g_last_second_tick 重基到当前 tick, 否则它领先于 now,
-       会导致 rtc_timer_proc 中 (now - g_last_second_tick) uint32 下溢,
-       一次性加上 ~UINT32_MAX/1000 秒 (约 49.7 天). */
-    g_last_second_tick = md_get_tick();
+
+    uint32_t now       = md_get_tick();
+    uint32_t awake_ms  = now - g_last_second_tick;   /* 上一周期 awake 期间 tick 走过的毫秒 */
+
+    /* 把静态 LSI 漂移补偿加进累计, 平均下来等效每周期多识别出
+       RTC_LSI_BOOST_MS 毫秒, 折算到 g_running_seconds 的 extra_sec 里. */
+    uint32_t total_ms = awake_ms + RTC_LSI_BOOST_MS;
+
+    uint32_t extra_sec = total_ms / 1000U;
+    uint32_t remainder = total_ms % 1000U;
+
+    g_running_seconds += seconds + extra_sec;
+
+    /* 回拨到 now - remainder, 让余数 ms 平滑累计到下一周期;
+       仍保证 g_last_second_tick <= now, 不会触发 rtc_timer_proc 下溢.
+       注意: 若 RTC_LSI_BOOST_MS > (now - 0), remainder 可能 > now,
+       会触发 uint32 下溢. 限制 Boost 远小于典型 now (开机后秒级 tick),
+       这里加 saturate 保护避免极端边界. */
+    if (remainder > now)
+        g_last_second_tick = 0;
+    else
+        g_last_second_tick = now - remainder;
 }
