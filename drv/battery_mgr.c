@@ -15,10 +15,7 @@ extern volatile ip3561q_proc_data_t ip3561q_info;
 /* 电压测试用: 1=启用 0=关闭 */
 #define BAT_ENABLE_TEST_EN  0
 /* 禁用原因写Flash: 1=启用(持久化, 复位后仍禁用) 0=关闭(测试用, 仅RAM禁用, 复位后恢复) */
-#define BAT_DISABLE_WRITE_FLASH_EN  0
-
-/* 异常消失超时: 超时后清除 1h 计时标志 (ms) */
-#define BAT_ANOMALY_TIMEOUT_MS  100UL  /* 100ms */
+#define BAT_DISABLE_WRITE_FLASH_EN  1
 
 /* 功能开关: 1=启用 0=关闭 */
 #define BAT_UV_PROT_EN       0   /* 欠压保护 (V<2.72V 跳警示页, 无 Flash 记录) */
