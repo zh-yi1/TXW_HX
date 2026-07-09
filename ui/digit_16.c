@@ -11,16 +11,17 @@
  *  数字 0-9
  *  大写 A-Z
  *  符号 -
- *  蓝色额外: : ^ . /
+ *  蓝色额外: : ^ /
+ *  白色额外: .
  *
- * Flash 索引 (共用):
+ * Flash 索引:
  *   '0'-'9'  → 0-9
  *   '-'      → 10
  *   'A'-'Z'  → 11-36
- *   ':'      → 37
- *   '^'      → 38
- *   '.'      → 39
- *   '/'      → 40
+ *   ':'      → 37 (蓝)
+ *   '^'      → 38 (蓝)
+ *   '.'      → 37 (白) / 39 (蓝)
+ *   '/'      → 40 (蓝)
  * ================================================================ */
 
 #define SCREEN_W 240
@@ -48,6 +49,7 @@ static const uint8_t digit_16_width[] = {
 	['Y'] = 11, ['Z'] = 11,
 
 	['-'] =  9,
+	['.'] =  6,
 };
 
 /* 12 高度 — 蓝色 */
@@ -75,11 +77,13 @@ static const uint8_t digit_12_width_blue[] = {
 /* ================================================================
  * char_to_idx — 字符 → Flash 索引
  *
- * 12/16 高度共用同一套索引映射
+ * 根据颜色返回正确的 Flash 索引:
+ *   白色 '.' → 37,  蓝色 '.' → 39
+ *   ':' '^' '/' 仅蓝色支持, 白色返回 0xFF
  *
  * 返回 0xFF 表示不支持的字符
  * ================================================================ */
-static uint8_t char_to_idx(char c)
+static uint8_t char_to_idx(char c, uint8_t color)
 {
 	if (c >= '0' && c <= '9')
 		return (uint8_t)(c - '0');          /* 0-9   */
@@ -88,10 +92,16 @@ static uint8_t char_to_idx(char c)
 	if (c >= 'A' && c <= 'Z')
 		return (uint8_t)(c - 'A' + 11);      /* 11-36 */
 
-	/* 蓝色专属特殊字符 */
+	/* '.' 白/蓝共用, 但 Flash 索引不同 */
+	if (c == '.')
+		return (color == DIGIT_16_COLOR_WHITE) ? 37 : 39;
+
+	/* 以下仅蓝色支持 */
+	if (color == DIGIT_16_COLOR_WHITE)
+		return 0xFF;
+
 	if (c == ':') return 37;
 	if (c == '^') return 38;
-	if (c == '.') return 39;
 	if (c == '/') return 40;
 
 	return 0xFF;
@@ -108,7 +118,7 @@ static uint8_t get_char_w(char c, uint8_t color, uint8_t height)
 	uint8_t w;
 
 	/* 不支持的字符 → 0, 同时防止数组越界 (删 [128] 后数组仅到最高有效索引) */
-	if (char_to_idx(c) == 0xFF)
+	if (char_to_idx(c, color) == 0xFF)
 		return 0;
 
 	if (height == DIGIT_HEIGHT_12)
@@ -140,7 +150,7 @@ static uint8_t get_char_w(char c, uint8_t color, uint8_t height)
  * ================================================================ */
 static uint32_t get_char_addr(char c, uint8_t color, uint8_t height)
 {
-	uint8_t  idx  = char_to_idx(c);
+	uint8_t  idx  = char_to_idx(c, color);
 	uint32_t base;
 	uint32_t stride;
 

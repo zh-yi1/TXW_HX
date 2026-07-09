@@ -17,7 +17,7 @@
 
 /* 总电压显示固定布局 (按 "00-00V" 最大宽度 61px 居中于 240 屏) */
 #define VOLT_LABEL_X   60
-#define VOLT_LABEL_Y   113
+#define VOLT_LABEL_Y   95
 #define VOLT_DIGIT_X   118     /* 60 + 53(label) + 5(gap) */
 
 /* 在指定区域居中绘制数值 + 单位图标 (支持负数) */
@@ -142,7 +142,7 @@ void information_page_3_init(void)
         uint8_t i;
         char buf[8];
 
-        const uint8_t cell_y[] = {52, 66, 80, 94};
+        const uint8_t cell_y[] = {38, 52, 66, 80};
 
         for (i = 0; i < 4; i++)
         {
@@ -169,12 +169,18 @@ void information_page_3_init(void)
         total_mv = (uint32_t)ui_data.cell_voltage_mv[0] + ui_data.cell_voltage_mv[1]
                  + ui_data.cell_voltage_mv[2] + ui_data.cell_voltage_mv[3];
 
-        fmt_voltage(buf, (uint16_t)total_mv, '-');
+        fmt_voltage(buf, (uint16_t)total_mv, '.');
 
         Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y, FLASH_ADDR_TOTAL_VOLTAGE);
         digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
                              DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
     }
+
+    /* 电池型号 */
+
+    Dispphoto_Dispaly_flash(34, 113, FLASH_ADDR_CELL_MODEL);
+    digit_display_string("506578AFU", 114, 116,
+                             DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
 }
 
 /* ============================ 数据更新 ============================ */
@@ -234,6 +240,7 @@ void information_page_3_updata(void)
 {
     /* 比较用百分位 (10mV), 与显示精度一致, 避免 mV 级抖动触发无意义刷新 */
     static uint16_t last_mv_cv[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    const uint8_t cell_y[] = {38, 52, 66, 80};
     uint8_t i;
 
     for (i = 0; i < 4; i++)
@@ -246,7 +253,7 @@ void information_page_3_updata(void)
 
             fmt_voltage(buf, ui_data.cell_voltage_mv[i], '.');
 
-            digit_display_string(buf, 13, 52 + i * 14,
+            digit_display_string(buf, 13, cell_y[i],
                                  DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
             last_mv_cv[i] = mv_cv;
         }
@@ -266,7 +273,7 @@ void information_page_3_updata(void)
         {
             char buf[8];
 
-            fmt_voltage(buf, (uint16_t)total_mv, '-');
+            fmt_voltage(buf, (uint16_t)total_mv, '.');
 
             digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
                                  DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
