@@ -19,10 +19,11 @@
  *  │    factory_cfg_t                │
  *  │    magic 1B (0x55=已写入)        │
  *  │    起始时间戳 4B                 │
- *  │    电芯型号 4×16B               │
+ *  │    电芯型号 4×19B               │
  *  │    电芯数量 1B                  │
- *  │    设备序列号 4B                 │
- *  │    CRC8 1B (前 74B)            │
+ *  │    设备序列号 32B                │
+ *  │    禁用原因 1B                   │
+ *  │    CRC8 1B (前 115B)            │
  *  │    生产时串口写入, 永不擦除       │
  *  │                                │
  *  ├─────────────────────────────────┤ +0x0100
@@ -62,7 +63,7 @@
 #define FLASH_DATA_BASE              0x300000UL    /* 3MB 起点 */
 
 /* ---- 静态配置区 (256B) ---- */
-#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0, factory_cfg_t 占用 76B */
+#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0, factory_cfg_t 占用 116B */
 
 /* ---- 时间戳存储区 (256B × N) ---- */
 #define FLASH_OFFS_TIMESTAMP_BLOCK0  (0x0100)      /* 时间戳块 0 */
@@ -88,12 +89,12 @@ typedef struct {
 typedef struct {
     uint8_t  magic;                 /* 0x55 = 上位机已写入, 首字节便于快速判读 */
     uint32_t start_timestamp;       /* 起始 Unix 时间戳 */
-    char     bat_model[4][16];      /* 4 节电芯型号 ASCII */
+    char     bat_model[4][19];      /* 4 节电芯型号 ASCII (每节18字符+\0) */
     uint8_t  cell_count;            /* 电芯数量 */
-    uint32_t device_sn;             /* 设备序列号 */
+    char     device_sn[32];         /* 设备序列号 (32字符) */
     uint8_t  disable_reason;          /* 禁用原因: 0=正常 1=过压 2=欠压 (持久化) */
     uint8_t  crc8;                  /* 覆盖 magic ~ disable_reason 的 CRC-8 */
-} factory_cfg_t;                    /* 共 76B */
+} factory_cfg_t;                    /* 共 116B */
 #pragma pack()
 
 /* ---- 外部接口 ---- */

@@ -434,10 +434,14 @@ void static_cfg_load_to_ui(void)
     if (cfg.magic != 0x55) 
         return;
     
-    memcpy(ui_data.bat_model_1, cfg.bat_model[0], 16);
-    memcpy(ui_data.bat_model_2, cfg.bat_model[1], 16);
-    memcpy(ui_data.bat_model_3, cfg.bat_model[2], 16);
-    memcpy(ui_data.bat_model_4, cfg.bat_model[3], 16);
+    memcpy(ui_data.bat_model_1, cfg.bat_model[0], 18);
+    ui_data.bat_model_1[18] = '\0';
+    memcpy(ui_data.bat_model_2, cfg.bat_model[1], 18);
+    ui_data.bat_model_2[18] = '\0';
+    memcpy(ui_data.bat_model_3, cfg.bat_model[2], 18);
+    ui_data.bat_model_3[18] = '\0';
+    memcpy(ui_data.bat_model_4, cfg.bat_model[3], 18);
+    ui_data.bat_model_4[18] = '\0';
     
     /* 恢复禁用原因 (0=正常 1=OV 2=UV) */
     if (cfg.disable_reason != 0) {
@@ -484,12 +488,12 @@ void static_cfg_save_test(void)
     factory_cfg_t cfg;
     cfg.magic = 0x55;
     cfg.start_timestamp = 1783507680;
-    strcpy(cfg.bat_model[0], "DFLKSKLDGSJ");
-    strcpy(cfg.bat_model[1], "218399MMGKF");
-    strcpy(cfg.bat_model[2], "90494UTJGNG");
-    strcpy(cfg.bat_model[3], "PYL905K9MIJ");
+    strcpy(cfg.bat_model[0], "GDHPCDG6L-X1111111");
+    strcpy(cfg.bat_model[1], "GDHPCDG6L-X2222222");
+    strcpy(cfg.bat_model[2], "GDHPCDG6L-X3333333");
+    strcpy(cfg.bat_model[3], "GDHPCDG6L-X4444444");
     cfg.cell_count = 4;     
-    cfg.device_sn = 0x00000000;
+    memset(cfg.device_sn, 0, sizeof(cfg.device_sn));
     cfg.disable_reason = 0;
     factory_cfg_write(&cfg);
 }
