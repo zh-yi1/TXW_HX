@@ -120,6 +120,7 @@ typedef struct
  *  API
  * ========================================================================== */
 void     ip3561q_init(void);
+void     ip3561q_wakeup_init(void);
 uint8_t  ip3561q_is_ready(void);
 uint8_t  ip3561q_read_reg(uint8_t reg, uint8_t *buf, uint8_t len);
 uint8_t  ip3561q_write_reg(uint8_t reg, uint8_t *buf, uint8_t len);

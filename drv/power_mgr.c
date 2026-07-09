@@ -187,7 +187,6 @@ static void power_mgr_exit_stop_lite(void)
 static void power_mgr_exit_stop_full(void)
 {
     s_just_woke_up = 1;
-    ip3561q_init();   /* AFE: 读取电池数据 (亮屏/UI 显示需要) */
     dma_init();
     ui_init();
     key_init();
@@ -294,7 +293,7 @@ void power_mgr_enter_stop(void)
             LOGI("[PWR] wakeup: IWDG\r\n");
             /* IWDT 唤醒: 读 AFE -> 计算 -> 判断 */
             power_mgr_exit_stop_lite();
-            ip3561q_init();   /* AFE: 采样温度需要 (lite 不再初始化) */
+            ip3561q_wakeup_init();   /* AFE: 仅恢复 I2C, 芯片寄存器保持断电前配置 */
             for (int i = 0; i < 5; i++)
             {
                 ip3561q_proc();
