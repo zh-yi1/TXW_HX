@@ -2,18 +2,25 @@
 
 /* ---- LSI 时基漂移校准 ----
  * IWDT 用 ES32F0100 的内部低速 RC (LSI, 标称 ±5%) 作为时钟源,
- * 真实 IWDG 周期可能比标称 20s 偏慢 ~0.1~0.5%. 由于本设备无外部
- * 时基, 无法在线测量, 此处加一个可调静态补偿 (单位 ms): 每次
- * rtc_timer_compensate_stop 会把该值计入 awake_ms 累积, 让 extra_sec
- * 平均频率上升以补偿 LSI 漂移.
+ * 真实 IWDG 周期可能比标称偏快或偏慢. 由于本设备无外部时基,
+ * 无法在线测量, 此处提供两个可调静态补偿:
  *
- * 调参方法: 观察长时间 STOP 循环后设备时间相对真实时间的累积漂移,
+ *   RTC_LSI_BOOST_MS  — LSI 偏慢时用, 每周期额外累加 N 毫秒 (正值)
+ *   RTC_LSI_TRIM_SEC  — LSI 偏快时用, 每周期从补偿秒数中扣除 N 秒
+ *
+ * 调参方法: 观察长时间 STOP 循环后设备时间相对真实时间的累积漂移.
  *   偏慢 X 秒 / N 周期 -> 设置 RTC_LSI_BOOST_MS ≈ (X * 1000) / N
+ *   偏快 X 秒 / N 周期 -> 设置 RTC_LSI_TRIM_SEC ≈ X / N
  *
- * 实测样机约 +100ms/周期 (30 周期慢 ~3s) 即可校平.
+ * 实测样机: 120s 周期, 每小时快 ~120s (30 周期),
+ *   RTC_LSI_TRIM_SEC = 4 (每周期扣 4s, 30×4=120s 校正).
  */
 #ifndef RTC_LSI_BOOST_MS
 #define RTC_LSI_BOOST_MS   0U
+#endif
+
+#ifndef RTC_LSI_TRIM_SEC
+#define RTC_LSI_TRIM_SEC   4U    /* 每周期扣除秒数, 补偿 LSI 偏快: 1h快120s / 30周期 = 4s/周期 */
 #endif
 
 /* ---- 内部状态 ---- */
@@ -474,14 +481,25 @@ void rtc_timer_compensate_stop(uint32_t seconds)
     uint32_t now       = md_get_tick();
     uint32_t awake_ms  = now - g_last_second_tick;   /* 上一周期 awake 期间 tick 走过的毫秒 */
 
-    /* 把静态 LSI 漂移补偿加进累计, 平均下来等效每周期多识别出
-       RTC_LSI_BOOST_MS 毫秒, 折算到 g_running_seconds 的 extra_sec 里. */
+    /* 把静态 LSI 漂移补偿加进累计:
+       RTC_LSI_BOOST_MS  — LSI 偏慢时加毫秒 (ms 级微调)
+       RTC_LSI_TRIM_SEC  — LSI 偏快时扣秒数 (秒级粗调, 作用于 seconds).
+       两者配合: Boost 在 total_ms 层补偿 sub-second 偏差,
+       Trim  在 seconds 层补偿整秒偏差 (IWDG 实际周期 < 配置值).
+       均加 saturate 防下溢. */
     uint32_t total_ms = awake_ms + RTC_LSI_BOOST_MS;
 
     uint32_t extra_sec = total_ms / 1000U;
     uint32_t remainder = total_ms % 1000U;
 
-    g_running_seconds += seconds + extra_sec;
+    /* IWDG 偏快 → 实际睡眠 < seconds, 用 trim 扣减校正 */
+    uint32_t sum_sec = seconds + extra_sec;
+    if (sum_sec > RTC_LSI_TRIM_SEC)
+        sum_sec -= RTC_LSI_TRIM_SEC;
+    else
+        sum_sec = 0;
+
+    g_running_seconds += sum_sec;
 
     /* 回拨到 now - remainder, 让余数 ms 平滑累计到下一周期;
        仍保证 g_last_second_tick <= now, 不会触发 rtc_timer_proc 下溢.
