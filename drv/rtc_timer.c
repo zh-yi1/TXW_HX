@@ -145,11 +145,14 @@ void rtc_timer_init(void)
     factory_cfg_t cfg = {0};
     factory_cfg_read(&cfg);
 
-    /* magic != 0x55 → 上位机尚未写入配置 */
+    /* magic != 0x55 → 上位机尚未写入配置, 给默认初始时间 2026-07-11 12:00:00 */
     if (cfg.magic != 0x55) {
-        g_running_seconds = 0;
-        g_ts_block_idx    = 0;
-        g_saved_addr      = ts_block_addrs[0];
+        g_running_seconds   = 0;
+        g_ts_block_idx      = 0;
+        g_saved_addr        = ts_block_addrs[0];
+        g_start_timestamp   = 1783771200UL;  /* 2026-07-11 12:00:00 */
+        g_last_second_tick  = md_get_tick();
+        g_time_synced       = 1;
         return;
     }
 

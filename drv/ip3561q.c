@@ -155,8 +155,8 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     if (result < 0)   result = 0;
     if (result > 255) result = 255;
     *doc1_val = (uint8_t)result;
-    LOGI("DOC1: reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
-         reg_init, buf, comp1, step_64th, delta_64th, result);
+    // LOGI("DOC1: reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
+    //      reg_init, buf, comp1, step_64th, delta_64th, result);
 
     /* ---- DOC2 (0x05) ---- */
     ip3561q_read_reg(IP3561Q_REG_DOC2, doc2_val, 1);          /* V_DOC2_SEL_INIT */
@@ -171,8 +171,8 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     if (result < 0)   result = 0;
     if (result > 255) result = 255;
     *doc2_val = (uint8_t)result;
-    LOGI("DOC2: reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
-         reg_init, buf, comp1, step_64th, delta_64th, result);
+    // LOGI("DOC2: reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
+    //      reg_init, buf, comp1, step_64th, delta_64th, result);
 
     /* ---- SC (0x06) ---- */
     ip3561q_read_reg(IP3561Q_REG_SC, sc_val, 1);              /* V_SC_SEL_INIT */
@@ -187,8 +187,8 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     if (result < 0)   result = 0;
     if (result > 255) result = 255;
     *sc_val = (uint8_t)result;
-    LOGI("SC:   reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
-         reg_init, buf, comp1, step_64th, delta_64th, result);
+    // LOGI("SC:   reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
+    //      reg_init, buf, comp1, step_64th, delta_64th, result);
 
     /* ---- COC (0x07) ---- */
     ip3561q_read_reg(IP3561Q_REG_COC, coc_val, 1);            /* V_COC_SEL_INIT */
@@ -207,8 +207,8 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     if (result < 0)   result = 0;
     if (result > 255) result = 255;
     *coc_val = (uint8_t)result;
-    LOGI("COC:  reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
-         reg_init, buf, comp1, step_64th, delta_64th, result);
+    // LOGI("COC:  reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
+    //      reg_init, buf, comp1, step_64th, delta_64th, result);
 }
 
 /* ==========================================================================

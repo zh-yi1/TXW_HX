@@ -129,11 +129,16 @@ uint32_t Secure_Sign(const uint8_t *uid, uint32_t key);
 uint8_t  CheckUnlock(const uint8_t *uid, uint16_t uid_len, uint32_t unlock_code);
 
 /* 解锁标志接口: prod_test 置位, i2c_slave 消费后清除 */
+/* 场测模式判断: 返回 1 表示当前处于场测模式 (非 IDLE) */
+#if !defined(PROD_TEST_SIMPLE_EN) && !defined(DEBUG_EN)
 uint8_t prod_test_get_unlock_flag(void);
 void    prod_test_clear_unlock_flag(void);
-
-/* 场测模式判断: 返回 1 表示当前处于场测模式 (非 IDLE) */
 uint8_t prod_test_is_active(void);
+#else
+__STATIC_INLINE uint8_t prod_test_get_unlock_flag(void)    { return 0; }
+__STATIC_INLINE void    prod_test_clear_unlock_flag(void)  { }
+__STATIC_INLINE uint8_t prod_test_is_active(void)          { return 0; }
+#endif
 
 /* 场测低功耗屏蔽: 返回 1 表示当前应阻止进入低功耗 */
 #if !defined(DEBUG_EN)
