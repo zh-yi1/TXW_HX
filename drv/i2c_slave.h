@@ -7,7 +7,7 @@
 #define I2C_SLAVE_ADDR          0x2D
 
 /* V1.3 恢复出厂设置功能开关 (1=使能, 0=关闭, 控制 factory_reset + Flash 擦除相关代码) */
-#define FACTORY_RESET_EN  0
+#define FACTORY_RESET_EN  1
 
 /* ---- 寄存器地址定义 (协议 V1.3) ---- */
 

@@ -343,7 +343,9 @@ void power_mgr_proc(void)
 {
     uint32_t now = md_get_tick();
     static uint32_t last_activity_ms = 0;
+#ifdef DEBUG_STOP
     static uint32_t sleep_entry_tick = 0;
+#endif
 
     uint8_t usb_active = (ui_data.usb_c1_status != 0 || ui_data.usb_c2_status != 0 || ui_data.usb_a_status != 0);
 
@@ -374,14 +376,18 @@ void power_mgr_proc(void)
         {
             screen_off();
             ui_data.dev_state = DEV_STATE_SLEEP_ACTIVE;
+#ifdef DEBUG_STOP
             sleep_entry_tick = now;
+#endif
             LOGI("[PWR] -> SLEEP_ACTIVE\r\n");
         }
         else if (now - last_activity_ms >= POWER_MGR_SLEEP_IDLE_MS)
         {
             screen_off();
             ui_data.dev_state = DEV_STATE_SLEEP_PASSIVE;
+#ifdef DEBUG_STOP
             sleep_entry_tick = now;
+#endif
             LOGI("[PWR] -> SLEEP_PASSIVE\r\n");
         }
         break;
@@ -404,7 +410,9 @@ void power_mgr_proc(void)
         else if (!usb_active)
         {
             ui_data.dev_state = DEV_STATE_SLEEP_PASSIVE;
+#ifdef DEBUG_STOP
             sleep_entry_tick = now;
+#endif
             LOGI("[PWR] -> SLEEP_PASSIVE\r\n");
         }
         break;

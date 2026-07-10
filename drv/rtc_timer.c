@@ -386,6 +386,36 @@ void factory_cfg_write(const factory_cfg_t *cfg)
     flash_wait_unbusy();
 }
 
+/*
+ * factory_cfg_write_soh — 读-改-写 SOH (电池健康度)
+ */
+void factory_cfg_write_soh(uint8_t soh)
+{
+    factory_cfg_t cfg;
+
+    factory_cfg_read(&cfg);
+    if (cfg.magic != 0x55)
+        return; /* 未写入过配置, 不单独写 SOH */
+
+    cfg.soh = soh;
+    factory_cfg_write(&cfg);
+}
+
+/*
+ * factory_cfg_write_cycle — 读-改-写 循环次数
+ */
+void factory_cfg_write_cycle(uint16_t cycle_count)
+{
+    factory_cfg_t cfg;
+
+    factory_cfg_read(&cfg);
+    if (cfg.magic != 0x55)
+        return; /* 未写入过配置, 不单独写循环次数 */
+
+    cfg.cycle_count = cycle_count;
+    factory_cfg_write(&cfg);
+}
+
 /* ========================================================================== */
 /*  时间转换                                                                   */
 /* ========================================================================== */

@@ -57,19 +57,25 @@ typedef enum {
 /* ---- 协议常量 (对齐 PDF 名词解释) ---- */
 #define PT_FRAME_HEADER1    0xAAU
 #define PT_FRAME_HEADER2    0x55U
-#define PT_FRAME_MAX_PARAMS 64U    /* 电池SN最长64字节 */
+#define PT_FRAME_MAX_PARAMS 80U    /* 电池SN最长75字节 (4×18+3分号) + 余量 */
+#define PT_CELL_SN_LEN      18U     /* 单节电芯 SN 长度 (不含 \0) */
+#define PT_CELL_COUNT        4U     /* 电芯节数 */
 #define PT_UID_LEN          8U
 #define PT_UNLOCK_KEY_LEN   8U
-#define PT_SN_LEN           12U     /* 整机 SN 长度 (不含 null) */
-#define PT_BAT_SN_LEN       64U     /* 电池 SN 长度 (不含 null, 多组;分隔) */
+#define PT_SN_LEN           32U     /* 整机 SN 长度 (不含 null) */
+#define PT_BAT_SN_LEN       (PT_CELL_COUNT * PT_CELL_SN_LEN + (PT_CELL_COUNT - 1))  /* 4×18 + 3分号 = 75 */
 #define PT_MODEL_LEN        8U      /* 产品型号编码长度 (不含 null) */
 #define PT_MFG_LEN          4U      /* 生产工厂代码长度 (不含 null) */
 
 /* ---- 解锁密钥 (PDF §7.1, 不可修改) ---- */
 #define UNLOCK_KEY          0x12345678U
 
-/* ---- 场测低功耗屏蔽: 进入场测后 3min 内不进低功耗 ---- */
-#define PROD_TEST_SLEEP_BLOCK_MS  180000U  /* 3 分钟 */
+/* ---- 超时控制 ---- */
+#define PT_INACTIVITY_TIMEOUT_MS  180000U  /* 无新消息 3min 直接锁定退出场测 */
+#define PROD_TEST_SLEEP_BLOCK_MS  180000U  /* 进入场测后 3min 内不进低功耗 */
+
+/* ---- NG 锁定开关 (暂不启用) ---- */
+#define PT_NG_LOCK_EN            0
 
 /* ---- Flash 存储地址 ---- */
 #define PROD_DATA_FLASH_ADDR    0x7800U
@@ -83,27 +89,29 @@ typedef struct {
     uint8_t  unlock_sign[PT_UNLOCK_KEY_LEN];          // 加密签名 64位哈希 (MCU_UID+密钥)
     char     sn[PT_SN_LEN + 1];                      // SN      整机序列号
     char     bat_sn[PT_BAT_SN_LEN + 1];              // BAT_SN  电池序列号
-    uint8_t  uid[PT_UID_LEN];                        // UID     MCU硬件ID (8字节)
+    // uint8_t  uid[PT_UID_LEN];                        // UID     MCU硬件ID (8字节)
     uint16_t vbat_mv;                                // VBAT    电池组总电压 (mV)
     uint8_t  soc;                                    // SOC     剩余电量 (%)
     int16_t  temp;                                   // TEMP    电池温度 (°C)
-    uint16_t bat_r;                                  // BAT_R   当前内阻 (mΩ)
-    uint16_t bat_r0;                                 // BAT_R0  初始内阻 (mΩ)
+    // uint16_t bat_r;                                  // BAT_R   当前内阻 (mΩ)
+    // uint16_t bat_r0;                                 // BAT_R0  初始内阻 (mΩ)
     uint16_t cycle_u;                                // CYCLE_U 用户循环次数
-    uint16_t cycle_a;                                // CYCLE_A 真实循环次数
-    uint8_t  ver_major, ver_minor, ver_patch;         // VER     固件版本 VX.X.X
-    char     model[PT_MODEL_LEN + 1];                // MODEL   产品型号编码
-    char     mfg[PT_MFG_LEN + 1];                    // MFG     生产工厂代码
-    uint8_t  mfg_date[6];                            // MFG_DATE 生产日期 (BCD)
-    uint16_t ovp;                                    // OVP     末次过压值 (mV)
-    uint16_t ovp_max;                                // OVP_MAX 1小时过压峰值 (mV)
-    int16_t  otp;                                    // OTP     末次过温值 (0.1°C)
-    int16_t  otp_max;                                // OTP_MAX 1小时过温峰值 (0.1°C)
-    uint8_t  err_time[6];                            // ERR_TIME 异常时间 (BCD)
-    uint16_t err_cnt;                                // ERR_CNT 累计异常次数
-    uint8_t  r_err;                                  // R_ERR   内阻异常 (0/1)
-    uint8_t  uid_err;                                // UID_ERR UID异常 (0/1)
-    uint16_t liq_cnt;                                // LIQ_CN  进液次数
+    // uint16_t cycle_a;                                // CYCLE_A 真实循环次数
+    uint8_t  ver_major, ver_minor;         // VER     固件版本 VX.X
+    // char     model[PT_MODEL_LEN + 1];                // MODEL   产品型号编码
+    // char     mfg[PT_MFG_LEN + 1];                    // MFG     生产工厂代码
+    // uint8_t  mfg_date[6];                            // MFG_DATE 生产日期 (BCD)
+    // uint16_t ovp;                                    // OVP     最近一次过压保护值 (mV)
+    // uint16_t ovp_max;                                // OVP_MAX 1小时过压峰值 (mV)
+    // int16_t  otp;                                    // OTP     最近一次过温保护值 (0.1°C)
+    // int16_t  otp_max;                                // OTP_MAX 1小时过温峰值 (0.1°C)
+    // uint8_t  err_time[6];                            // ERR_TIME 异常时间 (BCD)
+    // uint16_t err_cnt;                                // ERR_CNT 累计异常次数
+    // uint8_t  r_err;                                  // R_ERR   内阻异常 (0/1)
+    // uint8_t  uid_err;                                // UID_ERR UID异常 (0/1)
+    // uint16_t liq_cnt;                                // LIQ_CN  进液次数
+    uint16_t err_cnt;                                // ERR_CNT 异常记录总条数
+    uint32_t time_now;                               // TIME_NOW  当前时间 (BCD)
 } prod_test_data_t;
 #pragma pack()
 
@@ -111,10 +119,7 @@ typedef struct {
 typedef struct {
     prod_test_state_t state;
     uint8_t           unlocked;
-    uint32_t          unlock_deadline;
-    uint32_t          ng_lock_tick;
-    uint8_t           ng_led_toggle;
-    uint32_t          last_report_tick;
+    uint32_t          last_activity_tick;  /* 最后一次收到有效帧的时刻, 用于 3min 无消息退出 */
 } prod_test_rt_t;
 
 /* ---- 公开 API ---- */
@@ -122,6 +127,13 @@ void prod_test_init(void);
 void prod_test_proc(void);
 uint32_t Secure_Sign(const uint8_t *uid, uint32_t key);
 uint8_t  CheckUnlock(const uint8_t *uid, uint16_t uid_len, uint32_t unlock_code);
+
+/* 解锁标志接口: prod_test 置位, i2c_slave 消费后清除 */
+uint8_t prod_test_get_unlock_flag(void);
+void    prod_test_clear_unlock_flag(void);
+
+/* 场测模式判断: 返回 1 表示当前处于场测模式 (非 IDLE) */
+uint8_t prod_test_is_active(void);
 
 /* 场测低功耗屏蔽: 返回 1 表示当前应阻止进入低功耗 */
 #if !defined(DEBUG_EN)

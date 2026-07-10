@@ -17,74 +17,52 @@
 /*  模块级全局变量                                                           */
 /* ========================================================================== */
 
-static prod_test_rt_t pt_rt;     /* 运行时状态 */
-static prod_test_data_t pt_data; /* 名词解释全部数据 (先填测试值, 后续接真实数据) */
+static prod_test_rt_t pt_rt;         /* 运行时状态 */
+static prod_test_data_t pt_data;     /* 名词解释全部数据*/
 static uint32_t s_pt_enter_tick = 0; /* 进入场测时刻 (tick), 用于 3min 低功耗屏蔽 */
+static volatile uint8_t s_pt_unlock_flag = 0; /* 解锁标志: i2c_slave_proc 消费后清除 */
 
-/*
- * USART 输出辅助 — 替代 LOGI.
- * 非 DEBUG 模式下 LOGI 为空操作, 但厂测必须通过 USART1 上报,
- * 所以直接用 usart_send_byte / usart_send_string.
- */
-#define PT_PUTC(c)   usart_send_byte((uint8_t)(c))
-#define PT_PUTS(s)   usart_send_string(s)
+#define PT_PUTC(c) usart_send_byte((uint8_t)(c))
+#define PT_PUTS(s) usart_send_string(s)
 
 /* ---- 帧解析器 ---- */
-static frame_parse_state_t frame_state = FRAME_WAIT_AA;
-static uint8_t frame_buf[PT_FRAME_MAX_PARAMS + 4];
-static uint8_t frame_idx;
-static uint8_t frame_len;
-static uint8_t frame_cmd;
-static uint8_t frame_param_cnt;
+static frame_parse_state_t frame_state = FRAME_WAIT_AA; /* 解析状态机当前状态 */
+static uint8_t frame_buf[PT_FRAME_MAX_PARAMS + 4];      /* 帧缓冲区: 包头(2)+长度(1)+CMD(1)+参数(N) */
+static uint8_t frame_idx;                               /* 帧缓冲区写入位置 */
+static uint8_t frame_len;                               /* 帧总长度 (不含校验和), 由 LEN 字段决定 */
+static uint8_t frame_cmd;                               /* 命令 ID, 由 CMD 字段决定 */
+static uint8_t frame_param_cnt;                         /* 参数个数 = frame_len - 4 */
 
 /* ---- 前向声明 ---- */
 static void pt_report_all(void);
 
 /* ========================================================================== */
-/*  测试数据填充 (后续替换为真实采集)                                         */
+/*  数据初始化 — Flash 静态值 + 硬件实时值                                      */
 /* ========================================================================== */
 static void pt_fill_test_values(void)
 {
-    /* 加密签名 */
+    /* 加密签名 (解锁时由上位机下发填充) */
     memset(pt_data.unlock_sign, 0, PT_UNLOCK_KEY_LEN);
 
-    /* SN + BAT_SN (初始值, 不等同于写入值) */
-    memcpy(pt_data.sn, "000000000000", sizeof("000000000000"));
-    memcpy(pt_data.bat_sn, "BAT00000000", sizeof("BAT00000000"));
+    /* SN / BAT_SN — 默认空值, pt_load_factory_cfg() 会从 Flash 覆盖 */
+    memset(pt_data.sn, '0', PT_SN_LEN);
+    pt_data.sn[PT_SN_LEN] = '\0';
+    memset(pt_data.bat_sn, 0, PT_BAT_SN_LEN + 1);
 
-    /* UID (模拟测试值: 123456789ABCDEF0) */
-    {
-        uint8_t tmp[8] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0};
-        memcpy(pt_data.uid, tmp, PT_UID_LEN);
-    }
+    /* 实时数据 — 从 ui_data 采集 */
+    pt_data.vbat_mv = (uint16_t)ui_data.bat_voltage * 100; /* 0.1V → mV */
+    pt_data.soc = ui_data.bat_power;                       /* % */
+    pt_data.temp = ui_data.bat_temperature / 10;           /* 0.1°C → °C */
 
-    /* 实时数据 */
-    pt_data.vbat_mv = 15000;
-    pt_data.soc = 85;
-    pt_data.temp = 28;
-    pt_data.bat_r = 35;
-    pt_data.bat_r0 = 30;
-    pt_data.cycle_u = 105;
-    pt_data.cycle_a = 125;
+    /* VER — 编译期常量, 由 main.h VERSION_MAJOR / VERSION_MINOR 决定 */
+    pt_data.ver_major = VERSION_MAJOR;
+    pt_data.ver_minor = VERSION_MINOR;
 
-    /* VER + MODEL + MFG */
-    pt_data.ver_major = 1;
-    pt_data.ver_minor = 0;
-    pt_data.ver_patch = 0;
-    memcpy(pt_data.model, "PW", sizeof("PW"));
-    memcpy(pt_data.mfg, "SZ", sizeof("SZ"));
-    memset(pt_data.mfg_date, 0, 6);
+    /* 异常日志总条数 */
+    pt_data.err_cnt = ui_data.abnormal_volt_count + ui_data.abnormal_temp_count;
 
-    /* ---- 异常记录 ---- */
-    pt_data.ovp = 0;
-    pt_data.ovp_max = 0;
-    pt_data.otp = 0;
-    pt_data.otp_max = 0;
-    memset(pt_data.err_time, 0, 6);
-    pt_data.err_cnt = 0;
-    pt_data.r_err = 0;
-    pt_data.uid_err = 0;
-    pt_data.liq_cnt = 0;
+    /* 当前时间 (Unix 时间戳) */
+    pt_data.time_now = rtc_get_timestamp();
 }
 
 /*
@@ -100,45 +78,36 @@ static void pt_load_factory_cfg(void)
 
     factory_cfg_read(&cfg);
     if (cfg.magic != 0x55)
-        return;  /* 未写过, 保留测试默认值 */
+        return; /* 未写过, 保留测试默认值 */
 
-    /* SN: uint32_t → 12 位十进制字符串 (左补零) */
+    /* SN: ASCII 字符串直接回读 */
     {
-        uint32_t n = cfg.device_sn;
-        for (i = 0; i < PT_SN_LEN; i++) {
-            pt_data.sn[PT_SN_LEN - 1 - i] = '0' + (n % 10);
-            n /= 10;
-        }
-        pt_data.sn[PT_SN_LEN] = '\0';
+        uint8_t k;
+        for (k = 0; k < PT_SN_LEN && cfg.device_sn[k] != '\0'; k++)
+            pt_data.sn[k] = cfg.device_sn[k];
+        pt_data.sn[k] = '\0';
     }
 
     /* BAT_SN: bat_model[0..3] 用分号拼接 */
     {
         pos = 0;
-        for (i = 0; i < 4 && pos < PT_BAT_SN_LEN; i++) {
+        for (i = 0; i < PT_CELL_COUNT && pos < PT_BAT_SN_LEN; i++)
+        {
             uint8_t j;
-            for (j = 0; j < 16 && cfg.bat_model[i][j] != '\0' && pos < PT_BAT_SN_LEN; j++) {
+            for (j = 0; j < PT_CELL_SN_LEN && cfg.bat_model[i][j] != '\0' && pos < PT_BAT_SN_LEN; j++)
+            {
                 pt_data.bat_sn[pos++] = cfg.bat_model[i][j];
             }
-            if (i < 3 && cfg.bat_model[i + 1][0] != '\0' && pos < PT_BAT_SN_LEN) {
+            if (i < (PT_CELL_COUNT - 1) && cfg.bat_model[i + 1][0] != '\0' && pos < PT_BAT_SN_LEN)
+            {
                 pt_data.bat_sn[pos++] = ';';
             }
         }
         pt_data.bat_sn[pos] = '\0';
     }
 
-    /* MFG_DATE: start_timestamp → BCD */
-    if (cfg.start_timestamp != 0) {
-        uint16_t y;
-        uint8_t mo, d, h, mi, s;
-        rtc_unix_to_datetime(cfg.start_timestamp, &y, &mo, &d, &h, &mi, &s);
-        pt_data.mfg_date[0] = (uint8_t)(((y % 100) / 10) << 4) | ((y % 100) % 10);
-        pt_data.mfg_date[1] = (uint8_t)((mo / 10) << 4) | (mo % 10);
-        pt_data.mfg_date[2] = (uint8_t)((d / 10) << 4) | (d % 10);
-        pt_data.mfg_date[3] = (uint8_t)((h / 10) << 4) | (h % 10);
-        pt_data.mfg_date[4] = (uint8_t)((mi / 10) << 4) | (mi % 10);
-        pt_data.mfg_date[5] = (uint8_t)((s / 10) << 4) | (s % 10);
-    }
+    /* 循环次数 (掉电保存) */
+    pt_data.cycle_u = cfg.cycle_count;
 }
 
 /* ========================================================================== */
@@ -237,6 +206,29 @@ static void pt_send_line(const char *str)
     PT_PUTS("\r\n");
 }
 
+/* ---- 无符号整数直接输出 (无换行) ---- */
+static void pt_send_val_u16(uint16_t v)
+{
+    char buf[6];
+    uint8_t p = 0, i;
+    if (v == 0) { PT_PUTC('0'); return; }
+    while (v > 0 && p < 5) { buf[p++] = '0' + (v % 10); v /= 10; }
+    for (i = 0; i < p / 2; i++) { char t = buf[i]; buf[i] = buf[p-1-i]; buf[p-1-i] = t; }
+    for (i = 0; i < p; i++) PT_PUTC(buf[i]);
+}
+static void pt_send_val_u8(uint8_t v)
+{
+    if (v >= 100) PT_PUTC('0' + v / 100);
+    if (v >= 10)  PT_PUTC('0' + (v / 10) % 10);
+    PT_PUTC('0' + v % 10);
+}
+static void pt_send_val_u8_2digit(uint8_t v)
+{
+    PT_PUTC('0' + (v / 10) % 10);
+    PT_PUTC('0' + v % 10);
+}
+
+#if 0  /* 暂未使用, 待对应字段恢复后启用 */
 /**
  * @brief  输出定点小数 "XXX.XX" (无前缀, 无换行)
  */
@@ -286,18 +278,6 @@ static void pt_send_kv_fixed2(const char *key, int32_t val_hundredths)
     PT_PUTS("\r\n");
 }
 
-static void pt_send_uid_hex(const uint8_t *uid, uint8_t len)
-{
-    uint8_t i;
-    PT_PUTS("UID=");
-    for (i = 0; i < len; i++)
-    {
-        PT_PUTC(pt_nibble_to_hex(uid[i] >> 4));
-        PT_PUTC(pt_nibble_to_hex(uid[i] & 0x0F));
-    }
-    PT_PUTS("\r\n");
-}
-
 static void pt_send_kv_bcd_time(const char *key, const uint8_t *bcd, uint8_t bcd_len)
 {
     uint8_t i;
@@ -310,13 +290,45 @@ static void pt_send_kv_bcd_time(const char *key, const uint8_t *bcd, uint8_t bcd
     }
     PT_PUTS("\r\n");
 }
+#endif /* 暂未使用 */
+
+/* ---- UID 上报 (从硬件寄存器直接读, 8 字节 → 16 位十六进制) ---- */
+static void pt_send_uid_hex(void)
+{
+    uint8_t i;
+    uint32_t uid0 = *(volatile uint32_t *)MD_MCU_UID0_ADDR;
+    uint32_t uid1 = *(volatile uint32_t *)MD_MCU_UID1_ADDR;
+    uint8_t uid[8];
+
+    uid[0] = (uint8_t)(uid0);
+    uid[1] = (uint8_t)(uid0 >> 8);
+    uid[2] = (uint8_t)(uid0 >> 16);
+    uid[3] = (uint8_t)(uid0 >> 24);
+    uid[4] = (uint8_t)(uid1);
+    uid[5] = (uint8_t)(uid1 >> 8);
+    uid[6] = (uint8_t)(uid1 >> 16);
+    uid[7] = (uint8_t)(uid1 >> 24);
+
+    PT_PUTS("UID=");
+    for (i = 0; i < 8; i++)
+    {
+        PT_PUTC(pt_nibble_to_hex(uid[i] >> 4));
+        PT_PUTC(pt_nibble_to_hex(uid[i] & 0x0F));
+    }
+    PT_PUTS("\r\n");
+}
 
 /* ========================================================================== */
 /*  数据上报（基本信息上报）                   */
 /* ========================================================================== */
 static void pt_report_all(void)
 {
-    char date_str[9];
+    /* 每次上报前刷新全部数据: 实时值 + Flash 回读, 保证与屏幕一致 */
+    pt_fill_test_values();
+    pt_load_factory_cfg();
+
+    /* 0.  UID: MCU硬件唯一ID (8字节十六进制) — 上位机解锁必须先拿到 UID */
+    pt_send_uid_hex();
 
     /* 1.  SN: 整机序列号 */
     pt_send_kv_str("SN", pt_data.sn);
@@ -324,80 +336,44 @@ static void pt_report_all(void)
     /* 2.  BAT_SN: 电池序列号 */
     pt_send_kv_str("BAT_SN", pt_data.bat_sn);
 
-    /* 3.  UID: MCU硬件唯一ID (8字节十六进制) */
-    pt_send_uid_hex(pt_data.uid, PT_UID_LEN);
-
-    /* 4.  VBAT: 电池组总电压 (mV) */
+    /* 3.  VBAT: 电池组总电压 (mV) */
     pt_send_kv_u32("VBAT", pt_data.vbat_mv);
 
-    /* 5.  SOC: 剩余电量 (%) */
+    /* 4.  SOC: 剩余电量 (%) */
     pt_send_kv_u32("SOC", pt_data.soc);
 
-    /* 6.  TEMP: 电池温度 (°C) */
+    /* 5.  TEMP: 电池温度 (°C) */
     pt_send_kv_u32("TEMP", (uint32_t)(int32_t)pt_data.temp);
 
-    /* 7.  BAT_R: 当前内阻 (mΩ) */
-    pt_send_kv_u32("BAT_R", pt_data.bat_r);
-
-    /* 8.  BAT_R0: 初始内阻 (mΩ) */
-    pt_send_kv_u32("BAT_R0", pt_data.bat_r0);
-
-    /* 9.  CYCLE_U: 用户显示循环次数 */
+    /* 6.  CYCLE_U: 用户显示循环次数 */
     pt_send_kv_u32("CYCLE_U", pt_data.cycle_u);
 
-    /* 10. CYCLE_A: 真实老化循环次数 */
-    pt_send_kv_u32("CYCLE_A", pt_data.cycle_a);
-
-    /* 11. VER: 固件版本 VX.X.X */
+    /* 7.  VER: 固件版本 VX.X */
     PT_PUTS("VER=V");
     PT_PUTC('0' + pt_data.ver_major);
     PT_PUTC('.');
     PT_PUTC('0' + pt_data.ver_minor);
-    PT_PUTC('.');
-    PT_PUTC('0' + pt_data.ver_patch);
     PT_PUTS("\r\n");
 
-    /* 12. MFG: 生产工厂代码 */
-    pt_send_kv_str("MFG", pt_data.mfg);
-
-    /* 14. MFG_DATE: 生产日期 (6位 BCD: 年月日) */
-    date_str[0] = pt_nibble_to_hex(pt_data.mfg_date[0] >> 4);
-    date_str[1] = pt_nibble_to_hex(pt_data.mfg_date[0] & 0x0F);
-    date_str[2] = pt_nibble_to_hex(pt_data.mfg_date[1] >> 4);
-    date_str[3] = pt_nibble_to_hex(pt_data.mfg_date[1] & 0x0F);
-    date_str[4] = pt_nibble_to_hex(pt_data.mfg_date[2] >> 4);
-    date_str[5] = pt_nibble_to_hex(pt_data.mfg_date[2] & 0x0F);
-    date_str[6] = '\0';
-    pt_send_kv_str("MFG_DATE", date_str);
-
-    /* 15. OVP: 末次过压值 (mV) */
-    pt_send_kv_u32("OVP", pt_data.ovp);
-
-    /* 16. OVP_MAX: 1小时过压峰值 (X.XX V) */
-    pt_send_kv_fixed2("OVP_MAX", (int32_t)pt_data.ovp_max / 10);
-
-    /* 17. OTP: 末次过温值 (XX.X °C) */
-    pt_send_kv_fixed2("OTP", (int32_t)pt_data.otp * 10);
-
-    /* 18. OTP_MAX: 1小时过温峰值 (XX.X °C) */
-    pt_send_kv_fixed2("OTP_MAX", (int32_t)pt_data.otp_max * 10);
-
-    /* 19. ERR_TIME: 最近一次异常时间 (20YYMMDDHHMM) */
-    pt_send_kv_bcd_time("ERR_TIME", pt_data.err_time, 5);
-
-    /* 20. ERR_CNT: 累计异常次数 */
+    /* 8.  ERR_CNT: 异常日志总条数 */
     pt_send_kv_u32("ERR_CNT", pt_data.err_cnt);
 
-    /* 21. R_ERR: 内阻异常标志 (1=异常) */
-    pt_send_kv_u32("R_ERR", pt_data.r_err);
+    /* 9.  TIME_NOW: 当前时间 YYYY-M-D HH:MM:SS */
+    {
+        uint16_t y;
+        uint8_t mo, d, h, mi, s;
+        rtc_unix_to_datetime(pt_data.time_now, &y, &mo, &d, &h, &mi, &s);
+        PT_PUTS("TIME_NOW=");
+        pt_send_val_u16(y);       PT_PUTC('-');
+        pt_send_val_u8(mo);       PT_PUTC('-');
+        pt_send_val_u8(d);        PT_PUTC(' ');
+        pt_send_val_u8_2digit(h); PT_PUTC(':');
+        pt_send_val_u8_2digit(mi);PT_PUTC(':');
+        pt_send_val_u8_2digit(s);
+        PT_PUTS("\r\n");
+    }
 
-    /* 22. UID_ERR: UID读取异常标志 (1=异常) */
-    pt_send_kv_u32("UID_ERR", pt_data.uid_err);
-
-    /* 23. LIQ_CN: 进液累计次数 */
-    pt_send_kv_u32("LIQ_CN", pt_data.liq_cnt);
-
-    /* 24. ACK: 通信应答 */
+    /* 10. ACK: 通信应答 */
     pt_send_line("ACK=OK");
 }
 
@@ -408,18 +384,6 @@ static void pt_report_all(void)
 /* ========================================================================== */
 /*  Flash 保存辅助                                                            */
 /* ========================================================================== */
-
-/* ASCII 数字字符串 → uint32_t (遇非数字或满 10 位停止) */
-static uint32_t sn_str_to_u32(const char *s, uint8_t max_len)
-{
-    uint32_t val = 0;
-    uint8_t i;
-    for (i = 0; i < max_len && s[i] != '\0'; i++) {
-        if (s[i] < '0' || s[i] > '9') break;
-        val = val * 10 + (uint32_t)(s[i] - '0');
-    }
-    return val;
-}
 
 /*
  * prod_save_factory_cfg — 写入 factory_cfg → 回读验证 → 激活时间同步
@@ -442,7 +406,8 @@ static void pt_handle_mode_ctrl(uint8_t param)
     case PT_MODE_ENTER_TEST:
         pt_rt.state = PT_TEST_MODE;
         pt_rt.unlocked = 0;
-        s_pt_enter_tick = md_get_tick(); /* 记录进入时刻, 3min 内不进低功耗 */
+        s_pt_enter_tick = md_get_tick();            /* 记录进入时刻, 3min 内不进低功耗 */
+        pt_rt.last_activity_tick = s_pt_enter_tick; /* 复位不活动计时 */
         pt_report_all();
         break;
 
@@ -459,15 +424,20 @@ static void pt_handle_mode_ctrl(uint8_t param)
         }
         break;
 
+#if PT_NG_LOCK_EN
     case PT_MODE_NG_LOCK:
         pt_rt.state = PT_NG_LOCK;
         pt_rt.unlocked = 0;
         if (s_pt_enter_tick == 0)
-            s_pt_enter_tick = md_get_tick(); /* 直接 NG 锁定也记录进场时刻 */
-        pt_rt.ng_lock_tick = md_get_tick();
-        pt_rt.ng_led_toggle = 0;
+            s_pt_enter_tick = md_get_tick();
+        pt_rt.last_activity_tick = md_get_tick();
         pt_send_line("ACK=NG");
         break;
+#else
+    case PT_MODE_NG_LOCK:
+        pt_send_line("ERR=NG_DISABLED");
+        break;
+#endif
 
     default:
         pt_send_line("ERR=INVALID_PARAM");
@@ -493,25 +463,62 @@ static void pt_handle_unlock(const uint8_t *params, uint8_t len)
     /* 大端序解析: 上位机发送 MSB first */
     unlock_code = ((uint32_t)params[0] << 24) | ((uint32_t)params[1] << 16) | ((uint32_t)params[2] << 8) | ((uint32_t)params[3]);
 
-    if (CheckUnlock(pt_data.uid, PT_UID_LEN, unlock_code))
+    /* 从硬件寄存器直接读取 UID (MD_MCU_UID0 + MD_MCU_UID1 共 8 字节) */
     {
-        pt_rt.unlocked = 1;
-        pt_rt.state = PT_UNLOCKED;
-        /* 解锁持续有效, 直至掉电或OK退出 */
-        /* 存储解锁签名 */
-        memcpy(pt_data.unlock_sign, params, PT_UNLOCK_KEY_LEN);
-        pt_send_line("ACK=OK");
-    }
-    else
-    {
-        pt_send_line("ERR=UNLOCK_FAIL");
-    }
+        uint8_t uid[PT_UID_LEN];
+        uint32_t uid0 = *(volatile uint32_t *)MD_MCU_UID0_ADDR;
+        uint32_t uid1 = *(volatile uint32_t *)MD_MCU_UID1_ADDR;
+        uid[0] = (uint8_t)(uid0);
+        uid[1] = (uint8_t)(uid0 >> 8);
+        uid[2] = (uint8_t)(uid0 >> 16);
+        uid[3] = (uint8_t)(uid0 >> 24);
+        uid[4] = (uint8_t)(uid1);
+        uid[5] = (uint8_t)(uid1 >> 8);
+        uid[6] = (uint8_t)(uid1 >> 16);
+        uid[7] = (uint8_t)(uid1 >> 24);
+
+        if (CheckUnlock(uid, PT_UID_LEN, unlock_code))
+        {
+            pt_rt.unlocked = 1;
+            pt_rt.state = PT_UNLOCKED;
+            /* 存储解锁签名 */
+            memcpy(pt_data.unlock_sign, params, PT_UNLOCK_KEY_LEN);
+
+            /* 解锁后恢复出厂状态: 清异常 / 清禁用 / 循环置0 / SOH置100 */
+            abnormal_log_reset();
+            ui_data.abnormal_volt_count = 0;
+            ui_data.abnormal_temp_count = 0;
+            ui_data.abnormal_idx = 0;
+            ui_data.disable_flag = 0;
+            battery_mgr_clear_disable();
+            pt_data.err_cnt = 0;
+
+            /* Flash 一次写入: cycle=0, soh=100, disable_reason=0 */
+            {
+                factory_cfg_t cfg;
+                factory_cfg_read(&cfg);
+                cfg.disable_reason = 0; // 清除禁用
+                cfg.cycle_count = 0;    // 循环置0
+                cfg.soh = 100;          // SOH置100
+                factory_cfg_write(&cfg);
+            }
+            pt_data.cycle_u = 0;
+
+            /* 置解锁标志, i2c_slave_proc 消费后通知主机恢复出厂设置 */
+            s_pt_unlock_flag = 1;
+
+            pt_send_line("ACK=OK");
+        }
+        else
+        {
+            pt_send_line("ERR=UNLOCK_FAIL");
+        }
+    } /* UID 局部作用域结束 */
 }
 
 static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
 {
     factory_cfg_t cfg;
-    uint32_t sn_val;
 
     if (!pt_rt.unlocked)
     {
@@ -525,11 +532,10 @@ static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
     memcpy(pt_data.sn, params, len);
     pt_data.sn[len] = '\0';
 
-    /* 解析 ASCII SN 为 uint32_t, 写入 Flash */
-    sn_val = sn_str_to_u32(pt_data.sn, PT_SN_LEN);
-
+    /* ASCII 字符串直接写入 Flash */
     factory_cfg_read(&cfg);
-    cfg.device_sn = sn_val;
+    memset(cfg.device_sn, 0, sizeof(cfg.device_sn));
+    memcpy(cfg.device_sn, pt_data.sn, len);
     prod_save_factory_cfg(&cfg);
 
     pt_send_kv_str("SN", pt_data.sn);
@@ -539,7 +545,7 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
 {
     factory_cfg_t cfg;
     uint8_t cell_idx = 0;
-    uint8_t start    = 0;
+    uint8_t start = 0;
     uint8_t i;
 
     if (!pt_rt.unlocked)
@@ -555,7 +561,7 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
     pt_data.bat_sn[len] = '\0';
 
     /*
-     * 写入 Flash: 按分号分隔, 逐个存入 bat_model[0..3] (每个最长 16B)
+     * 写入 Flash: 按分号分隔, 逐个存入 bat_model[0..3] (每个最长 18B)
      *
      * 上位机格式: "CELL0_SN;CELL1_SN;CELL2_SN;CELL3_SN"
      * 例: "LG18650;SAMSUNG-21700;;"  → 2 节电芯, 后 2 槽为空
@@ -563,12 +569,16 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
     factory_cfg_read(&cfg);
     memset(cfg.bat_model, 0, sizeof(cfg.bat_model));
 
-    for (i = 0; i < len && cell_idx < 4; i++) {
-        if (pt_data.bat_sn[i] == ';' || i == len - 1) {
-            uint8_t end   = (pt_data.bat_sn[i] == ';') ? i : i + 1;
+    for (i = 0; i < len && cell_idx < PT_CELL_COUNT; i++)
+    {
+        if (pt_data.bat_sn[i] == ';' || i == len - 1)
+        {
+            uint8_t end = (pt_data.bat_sn[i] == ';') ? i : i + 1;
             uint8_t chunk = (uint8_t)(end - start);
-            if (chunk > 16) chunk = 16;
-            if (chunk > 0) {
+            if (chunk > PT_CELL_SN_LEN)
+                chunk = PT_CELL_SN_LEN;
+            if (chunk > 0)
+            {
                 memcpy(cfg.bat_model[cell_idx], &pt_data.bat_sn[start], chunk);
             }
             cell_idx++;
@@ -576,7 +586,7 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
         }
     }
 
-    cfg.cell_count = cell_idx;  /* 实际写入的电芯数量 */
+    cfg.cell_count = cell_idx; /* 实际写入的电芯数量 */
     prod_save_factory_cfg(&cfg);
 
     pt_send_kv_str("BAT_SN", pt_data.bat_sn);
@@ -597,8 +607,6 @@ static void pt_handle_sync_time(const uint8_t *params, uint8_t len)
         pt_send_line("ERR=DATE_FAIL");
         return;
     }
-
-    memcpy(pt_data.mfg_date, params, 6);
 
     /* BCD → Unix 时间戳, 写入 Flash */
     unix_ts = rtc_bcd6_to_unix(params);
@@ -630,6 +638,10 @@ static void pt_handle_sync_time(const uint8_t *params, uint8_t len)
 
 static void pt_dispatch_frame(uint8_t cmd, const uint8_t *params, uint8_t param_len)
 {
+    /* 收到有效帧即刷新不活动计时 (NG_LOCK 除外, 仅充电可退出) */
+    if (pt_rt.state != PT_NG_LOCK)
+        pt_rt.last_activity_tick = md_get_tick();
+
     switch (cmd)
     {
     case PT_CMD_MODE_CTRL:
@@ -728,28 +740,21 @@ static void pt_parse_byte(uint8_t byte)
     }
 }
 
+#if PT_NG_LOCK_EN
 /* ========================================================================== */
-/*  NG 锁定 / 解锁超时                                                       */
+/*  NG 锁定 / 超时管理                                                        */
 /* ========================================================================== */
 
 static void pt_proc_ng_lock(void)
 {
-    uint32_t now = md_get_tick();
-
-    if ((now - pt_rt.ng_lock_tick) >= 500)
-    {
-        pt_rt.ng_lock_tick = now;
-        pt_rt.ng_led_toggle = !pt_rt.ng_led_toggle;
-        /* TODO: 控制 LED GPIO */
-    }
-
+    /* NG 锁定仅可通过插入充电器解除 */
     if (ui_data.is_charge)
     {
         pt_rt.state = PT_IDLE;
         pt_rt.unlocked = 0;
-        pt_rt.ng_led_toggle = 0;
     }
 }
+#endif /* PT_NG_LOCK_EN */
 
 /* ========================================================================== */
 /*  公开 API                                                                 */
@@ -770,13 +775,12 @@ void prod_test_init(void)
 
     /* 从 Flash 回读已保存的 factory_cfg, 覆盖 SN/BAT_SN/MFG_DATE */
     pt_load_factory_cfg();
-
-    /* prod_test init done */
 }
 
 void prod_test_proc(void)
 {
     uint8_t byte;
+    uint32_t now;
 
     while (usart_recv_available())
     {
@@ -784,8 +788,23 @@ void prod_test_proc(void)
         pt_parse_byte(byte);
     }
 
+    now = md_get_tick();
+
+    /* ---- 不活动超时: 3min 无有效帧 → 直接锁定退出场测 ---- */
+    if (pt_rt.state == PT_TEST_MODE || pt_rt.state == PT_UNLOCKED)
+    {
+        if ((now - pt_rt.last_activity_tick) >= PT_INACTIVITY_TIMEOUT_MS)
+        {
+            pt_rt.state = PT_IDLE;
+            pt_rt.unlocked = 0;
+        }
+    }
+
+#if PT_NG_LOCK_EN
+    /* ---- NG 锁定处理 ---- */
     if (pt_rt.state == PT_NG_LOCK)
         pt_proc_ng_lock();
+#endif
 }
 
 /* ========================================================================== */
@@ -798,6 +817,22 @@ uint8_t prod_test_is_sleep_blocked(void)
     if ((md_get_tick() - s_pt_enter_tick) < PROD_TEST_SLEEP_BLOCK_MS)
         return 1;
     return 0;
+}
+
+/* ---- 场测模式判断 ---- */
+uint8_t prod_test_is_active(void)
+{
+    return (pt_rt.state != PT_IDLE) ? 1 : 0;
+}
+
+/* ---- 解锁标志接口 (i2c_slave_proc 调用) ---- */
+uint8_t prod_test_get_unlock_flag(void)
+{
+    return s_pt_unlock_flag;
+}
+void prod_test_clear_unlock_flag(void)
+{
+    s_pt_unlock_flag = 0;
 }
 
 #endif /* !PROD_TEST_SIMPLE_EN && !DEBUG_EN */

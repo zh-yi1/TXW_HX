@@ -39,6 +39,7 @@ void battery_mgr_proc(void);
 void static_cfg_erasure(void);
 void abnormal_log_erasure(void);
 void static_cfg_save_test(void);
+void battery_mgr_clear_disable(void);     /* 场测解锁后清除禁用状态 */
 
 /* 查询函数 (无回调, 被动读取) */
 uint16_t battery_mgr_cell_voltage_mv(uint8_t cell_idx);   /* 电芯电压 mV */

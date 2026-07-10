@@ -434,10 +434,10 @@ void static_cfg_load_to_ui(void)
     if (cfg.magic != 0x55) 
         return;
     
-    memcpy(ui_data.bat_model_1, cfg.bat_model[0], 16);
-    memcpy(ui_data.bat_model_2, cfg.bat_model[1], 16);
-    memcpy(ui_data.bat_model_3, cfg.bat_model[2], 16);
-    memcpy(ui_data.bat_model_4, cfg.bat_model[3], 16);
+    memcpy(ui_data.bat_model_1, cfg.bat_model[0], sizeof(ui_data.bat_model_1));
+    memcpy(ui_data.bat_model_2, cfg.bat_model[1], sizeof(ui_data.bat_model_2));
+    memcpy(ui_data.bat_model_3, cfg.bat_model[2], sizeof(ui_data.bat_model_3));
+    memcpy(ui_data.bat_model_4, cfg.bat_model[3], sizeof(ui_data.bat_model_4));
     
     /* 恢复禁用原因 (0=正常 1=OV 2=UV) */
     if (cfg.disable_reason != 0) {
@@ -479,6 +479,15 @@ void abnormal_log_erasure(void)
     }
 }
 
+/*
+ * battery_mgr_clear_disable — 场测解锁后清除禁用状态
+ */
+void battery_mgr_clear_disable(void)
+{
+    g_bat.disabled       = 0;
+    g_bat.disable_reason = 0;
+}
+
 void static_cfg_save_test(void)
 {
     factory_cfg_t cfg;
@@ -489,7 +498,7 @@ void static_cfg_save_test(void)
     strcpy(cfg.bat_model[2], "90494UTJGNG");
     strcpy(cfg.bat_model[3], "PYL905K9MIJ");
     cfg.cell_count = 4;     
-    cfg.device_sn = 0x00000000;
+    memset(cfg.device_sn, 0, sizeof(cfg.device_sn));
     cfg.disable_reason = 0;
     factory_cfg_write(&cfg);
 }

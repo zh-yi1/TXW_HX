@@ -382,42 +382,38 @@ static void pull_sensor_data(void)
     i2c_reg_map[REG_AFE_PROTECT3] = ip3561q_raw.status3;
 }
 
-#if FACTORY_RESET_EN
-/* ========================================================================
- * factory_reset — V1.3 恢复出厂设置
- *
- * 场测串口下发时调用 (触发条件待定).
- * 还原 SOH=100、清零 CYCLE、清总运行时间、清异常记录.
- * ======================================================================== */
-static void factory_reset(void)
-{
-    /* 还原 SOH */
-    i2c_reg_map[REG_SOH] = 100;
-    ui_data.bat_max_cap  = 100;
-
-    /* 清零循环次数 */
-    reg_write_u16(REG_CYCLE_L, 0);
-    ui_data.bat_cycle_cnt = 0;
-
-    /* 清总运行时间 (RAM + Flash 存盘点) */
-    rtc_reset_running_time();
-
-    /* 清异常记录 (Flash + RAM) */
-    abnormal_log_reset();
-    ui_data.abnormal_volt_count = 0;
-    ui_data.abnormal_temp_count = 0;
-}
-#endif /* FACTORY_RESET_EN */
-
 /* ========================================================================
  * apply_host_data — 解析 G020 写入的 W 寄存器 → ui_data
  * ======================================================================== */
 static void apply_host_data(void)
 {
-    /* 电池数据 (协议 §4.2 W 区域) */
-    ui_data.bat_power     = i2c_reg_map[REG_SOC];
-    ui_data.bat_max_cap   = i2c_reg_map[REG_SOH];
-    ui_data.bat_cycle_cnt = reg_read_u16(REG_CYCLE_L);
+    /* 电池数据 (协议 §4.2 W 区域) — 非产测才从主机同步, 场测由内部管理 */
+    if (!prod_test_is_active()) {
+        uint8_t  host_soc   = i2c_reg_map[REG_SOC];
+        uint8_t  host_soh   = i2c_reg_map[REG_SOH];
+        uint16_t host_cycle = reg_read_u16(REG_CYCLE_L);
+        uint8_t  updated    = 0;
+
+        /* SOH / CYCLE 与 ui_data 旧值比较, 变化时写 Flash */
+        if (host_soh != ui_data.bat_max_cap) {
+            factory_cfg_write_soh(host_soh);
+            updated = 1;
+        }
+        if (host_cycle != ui_data.bat_cycle_cnt) {
+            factory_cfg_write_cycle(host_cycle);
+            updated = 1;
+        }
+        if (updated) {
+            i2c_reg_map[REG_BMS_SOH]     = host_soh;
+            i2c_reg_map[REG_BMS_CYCLE_L] = (uint8_t)(host_cycle & 0xFF);
+            i2c_reg_map[REG_BMS_CYCLE_H] = (uint8_t)(host_cycle >> 8);
+        }
+
+        ui_data.bat_power     = host_soc;
+        ui_data.bat_max_cap   = host_soh;
+        ui_data.bat_cycle_cnt = host_cycle;
+    }
+
     ui_data.charge_remain_time    = reg_read_u32(REG_CHARGE_REMAIN_0);    /* V1.3 未使用 */
     ui_data.discharge_remain_time = reg_read_u32(REG_DISCHARGE_REMAIN_0); /* V1.3 未使用 */
     ui_data.res_vbat       = reg_read_u16(REG_RES_VBAT_L);
@@ -518,6 +514,15 @@ uint8_t i2c_is_host_sleeping(void)
  * ======================================================================== */
 void i2c_slave_proc(void)
 {
+    /* 恢复出厂设置: 场测解锁后 prod_test 置标志, 此处消费并通知主机 */
+    if (prod_test_get_unlock_flag()) {
+        i2c_reg_map[0x70] = 0xC0;                  /* 通知主机: 已进入场测模式 */
+        i2c_reg_map[0x72] = 100;   /* SOH */
+        i2c_reg_map[0x73] = 0;     /* CYCLE 低字节 */
+        i2c_reg_map[0x74] = 0;     /* CYCLE 高字节 */
+        prod_test_clear_unlock_flag();
+    }
+
     /* 按键事件原子累积: 影子缓冲 OR → reg_map, 主机读后清零对应 bit (§4.6) */
     i2c_reg_map[REG_KEY_EVENT] |= key_event_buf;
     key_event_buf = 0;

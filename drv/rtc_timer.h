@@ -62,7 +62,7 @@
 #define FLASH_DATA_BASE              0x300000UL    /* 3MB 起点 */
 
 /* ---- 静态配置区 (256B) ---- */
-#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0, factory_cfg_t 占用 76B */
+#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0, factory_cfg_t 占用 120B */
 
 /* ---- 时间戳存储区 (256B × N) ---- */
 #define FLASH_OFFS_TIMESTAMP_BLOCK0  (0x0100)      /* 时间戳块 0 */
@@ -88,12 +88,14 @@ typedef struct {
 typedef struct {
     uint8_t  magic;                 /* 0x55 = 上位机已写入, 首字节便于快速判读 */
     uint32_t start_timestamp;       /* 起始 Unix 时间戳 */
-    char     bat_model[4][16];      /* 4 节电芯型号 ASCII */
+    char     bat_model[4][19];      /* 4 节电芯型号 ASCII (18 位 + \0) */
     uint8_t  cell_count;            /* 电芯数量 */
-    uint32_t device_sn;             /* 设备序列号 */
-    uint8_t  disable_reason;          /* 禁用原因: 0=正常 1=过压 2=欠压 (持久化) */
-    uint8_t  crc8;                  /* 覆盖 magic ~ disable_reason 的 CRC-8 */
-} factory_cfg_t;                    /* 共 76B */
+    char     device_sn[33];          /* 设备序列号 (32位 ASCII + null) */
+    uint8_t  disable_reason;        /* 禁用原因: 0=正常 1=过压 2=欠压 (持久化) */
+    uint8_t  soh;                   /* 电池健康度 SOH (%) */
+    uint16_t cycle_count;           /* 真实循环次数 CYCLE_A (掉电保存) */
+    uint8_t  crc8;                  /* 覆盖 magic ~ cycle_count 的 CRC-8 */
+} factory_cfg_t;                    /* 共 120B */
 #pragma pack()
 
 /* ---- 外部接口 ---- */
@@ -111,6 +113,8 @@ uint8_t rtc_is_synced(void);               /* 是否已时间同步 */
 /* ---- 生产配置读写 ---- */
 void factory_cfg_read(factory_cfg_t *cfg);
 void factory_cfg_write(const factory_cfg_t *cfg);
+void factory_cfg_write_soh(uint8_t soh);            /* 读-改-写 SOH */
+void factory_cfg_write_cycle(uint16_t cycle_count); /* 读-改-写 循环次数 */
 
 /* ---- 时间转换 ---- */
 uint32_t rtc_bcd6_to_unix(const uint8_t bcd[6]);           /* BCD(YYMMDDHHMMSS) → Unix */
