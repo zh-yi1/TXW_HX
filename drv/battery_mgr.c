@@ -537,21 +537,21 @@ void battery_mgr_proc(void)
         return;
 
     now = md_get_tick();
-    if (now - g_bat.last_poll_tick < BAT_MGR_POLL_MS)
-        return;
-    g_bat.last_poll_tick = now;
+	if (now - g_bat.last_poll_tick < BAT_MGR_POLL_MS)
+		return;
+	g_bat.last_poll_tick = now;
+
+	/* 1. 温度计算 (禁用态仍需刷新) */
+	battery_mgr_update_temperature();
+	// LOGI("g_bat.temperature_01c = %d\r\n", g_bat.temperature_01c);
 
 #if BAT_DISABLE_DETECT_EN
-    if (g_bat.disabled)
-        return;
+	if (g_bat.disabled)
+		return;
 #endif
 
-    /* 1. 温度计算 */
-    battery_mgr_update_temperature();
-    // LOGI("g_bat.temperature_01c = %d\r\n", g_bat.temperature_01c);
-
-    /* 2. 充放电状态 */
-    g_bat.chg_state = detect_chg_state();
+	/* 2. 充放电状态 */
+	g_bat.chg_state = detect_chg_state();
 
     /* 3. 小时边界 Flash 提交 */
     check_hour_commit();
