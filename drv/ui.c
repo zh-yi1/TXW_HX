@@ -1,9 +1,12 @@
 #include "ui.h"
 #include "flash_image_addr.h"
 
+#define DISABLE_PAGE_RETURN_MS	(30000U)	/* 禁用状态下离开禁用界面 30s 后自动返回 */
+
 static void ui_gpio_init(void);
 
 static uint32_t hint_enter_tick = 0;  /* 提示页进入时刻, 用于 5s 自动跳转 */
+static uint32_t disabled_leave_tick = 0;  /* 离开禁用界面的时刻, 用于 30s 自动返回 */
 
 ui_data_t ui_data = {
 	.bat_power = 50,
@@ -83,6 +86,19 @@ void ui_proc(void)
 		return;
 
 	calc_charge_remain_min();  /* V1.3: 剩余充满时间估算 */
+
+	/* 禁用状态下, 若当前不在禁用界面, 30s 后自动返回禁用界面 */
+	if (ui_data.disable_flag && ui_data.cur_page != PAGE_DISABLED)
+	{
+		if (disabled_leave_tick == 0)
+			disabled_leave_tick = md_get_tick();
+		if (md_get_tick() - disabled_leave_tick >= DISABLE_PAGE_RETURN_MS)
+			ui_data.cur_page = PAGE_DISABLED;
+	}
+	else
+	{
+		disabled_leave_tick = 0;
+	}
 
 	/* 检测界面切换，切换时初始化新界面 */
 	if (ui_data.cur_page != ui_data.last_page)
