@@ -80,12 +80,12 @@ static void power_mgr_disarm_scl_wakeup(void)
 void power_mgr_init(void)
 {
     /* ---- PA15 EXTI: 下降沿唤醒 ---- */
-    md_gpio_set_interrupt_port(KEY_PORT, KEY_PIN);
-    md_gpio_enable_trailing_edge_trigger(KEY_PIN);
-    md_gpio_enable_external_interrupt(KEY_PIN);
-    md_gpio_interrupt_filter_time_set(10U);
-    md_gpio_interrupt_filter_enable(KEY_PIN);
-    md_mcu_irq_config(EXTI12_15_IRQn, 0, ENABLE);
+    // md_gpio_set_interrupt_port(KEY_PORT, KEY_PIN);
+    // md_gpio_enable_trailing_edge_trigger(KEY_PIN);
+    // md_gpio_enable_external_interrupt(KEY_PIN);
+    // md_gpio_interrupt_filter_time_set(10U);
+    // md_gpio_interrupt_filter_enable(KEY_PIN);
+    // md_mcu_irq_config(EXTI12_15_IRQn, 0, ENABLE);
 
     /* ---- IWDT: 定时唤醒, 60s, 中断使能(唤醒STOP), 不复位 ---- */
     md_iwdt_init(32000 * POWER_MGR_IWDG_WAKEUP_SEC, ENABLE);
