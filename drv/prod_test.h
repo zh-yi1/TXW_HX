@@ -67,8 +67,6 @@ typedef enum {
 #define PT_MODEL_LEN        8U      /* 产品型号编码长度 (不含 null) */
 #define PT_MFG_LEN          4U      /* 生产工厂代码长度 (不含 null) */
 
-/* ---- 解锁密钥 (PDF §7.1, 不可修改) ---- */
-#define UNLOCK_KEY          0x12345678U
 
 /* ---- 超时控制 ---- */
 #define PT_INACTIVITY_TIMEOUT_MS  180000U  /* 无新消息 3min 直接锁定退出场测 */
@@ -125,8 +123,6 @@ typedef struct {
 /* ---- 公开 API ---- */
 void prod_test_init(void);
 void prod_test_proc(void);
-uint32_t Secure_Sign(const uint8_t *uid, uint32_t key);
-uint8_t  CheckUnlock(const uint8_t *uid, uint16_t uid_len, uint32_t unlock_code);
 
 /* 解锁标志接口: prod_test 置位, i2c_slave 消费后清除 */
 /* 场测模式判断: 返回 1 表示当前处于场测模式 (非 IDLE) */

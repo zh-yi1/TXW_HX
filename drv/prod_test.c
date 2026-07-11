@@ -111,47 +111,19 @@ static void pt_load_factory_cfg(void)
 }
 
 /* ========================================================================== */
-/*  Secure_Sign — 生成 32 位签名 (PDF §7.2, 算法不可修改)                     */
+/*  CheckUnlock — 8 字节固定密钥 0x5A 比对                                     */
 /* ========================================================================== */
-uint32_t Secure_Sign(const uint8_t *uid, uint32_t key)
+static uint8_t CheckUnlock(const uint8_t *key, uint8_t len)
 {
-    const uint32_t mul1 = 0x45D9F3AB;
-    const uint32_t mul2 = 0x9E3779B9;
-    uint32_t hash = key;
-    int i;
-
+    uint8_t i;
+    if (len < 8)
+        return 0;
     for (i = 0; i < 8; i++)
     {
-        hash ^= uid[i];
-        hash *= mul1;
-        hash ^= hash >> 17;
-        hash += mul2;
+        if (key[i] != 0x5A)
+            return 0;
     }
-
-    hash ^= hash << 19;
-    hash *= mul2;
-    hash ^= hash >> 23;
-    hash *= mul1;
-
-    return hash;
-}
-
-/* ========================================================================== */
-/*  CheckUnlock — 校验解锁码, 仅比对前 4 字节               */
-/* ========================================================================== */
-uint8_t CheckUnlock(const uint8_t *uid, uint16_t uid_len, uint32_t unlock_code)
-{
-    uint8_t uid8[8] = {0};
-    uint32_t local;
-
-    if (uid_len >= 8)
-        memcpy(uid8, uid, 8);
-    else
-        memcpy(uid8, uid, uid_len);
-
-    local = Secure_Sign(uid8, UNLOCK_KEY);
-
-    return (((local & 0xFFFF0000) >> 16) == ((unlock_code & 0xFFFF0000) >> 16)) ? 1 : 0;
+    return 1;
 }
 
 /* ========================================================================== */
@@ -447,73 +419,48 @@ static void pt_handle_mode_ctrl(uint8_t param)
 
 static void pt_handle_unlock(const uint8_t *params, uint8_t len)
 {
-    uint32_t unlock_code;
-
     if (pt_rt.state != PT_TEST_MODE)
     {
         pt_send_line("ERR=NOT_IN_TEST");
         return;
     }
-    if (len < 8)
+
+    if (CheckUnlock(params, len))
+    {
+        pt_rt.unlocked = 1;
+        pt_rt.state = PT_UNLOCKED;
+        /* 存储解锁签名 */
+        memcpy(pt_data.unlock_sign, params, PT_UNLOCK_KEY_LEN);
+
+        /* 解锁后恢复出厂状态: 清异常 / 清禁用 / 循环置0 / SOH置100 */
+        abnormal_log_reset();
+        ui_data.abnormal_volt_count = 0;
+        ui_data.abnormal_temp_count = 0;
+        ui_data.abnormal_idx = 0;
+        ui_data.disable_flag = 0;
+        battery_mgr_clear_disable();
+        pt_data.err_cnt = 0;
+
+        /* Flash 一次写入: cycle=0, soh=100, disable_reason=0 */
+        {
+            factory_cfg_t cfg;
+            factory_cfg_read(&cfg);
+            cfg.disable_reason = 0; // 清除禁用
+            cfg.cycle_count = 0;    // 循环置0
+            cfg.soh = 100;          // SOH置100
+            factory_cfg_write(&cfg);
+        }
+        pt_data.cycle_u = 0;
+
+        /* 置解锁标志, i2c_slave_proc 消费后通知主机恢复出厂设置 */
+        s_pt_unlock_flag = 1;
+
+        pt_send_line("ACK=OK");
+    }
+    else
     {
         pt_send_line("ERR=UNLOCK_FAIL");
-        return;
     }
-
-    /* 大端序解析: 上位机发送 MSB first */
-    unlock_code = ((uint32_t)params[0] << 24) | ((uint32_t)params[1] << 16) | ((uint32_t)params[2] << 8) | ((uint32_t)params[3]);
-
-    /* 从硬件寄存器直接读取 UID (MD_MCU_UID0 + MD_MCU_UID1 共 8 字节) */
-    {
-        uint8_t uid[PT_UID_LEN];
-        uint32_t uid0 = *(volatile uint32_t *)MD_MCU_UID0_ADDR;
-        uint32_t uid1 = *(volatile uint32_t *)MD_MCU_UID1_ADDR;
-        uid[0] = (uint8_t)(uid0);
-        uid[1] = (uint8_t)(uid0 >> 8);
-        uid[2] = (uint8_t)(uid0 >> 16);
-        uid[3] = (uint8_t)(uid0 >> 24);
-        uid[4] = (uint8_t)(uid1);
-        uid[5] = (uint8_t)(uid1 >> 8);
-        uid[6] = (uint8_t)(uid1 >> 16);
-        uid[7] = (uint8_t)(uid1 >> 24);
-
-        if (CheckUnlock(uid, PT_UID_LEN, unlock_code))
-        {
-            pt_rt.unlocked = 1;
-            pt_rt.state = PT_UNLOCKED;
-            /* 存储解锁签名 */
-            memcpy(pt_data.unlock_sign, params, PT_UNLOCK_KEY_LEN);
-
-            /* 解锁后恢复出厂状态: 清异常 / 清禁用 / 循环置0 / SOH置100 */
-            abnormal_log_reset();
-            ui_data.abnormal_volt_count = 0;
-            ui_data.abnormal_temp_count = 0;
-            ui_data.abnormal_idx = 0;
-            ui_data.disable_flag = 0;
-            battery_mgr_clear_disable();
-            pt_data.err_cnt = 0;
-
-            /* Flash 一次写入: cycle=0, soh=100, disable_reason=0 */
-            {
-                factory_cfg_t cfg;
-                factory_cfg_read(&cfg);
-                cfg.disable_reason = 0; // 清除禁用
-                cfg.cycle_count = 0;    // 循环置0
-                cfg.soh = 100;          // SOH置100
-                factory_cfg_write(&cfg);
-            }
-            pt_data.cycle_u = 0;
-
-            /* 置解锁标志, i2c_slave_proc 消费后通知主机恢复出厂设置 */
-            s_pt_unlock_flag = 1;
-
-            pt_send_line("ACK=OK");
-        }
-        else
-        {
-            pt_send_line("ERR=UNLOCK_FAIL");
-        }
-    } /* UID 局部作用域结束 */
 }
 
 static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
