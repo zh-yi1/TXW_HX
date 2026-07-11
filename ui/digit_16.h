@@ -8,7 +8,8 @@
  *
  * 图片位于: 海信VP785S UI资料/digit/12/ 和 digit/16/
  * 字符集: 0-9, A-Z, -
- * 蓝色额外: : ^ . /
+ * 蓝色额外: : ^ /
+ * 白色额外: .
  *
  * Flash 地址通过 flash_image_addr.h 中的
  *   FLASH_ADDR_XX_BASE + index * FLASH_STRIDE_XX

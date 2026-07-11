@@ -27,7 +27,9 @@
 /* ---- 帧常量 ---- */
 #define PT_FH1          0xAAU
 #define PT_FH2          0x55U
-#define PT_PARAM_MAX    75U     /* 电池SN最长75字节: 4节×18位 + 3分号 */
+#define PT_PARAM_MAX    72U     /* 电池SN最长72字节 (4节×18) */
+#define PT_SN_LEN       32U
+#define PT_BAT_SN_LEN   72U     /* 4节×18字符 */
 
 /* ---- 帧解析状态 ---- */
 enum {
@@ -114,7 +116,6 @@ static void pt_save_cfg(const factory_cfg_t *cfg)
 static void pt_init_data(void)
 {
     factory_cfg_t cfg;
-    uint8_t k;
 
     pt_sn[0]     = '\0';
     pt_bat_sn[0] = '\0';
@@ -122,17 +123,16 @@ static void pt_init_data(void)
     factory_cfg_read(&cfg);
     if (cfg.magic != 0x55) return;
 
-    /* SN: ASCII 字符串直接回读 */
-    for (k = 0; k < PT_SN_LEN && cfg.device_sn[k] != '\0'; k++)
-        pt_sn[k] = cfg.device_sn[k];
-    pt_sn[k] = '\0';
+    /* SN */
+    memcpy(pt_sn, cfg.device_sn, PT_SN_LEN);
+    pt_sn[PT_SN_LEN] = '\0';
 
-    /* BAT_SN: 4 节 × 18 位拼接 (仅数据, 不含 \0) */
-    memcpy(&pt_bat_sn[PT_CELL_SN_LEN * 0], cfg.bat_model[0], PT_CELL_SN_LEN);
-    memcpy(&pt_bat_sn[PT_CELL_SN_LEN * 1], cfg.bat_model[1], PT_CELL_SN_LEN);
-    memcpy(&pt_bat_sn[PT_CELL_SN_LEN * 2], cfg.bat_model[2], PT_CELL_SN_LEN);
-    memcpy(&pt_bat_sn[PT_CELL_SN_LEN * 3], cfg.bat_model[3], PT_CELL_SN_LEN);
-    pt_bat_sn[PT_CELL_COUNT * PT_CELL_SN_LEN] = '\0';
+    /* BAT_SN: 4 节 × 18 字节拼接 + 同步 ui_data */
+    memcpy(&pt_bat_sn[0],  cfg.bat_model[0], 18);
+    memcpy(&pt_bat_sn[18], cfg.bat_model[1], 18);
+    memcpy(&pt_bat_sn[36], cfg.bat_model[2], 18);
+    memcpy(&pt_bat_sn[54], cfg.bat_model[3], 18);
+    pt_bat_sn[72] = '\0';
 }
 
 /* ========================================================================== */
@@ -180,31 +180,34 @@ static void pt_cmd_write_sn(const uint8_t *params, uint8_t len)
     pt_save_cfg(&cfg);
 }
 
-/* CMD 0x22 — 写电池 SN → Flash */
+/* CMD 0x22 — 写电池 SN → Flash (72 字节 = 4 节 × 18) */
 static void pt_cmd_write_bat_sn(const uint8_t *params, uint8_t len)
 {
     factory_cfg_t cfg;
     uint8_t cell, copy;
     uint8_t total = PT_CELL_COUNT * PT_CELL_SN_LEN;
 
-    if (len > total) len = total;
+    if (len > 72) len = 72;
 
     factory_cfg_read(&cfg);
     memset(cfg.bat_model, 0, sizeof(cfg.bat_model));
 
-    for (cell = 0; cell < PT_CELL_COUNT && cell * PT_CELL_SN_LEN < len; cell++) {
-        copy = (len - cell * PT_CELL_SN_LEN > PT_CELL_SN_LEN)
-               ? PT_CELL_SN_LEN : (len - cell * PT_CELL_SN_LEN);
-        memcpy(cfg.bat_model[cell], &params[cell * PT_CELL_SN_LEN], copy);
+    for (cell = 0; cell < 4 && cell * 18 < len; cell++) {
+        copy = (len - cell * 18 > 18) ? 18 : (len - cell * 18);
+        memcpy(cfg.bat_model[cell], &params[cell * 18], copy);
     }
     cfg.cell_count = cell;
     pt_save_cfg(&cfg);
 
-    /* 同步 ui_data (含 \0) */
-    memcpy(ui_data.bat_model_1, cfg.bat_model[0], sizeof(ui_data.bat_model_1));
-    memcpy(ui_data.bat_model_2, cfg.bat_model[1], sizeof(ui_data.bat_model_2));
-    memcpy(ui_data.bat_model_3, cfg.bat_model[2], sizeof(ui_data.bat_model_3));
-    memcpy(ui_data.bat_model_4, cfg.bat_model[3], sizeof(ui_data.bat_model_4));
+    /* 同步 ui_data */
+    memcpy(ui_data.bat_model_1, cfg.bat_model[0], 18);
+    ui_data.bat_model_1[18] = '\0';
+    memcpy(ui_data.bat_model_2, cfg.bat_model[1], 18);
+    ui_data.bat_model_2[18] = '\0';
+    memcpy(ui_data.bat_model_3, cfg.bat_model[2], 18);
+    ui_data.bat_model_3[18] = '\0';
+    memcpy(ui_data.bat_model_4, cfg.bat_model[3], 18);
+    ui_data.bat_model_4[18] = '\0';
 
     /* 同步 pt_bat_sn 供上报 */
     memcpy(pt_bat_sn, params, len);
