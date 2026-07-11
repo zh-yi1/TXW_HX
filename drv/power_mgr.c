@@ -179,6 +179,7 @@ static void power_mgr_exit_stop_lite(void)
 {
     power_mgr_disarm_scl_wakeup(); /* 关 PA5 EXTI, 避免恢复 I2C 后误触发 */
     i2c_slave_init();              /* I2C1 从机: 读取主机数据 */
+    ip3561q_wakeup_init();  /* 恢复软件 I2C 引脚 (STOP 前被设为高阻) */
 }
 
 /* ========================================================================
@@ -293,7 +294,6 @@ void power_mgr_enter_stop(void)
             LOGI("[PWR] wakeup: IWDG\r\n");
             /* IWDT 唤醒: 读 AFE -> 计算 -> 判断 */
             power_mgr_exit_stop_lite();
-            ip3561q_wakeup_init();   /* AFE: 仅恢复 I2C, 芯片寄存器保持断电前配置 */
             for (int i = 0; i < 5; i++)
             {
                 ip3561q_proc();

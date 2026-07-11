@@ -49,6 +49,9 @@ static void sys_init(void)
 	md_cmu_enable_perh_all();
 	SYSCFG_LOCK();
 
+	//USART1初始化 (测试回环)
+	usart_init(115200);
+
 	//DMA初始化
 	dma_init();
 
@@ -75,9 +78,6 @@ static void sys_init(void)
 	rtc_timer_init();
 	abnormal_log_init();
 	battery_mgr_init();
-
-	//USART1初始化 (测试回环)
-	usart_init(115200);
 
 	//产测模块初始化
 #ifndef DEBUG_EN

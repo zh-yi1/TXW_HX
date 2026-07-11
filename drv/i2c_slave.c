@@ -131,6 +131,9 @@ void i2c_slave_init(void)
 
     md_i2c_init(I2C1, &i2c_init);
 
+    /* 复位 ISR 内部状态 (STOP 唤醒后可能有残留) */
+    memset((void*)&i2c_s, 0, sizeof(i2c_s));
+
     /* --- NVIC --- */
     NVIC_SetPriority(I2C1_IRQn, 1);
     NVIC_EnableIRQ(I2C1_IRQn);
