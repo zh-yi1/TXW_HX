@@ -536,6 +536,12 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
     cfg.cell_count = cell_idx; /* 实际写入的电芯数量 */
     prod_save_factory_cfg(&cfg);
 
+    /* 同步 ui_data, 屏幕立即显示新电池编码 */
+    memcpy(ui_data.bat_model_1, cfg.bat_model[0], sizeof(ui_data.bat_model_1));
+    memcpy(ui_data.bat_model_2, cfg.bat_model[1], sizeof(ui_data.bat_model_2));
+    memcpy(ui_data.bat_model_3, cfg.bat_model[2], sizeof(ui_data.bat_model_3));
+    memcpy(ui_data.bat_model_4, cfg.bat_model[3], sizeof(ui_data.bat_model_4));
+
     pt_send_kv_str("BAT_SN", pt_data.bat_sn);
 }
 
