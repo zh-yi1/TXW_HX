@@ -231,8 +231,8 @@ static const uint8_t ip3561q_cfg_static[][2] = {
     { IP3561Q_REG_UV_H,         0x74 },   /* UV=2.72V, TH_UV=0x1D0, 高8位=0x74 */
     { IP3561Q_REG_UVL_UVRH,     0x20 },   /* UV低2位=0 + UVR高6位=0x20 (3.00V) */
     { IP3561Q_REG_UVRL_UVDLY,   0x00 },   /* UVR低4位=0; UV延时65ms */
-    { IP3561Q_REG_BAL_H,        0xB9 },   /* 均衡=4.35V, TH_BAL=0x2E6, 高8位=0xB9 */
-    { IP3561Q_REG_BAL_L_DLY,    0x8B },   /* 均衡低2位=0x2 (组合0x2E6); 延时65ms */
+    { IP3561Q_REG_BAL_H,        0xBB },   /* 均衡=4.4V, TH_BAL=0x2EF, 高8位=0xBB */
+    { IP3561Q_REG_BAL_L_DLY,    0xCB },   /* 均衡低2位=0x3 (组合0x2EF); 延时65ms */
     { IP3561Q_REG_MCU_CTL2,     0x00 },   /* IDLE使能, 功耗约80μA */
 };
 
