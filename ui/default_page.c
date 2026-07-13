@@ -179,9 +179,6 @@ void start_change_anima(bool is_charge)
 	}
 	else
 	{
-		/* V1.3: 先擦除充电剩余时间, 再播放放电动画 */
-		erase_charge_remain_time();
-
 		/* 充电 → 未充电: 清除充电图标 + 粒子效果, 再左对齐 → 居中 */
 		int n = (ui_data.anim_power >= 100) ? 3 : (ui_data.anim_power >= 10) ? 2 : 1;
 		int icon_x = ui_data.anim_cur_x + n * NUM_48_W;
@@ -207,43 +204,6 @@ void start_change_anima(bool is_charge)
 	anima_draw_bat_power(anima_from_x, CHARGE_POWER_Y, ui_data.anim_power,
 	                     (ui_data.bat_power > 10));
 	anima_step = 1;  /* 第 0 帧已画, anima_tick 从第 1 帧开始 */
-}
-
-/* V1.3: 绘制充电剩余时间 — 图标(24x24) + HH:MM(24px白字) */
-static void draw_charge_remain_time(void)
-{
-	uint16_t min = calc_charge_remain_min();
-	uint8_t  h   = min / 60;
-	uint8_t  m   = min % 60;
-	int x = TIME_ICON_X;
-
-	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, FLASH_ADDR_TIME);
-	x += TIME_ICON_W;
-
-	/* 小时十位 */
-	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(h / 10));
-	x += NUM_24_DIGIT_W;
-
-	/* 小时个位 */
-	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(h % 10));
-	x += NUM_24_DIGIT_W;
-
-	/* 冒号 12x24 */
-	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(NUM_24_COLON_IDX));
-	x += NUM_24_COLON_W;
-
-	/* 分钟十位 */
-	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(m / 10));
-	x += NUM_24_DIGIT_W;
-
-	/* 分钟个位 */
-	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(m % 10));
-}
-
-/* V1.3: 擦除充电剩余时间区域 */
-static void erase_charge_remain_time(void)
-{
-	anima_erase_area(TIME_ICON_X, TIME_ICON_Y, TIME_AREA_W, TIME_AREA_H);
 }
 
 /* 动画逐帧推进 — 先擦旧残留, 再画新位置, 返回 true 表示动画结束 */
@@ -290,6 +250,47 @@ static bool anima_tick(void)
 	return false;
 }
 #endif /* ENABLE_CHARGE_ANIM — anima_tick */
+
+/* ========================================================================
+ * V1.3 充电剩余时间显示 (与动画解耦, 动画和非动画模式均生效)
+ * ======================================================================== */
+
+/* 绘制充电剩余时间 — 图标(24x24) + HH:MM(24px白字) */
+static void draw_charge_remain_time(void)
+{
+	uint16_t min = calc_charge_remain_min();
+	uint8_t  h = min / 60;
+	uint8_t  m = min % 60;
+	int x = TIME_ICON_X;
+
+	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, FLASH_ADDR_TIME);
+	x += TIME_ICON_W;
+
+	/* 小时十位 */
+	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(h / 10));
+	x += NUM_24_DIGIT_W;
+
+	/* 小时个位 */
+	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(h % 10));
+	x += NUM_24_DIGIT_W;
+
+	/* 冒号 12x24 */
+	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(NUM_24_COLON_IDX));
+	x += NUM_24_COLON_W;
+
+	/* 分钟十位 */
+	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(m / 10));
+	x += NUM_24_DIGIT_W;
+
+	/* 分钟个位 */
+	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, NUM_24_ADDR(m % 10));
+}
+
+/* 擦除充电剩余时间区域 (92x24) */
+static void erase_charge_remain_time(void)
+{
+	anima_erase_area(TIME_ICON_X, TIME_ICON_Y, TIME_AREA_W, TIME_AREA_H);
+}
 
 
 /* ============================ 电量显示 ============================ */
@@ -509,6 +510,11 @@ void default_page_updata(void)
 		ui_data.prev_disp_w = 0;
 		ui_data.is_charge_last = ui_data.is_charge;
 		ui_data.bat_power_last = ui_data.bat_power;
+
+		/* V1.3: 充电结束时擦除剩余时间 (动画/非动画路径均需先擦除) */
+		if (!ui_data.is_charge)
+			erase_charge_remain_time();
+
 #ifdef ENABLE_CHARGE_ANIM
 		start_change_anima(ui_data.is_charge);
 		anima_last_ms = now;
@@ -518,6 +524,11 @@ void default_page_updata(void)
 		anima_erase_area(0, CHARGE_POWER_Y, SCREEN_W, NUM_48_H);
 		anima_erase_area(0, BAR_EFFECT_UP_Y, BAR_PROGRESS_W, BAR_EFFECT_AREA_H);
 		default_page_show_battery();
+
+		/* V1.3: 非动画模式充电时立即显示剩余时间 (battery 之后以防覆盖) */
+		if (ui_data.is_charge)
+			draw_charge_remain_time();
+
 		/* 继续执行USB功率更新, 不return */
 #endif
 	}
@@ -527,25 +538,29 @@ void default_page_updata(void)
 
 	/* 电量变化时重绘电池+进度条, 充电时每帧更新动画, 否则不更新 */
 	if (power_changed || charge_changed)
+	{
 		default_page_show_battery();
+		/* battery 重绘可能与时间区域重叠, 充电中补绘时间 */
+		if (ui_data.is_charge)
+			draw_charge_remain_time();
+	}
 #ifdef ENABLE_CHARGE_ANIM
 	else if (ui_data.is_charge)
-	{
 		default_page_show_bar_effect();
+#endif
 
-		/* V1.3: 充电剩余时间每分钟刷新 */
+	/* V1.3: 充电剩余时间每分钟刷新 (动画/非动画模式统一处理) */
+	if (ui_data.is_charge)
+	{
+		static uint16_t last_remain_min = 0xFFFF;
+		uint16_t cur_min = calc_charge_remain_min();
+		if (cur_min > 0 && cur_min != last_remain_min)
 		{
-			static uint16_t last_remain_min = 0xFFFF;
-			uint16_t cur_min = calc_charge_remain_min();
-			if (cur_min > 0 && cur_min != last_remain_min)
-			{
-				erase_charge_remain_time();
-				draw_charge_remain_time();
-				last_remain_min = cur_min;
-			}
+			erase_charge_remain_time();
+			draw_charge_remain_time();
+			last_remain_min = cur_min;
 		}
 	}
-#endif
 
 	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */
 	if (ui_data.usb_c1_status != ui_data.usb_c1_status_last || ui_data.usb_c1_power != ui_data.usb_c1_power_last)
