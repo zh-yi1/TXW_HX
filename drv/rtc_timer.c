@@ -27,6 +27,7 @@
 static uint32_t g_start_timestamp;     /* 起始 Unix 时间戳 */
 static uint32_t g_running_seconds;     /* 累计运行秒数 */
 static uint32_t g_saved_addr;          /* 当前写入地址 (绝对) */
+static uint32_t g_dis_start_ts;        /* 显示的运行时间起始点 (Flash dis_start_ts 的 RAM 镜像) */
 
 static uint8_t  g_time_synced;         /* 是否已时间同步 */
 static uint32_t g_last_second_tick;    /* 上次秒数更新时刻 */
@@ -145,18 +146,24 @@ void rtc_timer_init(void)
     factory_cfg_t cfg = {0};
     factory_cfg_read(&cfg);
 
-    /* magic != 0x55 → 上位机尚未写入配置, 给默认初始时间 2026-07-11 12:00:00 */
+    /* magic != 0x55 → 首次开机, 给默认初始时间 2026-07-11 12:00:00 */
     if (cfg.magic != 0x55) {
         g_running_seconds   = 0;
         g_ts_block_idx      = 0;
         g_saved_addr        = ts_block_addrs[0];
         g_start_timestamp   = 1783771200UL;  /* 2026-07-11 12:00:00 */
+        g_dis_start_ts = g_start_timestamp;
         g_last_second_tick  = md_get_tick();
         g_time_synced       = 1;
+        /* 首次开机: 将默认时间和运行起始时间写入 Flash, 防止重启后重置 */
+        cfg.start_timestamp      = g_start_timestamp;
+        cfg.dis_start_ts  = g_dis_start_ts;
+        factory_cfg_write(&cfg);
         return;
     }
 
     g_start_timestamp = cfg.start_timestamp;
+    g_dis_start_ts = cfg.dis_start_ts;
     g_time_synced = 1;
 
     /* 扫描 Flash 恢复运行秒数 */
@@ -217,6 +224,7 @@ void rtc_timer_reinit(void)
     g_ts_block_idx       = 0;
     g_saved_addr         = ts_block_addrs[0];
     g_time_synced        = 1;
+    g_dis_start_ts = cfg.dis_start_ts;
 }
 
 void rtc_timer_proc(void)
@@ -318,37 +326,48 @@ void rtc_save_checkpoint(void)
     }
 }
 
-#if FACTORY_RESET_EN
-/*
- * rtc_reset_running_time — 恢复出厂设置: 清零运行时间并擦除 Flash 存盘点
- *
- * V1.3 新增: 场测串口下发恢复出厂设置时调用,
- * 清零 RAM 中的累计运行秒数并擦除全部时间戳块,
- * 确保掉电重启后不会从 Flash 恢复出旧值.
- */
-void rtc_reset_running_time(void)
-{
-    /* 清零 RAM 运行时间 */
-    g_running_seconds  = 0;
-    g_last_second_tick = md_get_tick();
-
-    /* 擦除全部时间戳块, 防止重启后 scan 恢复 */
-    flash_page_erase(ts_block_addrs[0]);
-    flash_wait_unbusy();
-    flash_page_erase(ts_block_addrs[1]);
-    flash_wait_unbusy();
-    flash_page_erase(ts_block_addrs[2]);
-    flash_wait_unbusy();
-
-    /* 复位写指针到块 0 起始 */
-    g_ts_block_idx = 0;
-    g_saved_addr   = ts_block_addrs[0];
-}
-#endif /* FACTORY_RESET_EN */
 
 uint8_t rtc_is_synced(void)
 {
     return g_time_synced;
+}
+
+/*
+ * rtc_get_dis_seconds — 获取运行时间 (秒)
+ */
+uint32_t rtc_get_dis_seconds(void)
+{
+    uint32_t now_ts;
+
+    now_ts = g_start_timestamp + g_running_seconds;
+    if (now_ts >= g_dis_start_ts)
+        return now_ts - g_dis_start_ts;
+    return 0;
+}
+
+/*
+ * rtc_reset_running_time_on_event — 充电完成/场测同步时复位运行时间起始点
+ *
+ * 将当前绝对时间写入 Flash dis_start_ts, 运行时间自然归零.
+ * 外部调用场景:
+ *   - i2c_slave.c: 检测到 is_charge 1→0 (充电完成)
+ */
+void rtc_reset_running_time_on_event(void)
+{
+    uint32_t now_ts;
+    factory_cfg_t cfg;
+
+    now_ts = g_start_timestamp + g_running_seconds;
+
+    /* 读-改-写 factory_cfg: 仅更新 dis_start_ts */
+    factory_cfg_read(&cfg);
+    if (cfg.magic != 0x55)
+        return;
+
+    cfg.dis_start_ts = now_ts;
+    factory_cfg_write(&cfg);
+
+    g_dis_start_ts = now_ts;
 }
 
 /* ---- 生产配置读写 ---- */

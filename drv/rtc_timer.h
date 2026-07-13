@@ -19,11 +19,14 @@
  *  │    factory_cfg_t                │
  *  │    magic 1B (0x55=已写入)        │
  *  │    起始时间戳 4B                 │
+ *  │    运行起始时间 4B               │
  *  │    电芯型号 4×19B               │
  *  │    电芯数量 1B                  │
  *  │    设备序列号 32B                │
  *  │    禁用原因 1B                   │
- *  │    CRC8 1B (前 115B)            │
+ *  │    SOH 1B                       │
+ *  │    循环次数 2B                   │
+ *  │    CRC8 1B                      │
  *  │    生产时串口写入, 永不擦除       │
  *  │                                │
  *  ├─────────────────────────────────┤ +0x0100
@@ -63,7 +66,7 @@
 #define FLASH_DATA_BASE              0x300000UL    /* 3MB 起点 */
 
 /* ---- 静态配置区 (256B) ---- */
-#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0, factory_cfg_t 占用 120B */
+#define FLASH_OFFS_FACTORY_CFG       (0x0000)      /* 相对基地址偏移 0, factory_cfg_t 占用 124B */
 
 /* ---- 时间戳存储区 (256B × N) ---- */
 #define FLASH_OFFS_TIMESTAMP_BLOCK0  (0x0100)      /* 时间戳块 0 */
@@ -88,7 +91,8 @@ typedef struct {
 #pragma pack(1)
 typedef struct {
     uint8_t  magic;                 /* 0x55 = 上位机已写入, 首字节便于快速判读 */
-    uint32_t start_timestamp;       /* 起始 Unix 时间戳 */
+    uint32_t start_timestamp;       /* 起始 Unix 时间戳 (RTC 绝对时间纪元) */
+    uint32_t dis_start_ts;   /* 显示的运行时间起始点 (首次使用=start_timestamp, 充电完成/场测同步时更新) */
     char     bat_model[4][19];      /* 4 节电芯型号 ASCII (18 位 + \0) */
     uint8_t  cell_count;            /* 电芯数量 */
     char     device_sn[33];          /* 设备序列号 (32位 ASCII + null) */
@@ -96,7 +100,7 @@ typedef struct {
     uint8_t  soh;                   /* 电池健康度 SOH (%) */
     uint16_t cycle_count;           /* 真实循环次数 CYCLE_A (掉电保存) */
     uint8_t  crc8;                  /* 覆盖 magic ~ cycle_count 的 CRC-8 */
-} factory_cfg_t;                    /* 共 120B */
+} factory_cfg_t;                    /* 共 124B */
 #pragma pack()
 
 /* ---- 外部接口 ---- */
@@ -106,10 +110,9 @@ void rtc_timer_proc(void);
 uint32_t rtc_get_timestamp(void);          /* 返回当前 Unix 时间戳，未同步返回 0 */
 void rtc_save_checkpoint(void);            /* 强制保存时间戳存盘点 */
 void rtc_timer_compensate_stop(uint32_t seconds); /* STOP唤醒后补偿丢失的时间 */
-#if FACTORY_RESET_EN
-void rtc_reset_running_time(void);         /* V1.3: 恢复出厂设置 — 清零运行时间并擦除 Flash 存盘点 */
-#endif
 uint8_t rtc_is_synced(void);               /* 是否已时间同步 */
+void rtc_reset_running_time_on_event(void);/* 充电完成/场测同步时复位运行时间起始点 */
+uint32_t rtc_get_dis_seconds(void);       /* 获取运行时间 (秒) */
 
 /* ---- 生产配置读写 ---- */
 void factory_cfg_read(factory_cfg_t *cfg);

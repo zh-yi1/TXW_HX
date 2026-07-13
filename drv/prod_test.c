@@ -358,13 +358,12 @@ static void pt_report_all(void)
 /* ========================================================================== */
 
 /*
- * prod_save_factory_cfg — 写入 factory_cfg → 回读验证 → 激活时间同步
+ * prod_save_factory_cfg — 写入 factory_cfg 并应答
  */
 static void prod_save_factory_cfg(const factory_cfg_t *cfg)
 {
     factory_cfg_write(cfg);
     pt_send_line("FLASH_SAVE=OK");
-    rtc_timer_reinit();
 }
 
 /* ========================================================================== */
@@ -484,7 +483,6 @@ static void pt_handle_write_sn(const uint8_t *params, uint8_t len)
     memset(cfg.device_sn, 0, sizeof(cfg.device_sn));
     memcpy(cfg.device_sn, pt_data.sn, len);
     prod_save_factory_cfg(&cfg);
-
     pt_send_kv_str("SN", pt_data.sn);
 }
 
@@ -535,7 +533,6 @@ static void pt_handle_write_bat_sn(const uint8_t *params, uint8_t len)
 
     cfg.cell_count = cell_idx; /* 实际写入的电芯数量 */
     prod_save_factory_cfg(&cfg);
-
     /* 同步 ui_data, 屏幕立即显示新电池编码 */
     memcpy(ui_data.bat_model_1, cfg.bat_model[0], sizeof(ui_data.bat_model_1));
     memcpy(ui_data.bat_model_2, cfg.bat_model[1], sizeof(ui_data.bat_model_2));
@@ -566,7 +563,10 @@ static void pt_handle_sync_time(const uint8_t *params, uint8_t len)
 
     factory_cfg_read(&cfg);
     cfg.start_timestamp = unix_ts;
+    cfg.dis_start_ts = unix_ts;
+
     prod_save_factory_cfg(&cfg);
+	rtc_timer_reinit();
 
     /* 上行: DATE=20YYMMDDHHMMSS */
     PT_PUTS("DATE=20");

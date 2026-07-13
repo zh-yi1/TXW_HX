@@ -126,8 +126,22 @@ void information_page_2_init(void)
                        FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H, FLASH_ADDR_NUM_40);
     //运行时间
     Dispphoto_Dispaly_flash(36, 113, FLASH_ADDR_RUN_TIME);
-    // TODO ：运行时间值,当前是假的
-    Dispphoto_Dispaly_flash(116, 113, FLASH_ADDR_TIME_FAKE);
+    /* 运行时间值: 格式 HH:MM */
+    {
+        uint32_t sec = rtc_get_dis_seconds();
+        uint16_t h = sec / 3600;
+        uint8_t  m = (sec % 3600) / 60;
+        char buf[8];
+        uint8_t p = 0;
+        if (h >= 100)  { buf[p++] = '0' + h / 100; h %= 100; }
+        if (h >= 10 || p > 0) { buf[p++] = '0' + h / 10; h %= 10; }
+        buf[p++] = '0' + h;
+        buf[p++] = ':';
+        buf[p++] = '0' + m / 10;
+        buf[p++] = '0' + m % 10;
+        buf[p] = '\0';
+        digit_display_string(buf, 116, 113, DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_16);
+    }
 }
 
 void information_page_3_init(void)
@@ -233,7 +247,29 @@ void information_page_2_updata(void)
         last_temp = ui_data.bat_temperature;
     }
 
-    /* TODO: 刷新运行时间值*/
+    /* 运行时间: 分钟变化时刷新 */
+    {
+        static uint32_t last_run_min = 0xFFFFFFFF;
+        uint32_t run_min = rtc_get_dis_seconds() / 60;
+        if (run_min != last_run_min) {
+            uint16_t x = 116, y = 113;
+            uint32_t sec = rtc_get_dis_seconds();
+            uint16_t h = sec / 3600;
+            uint8_t  m = (sec % 3600) / 60;
+            char buf[8];
+            uint8_t p = 0;
+            DispBlock(x, y, x + 80, y + DIGIT_HEIGHT_16 - 1);
+            if (h >= 100)  { buf[p++] = '0' + h / 100; h %= 100; }
+            if (h >= 10 || p > 0) { buf[p++] = '0' + h / 10; h %= 10; }
+            buf[p++] = '0' + h;
+            buf[p++] = ':';
+            buf[p++] = '0' + m / 10;
+            buf[p++] = '0' + m % 10;
+            buf[p] = '\0';
+            digit_display_string(buf, x, y, DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_16);
+            last_run_min = run_min;
+        }
+    }
 }
 
 void information_page_3_updata(void)

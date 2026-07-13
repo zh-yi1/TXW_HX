@@ -502,6 +502,16 @@ static void apply_host_data(void)
     if (i2c_reg_map[REG_SOC] <= 100) {
         i2c_reg_map[REG_PASSWORD] = 0x66;
     }
+
+    /* 充电完成检测: is_charge 下降沿 (1→0) 时复位运行时间
+     * 注意: 此处使用独立静态变量做边沿检测, 不修改 ui_data.is_charge_last,
+     * 该字段由 default_page_updata() 负责维护, 用于 UI 层充放电切换重绘 */
+    {
+        static bool s_charge_last = false;
+        if (s_charge_last && !ui_data.is_charge)
+            rtc_reset_running_time_on_event();
+        s_charge_last = ui_data.is_charge;
+    }
 }
 
 /* ========================================================================

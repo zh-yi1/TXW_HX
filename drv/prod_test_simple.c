@@ -226,6 +226,8 @@ static void pt_cmd_sync_time(const uint8_t *params, uint8_t len)
 
     factory_cfg_read(&cfg);
     cfg.start_timestamp = unix_ts;
+    cfg.dis_start_ts = unix_ts;
+
     pt_save_cfg(&cfg);
     rtc_timer_reinit();
 }
