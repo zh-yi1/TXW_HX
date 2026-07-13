@@ -95,7 +95,7 @@ typedef struct {
     uint32_t dis_start_ts;   /* 显示的运行时间起始点 (首次使用=start_timestamp, 充电完成/场测同步时更新) */
     char     bat_model[4][19];      /* 4 节电芯型号 ASCII (18 位 + \0) */
     uint8_t  cell_count;            /* 电芯数量 */
-    char     device_sn[33];          /* 设备序列号 (32位 ASCII + null) */
+    char     device_sn[34];          /* 设备序列号 (33位 ASCII + null) */
     uint8_t  disable_reason;        /* 禁用原因: 0=正常 1=过压 2=欠压 (持久化) */
     uint8_t  soh;                   /* 电池健康度 SOH (%) */
     uint16_t cycle_count;           /* 真实循环次数 CYCLE_A (掉电保存) */

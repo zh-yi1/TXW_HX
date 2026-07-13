@@ -28,7 +28,7 @@
 #define PT_FH1          0xAAU
 #define PT_FH2          0x55U
 #define PT_PARAM_MAX    72U     /* 电池SN最长72字节 (4节×18) */
-#define PT_SN_LEN       32U
+#define PT_SN_LEN       33U
 #define PT_BAT_SN_LEN   72U     /* 4节×18字符 */
 
 /* ---- 帧解析状态 ---- */

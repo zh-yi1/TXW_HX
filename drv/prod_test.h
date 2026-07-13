@@ -62,7 +62,7 @@ typedef enum {
 #define PT_CELL_COUNT        4U     /* 电芯节数 */
 #define PT_UID_LEN          8U
 #define PT_UNLOCK_KEY_LEN   8U
-#define PT_SN_LEN           32U     /* 整机 SN 长度 (不含 null) */
+#define PT_SN_LEN           33U     /* 整机 SN 长度 (不含 null) */
 #define PT_BAT_SN_LEN       (PT_CELL_COUNT * PT_CELL_SN_LEN + (PT_CELL_COUNT - 1))  /* 4×18 + 3分号 = 75 */
 #define PT_MODEL_LEN        8U      /* 产品型号编码长度 (不含 null) */
 #define PT_MFG_LEN          4U      /* 生产工厂代码长度 (不含 null) */
