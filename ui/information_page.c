@@ -15,6 +15,39 @@
 
 #define NUM_40_ADDR(d)  (FLASH_ADDR_NUM_40_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_40)
 
+/* ============================ 温度滤波 ============================ */
+
+#define TEMP_FILTER_WIN 5
+
+static int16_t temp_filter_buf[TEMP_FILTER_WIN];
+static uint8_t temp_filter_idx;
+static bool    temp_filter_full;
+
+static void temp_filter_push(int16_t value)
+{
+	uint8_t i = temp_filter_idx;
+	temp_filter_buf[i] = value;
+	i++;
+	if (i >= TEMP_FILTER_WIN) {
+		i = 0;
+		temp_filter_full = true;
+	}
+	temp_filter_idx = i;
+}
+
+static int16_t temp_filter_get(void)
+{
+	uint8_t cnt = temp_filter_full ? TEMP_FILTER_WIN : temp_filter_idx;
+	int32_t sum = 0;
+	uint8_t i;
+	if (cnt == 0) return 0;
+	for (i = 0; i < cnt; i++)
+		sum += temp_filter_buf[i];
+	return (int16_t)(sum / cnt);
+}
+
+/* ================================================================ */
+
 /* 总电压显示固定布局 (按 "00-00V" 最大宽度 61px 居中于 240 屏) */
 #define VOLT_LABEL_X   60
 #define VOLT_LABEL_Y   95
@@ -119,10 +152,16 @@ void information_page_2_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
 
+    /* 填满温度滤波窗口, 避免冷启动被零值拉低 */
+    uint8_t fi;
+    for (fi = 0; fi < TEMP_FILTER_WIN; fi++)
+        temp_filter_push(ui_data.bat_temperature);
+    
+
     // 电池温度
     Dispphoto_Dispaly_flash(88, 12, FLASH_ADDR_BAT_TMP);
     //电池温度值
-    draw_value_in_area(R_BAT_TEMP, ui_data.bat_temperature / 10,
+    draw_value_in_area(R_BAT_TEMP, temp_filter_get() / 10,
                        FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H, FLASH_ADDR_NUM_40);
     //运行时间
     Dispphoto_Dispaly_flash(36, 113, FLASH_ADDR_RUN_TIME);
@@ -245,17 +284,29 @@ void information_page_1_updata(void)
 
 void information_page_2_updata(void)
 {
-    static int16_t last_temp = 0x7FFF;
+    static int16_t last_temp_c = 0x7FFF;
 
-    /* 电池温度 — 变化时刷新 */
-    if (ui_data.bat_temperature != last_temp)
+    /* 电池温度 — 滤波后个位(℃)变化才刷新 */
+    temp_filter_push(ui_data.bat_temperature);
     {
-        /* 先擦除旧值区域, 防止位数变化时残影 */
-        DispBlock(0, 48, 239, 87);
-        draw_value_in_area(R_BAT_TEMP, ui_data.bat_temperature/10,
-                           FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H,
-                           FLASH_ADDR_NUM_40);
-        last_temp = ui_data.bat_temperature;
+        int16_t filtered = temp_filter_get();
+        int16_t temp_c   = filtered / 10;
+        if (temp_c != last_temp_c)
+        {
+            /* 符号或位数变化时擦除, 同级(如5→8, -3→-7)直接覆盖 */
+            int16_t last_abs = (last_temp_c < 0) ? -last_temp_c : last_temp_c;
+            int16_t cur_abs  = (temp_c < 0) ? -temp_c : temp_c;
+            bool same_level  = (last_temp_c != 0x7FFF)
+                            && ((last_temp_c >= 0) == (temp_c >= 0))
+                            && ((last_abs >= 10) == (cur_abs >= 10));
+            if (!same_level)
+                DispBlock(0, 48, 239, 87);
+
+            draw_value_in_area(R_BAT_TEMP, temp_c,
+                               FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H,
+                               FLASH_ADDR_NUM_40);
+            last_temp_c = temp_c;
+        }
     }
 
     /* 运行时间: 分钟变化时刷新 */
