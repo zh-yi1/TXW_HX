@@ -19,46 +19,62 @@ static const range_t power_range[] = {
 #define FREE_H 32
 #define FREE_W 50
 
-// 显示功率（status==0 时居中显示空闲图标, 协议 §4.3）
+// 显示功率
 static void default_page_show_power(power_e port, uint8_t power_value, uint8_t status)
 {
-	bool is_use = (status != 0);
-	int area_x, area_y, area_w;
-	int total_w, cur_x, cur_y;
-	int tens, ones;
+	static uint8_t last_power[3]  = {0xFF, 0xFF, 0xFF};
+	static uint8_t last_status[3] = {0xFF, 0xFF, 0xFF};
 
-	area_x = power_range[port].x1;
-	area_y = power_range[port].y1;
-	area_w = power_range[port].x2 - area_x;
-
-	if (!is_use)
-	{
-		int free_x = area_x + (area_w - FREE_W) / 2;
-		int free_y = area_y;
-		Dispphoto_Dispaly_flash(free_x, free_y, FLASH_ADDR_FREE);
+	/* 无变化则跳过 */
+	if (power_value == last_power[port] && status == last_status[port])
 		return;
-	}
 
-	if (power_value > 99)
-		power_value = 99;
+	/* 状态变化或位数变化时需擦除旧内容, 同级(如个位→个位)不擦 */
+	uint8_t lp = last_power[port];
+	uint8_t ls = last_status[port];
+	bool same_level = (lp != 0xFF) && (ls == status)
+					&& ((lp >= 10) == (power_value >= 10));
 
-	tens = power_value / 10;
-	ones = power_value % 10;
-
-	total_w = (tens ? 2 : 1) * NUM_32_W + W_W;
-	cur_x = area_x + (area_w - total_w + 1) / 2;
-	cur_y = area_y;
-
-	if (tens)
+	if (!same_level)
 	{
-		Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(tens));
-		cur_x += NUM_32_W;
+		range_t r = power_range[port];
+		DispBlock(r.x1, r.y1, r.x2 - 1, r.y1 + FREE_H - 1);
+	}
+	
+
+	if (status == 0)
+	{
+		range_t r = power_range[port];
+		int free_x = r.x1 + (r.x2 - r.x1 - FREE_W) / 2;
+		Dispphoto_Dispaly_flash(free_x, r.y1, FLASH_ADDR_FREE);
+	}
+	else
+	{
+		int area_x = power_range[port].x1;
+		int area_y = power_range[port].y1;
+		int area_w = power_range[port].x2 - area_x;
+		int total_w, cur_x, cur_y;
+		int tens, ones;
+		uint8_t pv = (power_value > 99) ? 99 : power_value;
+
+		tens = pv / 10;
+		ones = pv % 10;
+
+		total_w = (tens ? 2 : 1) * NUM_32_W + W_W;
+		cur_x = area_x + (area_w - total_w + 1) / 2;
+		cur_y = area_y;
+
+		if (tens) {
+			Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(tens));
+			cur_x += NUM_32_W;
+		}
+		Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(ones));
+		cur_x += NUM_32_W + 1;
+		Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_32_H - W_H, FLASH_ADDR_POWER_W);
 	}
 
-	Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(ones));
-	cur_x += NUM_32_W + 1;
-
-	Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_32_H - W_H, FLASH_ADDR_POWER_W);
+	last_power[port]  = power_value;
+	last_status[port] = status;
 }
 
 /* ============================ 充电百分比动画 ============================ */
@@ -562,33 +578,10 @@ void default_page_updata(void)
 		}
 	}
 
-	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */
-	if (ui_data.usb_c1_status != ui_data.usb_c1_status_last || ui_data.usb_c1_power != ui_data.usb_c1_power_last)
-	{
-		range_t r = power_range[C1_POWER];
-		anima_erase_area(r.x1, r.y1, r.x2 - r.x1, FREE_H);
-		default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
-		ui_data.usb_c1_status_last = ui_data.usb_c1_status;
-		ui_data.usb_c1_power_last = ui_data.usb_c1_power;
-	}
-
-	if (ui_data.usb_c2_status != ui_data.usb_c2_status_last || ui_data.usb_c2_power != ui_data.usb_c2_power_last)
-	{
-		range_t r = power_range[C2_POWER];
-		anima_erase_area(r.x1, r.y1, r.x2 - r.x1, FREE_H);
-		default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_status);
-		ui_data.usb_c2_status_last = ui_data.usb_c2_status;
-		ui_data.usb_c2_power_last = ui_data.usb_c2_power;
-	}
-
-	if (ui_data.usb_a_status != ui_data.usb_a_status_last || ui_data.usb_a_power != ui_data.usb_a_power_last)
-	{
-		range_t r = power_range[A_POWER];
-		anima_erase_area(r.x1, r.y1, r.x2 - r.x1, FREE_H);
-		default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_status);
-		ui_data.usb_a_status_last = ui_data.usb_a_status;
-		ui_data.usb_a_power_last = ui_data.usb_a_power;
-	}
+	/* 各端口功率区域 (变化检测 + 擦除 + 绘制均在函数内部处理) */
+	default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
+	default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_status);
+	default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_status);
 
 	/* 小电流模式标志: 在 (12,4) 显示/清除电池图标 */
 	{
