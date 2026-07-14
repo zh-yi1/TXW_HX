@@ -16,8 +16,8 @@ static const range_t power_range[] = {
 #define NUM_32_H 32
 #define W_W 16
 #define W_H 16
-#define FREE_H 50
-#define FREE_W 32
+#define FREE_H 32
+#define FREE_W 50
 
 // 显示功率（status==0 时居中显示空闲图标, 协议 §4.3）
 static void default_page_show_power(power_e port, uint8_t power_value, uint8_t status)
@@ -565,8 +565,8 @@ void default_page_updata(void)
 	/* 仅状态或数值变化时才擦除并重绘各端口功率区域 */
 	if (ui_data.usb_c1_status != ui_data.usb_c1_status_last || ui_data.usb_c1_power != ui_data.usb_c1_power_last)
 	{
-		const range_t *r = &power_range[C1_POWER];
-		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
+		range_t r = power_range[C1_POWER];
+		anima_erase_area(r.x1, r.y1, r.x2 - r.x1, FREE_H);
 		default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
 		ui_data.usb_c1_status_last = ui_data.usb_c1_status;
 		ui_data.usb_c1_power_last = ui_data.usb_c1_power;
@@ -574,8 +574,8 @@ void default_page_updata(void)
 
 	if (ui_data.usb_c2_status != ui_data.usb_c2_status_last || ui_data.usb_c2_power != ui_data.usb_c2_power_last)
 	{
-		const range_t *r = &power_range[C2_POWER];
-		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
+		range_t r = power_range[C2_POWER];
+		anima_erase_area(r.x1, r.y1, r.x2 - r.x1, FREE_H);
 		default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_status);
 		ui_data.usb_c2_status_last = ui_data.usb_c2_status;
 		ui_data.usb_c2_power_last = ui_data.usb_c2_power;
@@ -583,8 +583,8 @@ void default_page_updata(void)
 
 	if (ui_data.usb_a_status != ui_data.usb_a_status_last || ui_data.usb_a_power != ui_data.usb_a_power_last)
 	{
-		const range_t *r = &power_range[A_POWER];
-		anima_erase_area(r->x1, r->y1, r->x2 - r->x1, r->y2 - r->y1);
+		range_t r = power_range[A_POWER];
+		anima_erase_area(r.x1, r.y1, r.x2 - r.x1, FREE_H);
 		default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_status);
 		ui_data.usb_a_status_last = ui_data.usb_a_status;
 		ui_data.usb_a_power_last = ui_data.usb_a_power;
