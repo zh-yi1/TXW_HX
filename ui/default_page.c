@@ -19,28 +19,122 @@ static const range_t power_range[] = {
 #define FREE_H 32
 #define FREE_W 50
 
+/* ============================ 功率滤波 ============================ */
+
+#define POWER_FILTER_WIN 5
+
+static uint8_t power_buf[3][POWER_FILTER_WIN];
+static uint8_t power_idx[3];
+static bool    power_full[3];
+
+static void power_filter_push(power_e port, uint8_t value)
+{
+	uint8_t i = power_idx[port];
+	power_buf[port][i] = value;
+	i++;
+	if (i >= POWER_FILTER_WIN) {
+		i = 0;
+		power_full[port] = true;
+	}
+	power_idx[port] = i;
+}
+
+/* 用初始值填满整个窗口, 避免冷启动被 0 拉低 */
+static void power_filter_fill(power_e port, uint8_t value)
+{
+	uint8_t i;
+	for (i = 0; i < POWER_FILTER_WIN; i++)
+		power_buf[port][i] = value;
+	power_idx[port]  = 0;
+	power_full[port] = true;
+}
+
+static uint8_t power_filter_get(power_e port)
+{
+	uint8_t cnt = power_full[port] ? POWER_FILTER_WIN : power_idx[port];
+	uint16_t sum = 0;
+	uint8_t i;
+	if (cnt == 0) return 0;
+	for (i = 0; i < cnt; i++)
+		sum += power_buf[port][i];
+	return (uint8_t)(sum / cnt);
+}
+
+/* ============================ 电量滤波 ============================ */
+
+#define BAT_FILTER_WIN 5
+
+static uint8_t bat_filter_buf[BAT_FILTER_WIN];
+static uint8_t bat_filter_idx;
+static bool    bat_filter_full;
+static uint8_t bat_filter_last_out = 0xFF;   /* 0xFF=未初始化 */
+
+static void bat_filter_push(uint8_t value)
+{
+	uint8_t i = bat_filter_idx;
+	bat_filter_buf[i] = value;
+	i++;
+	if (i >= BAT_FILTER_WIN) {
+		i = 0;
+		bat_filter_full = true;
+	}
+	bat_filter_idx = i;
+}
+
+/* 充电时单调增, 放电时单调减 */
+static uint8_t bat_filter_get(bool is_charge)
+{
+	uint8_t cnt = bat_filter_full ? BAT_FILTER_WIN : bat_filter_idx;
+	uint16_t sum = 0;
+	uint8_t i, avg;
+	if (cnt == 0) return 0;
+	for (i = 0; i < cnt; i++)
+		sum += bat_filter_buf[i];
+	avg = (uint8_t)(sum / cnt);
+
+	/* 单调约束 */
+	if (bat_filter_last_out != 0xFF) {
+		if (is_charge && avg < bat_filter_last_out)
+			avg = bat_filter_last_out;
+		else if (!is_charge && avg > bat_filter_last_out)
+			avg = bat_filter_last_out;
+	}
+	bat_filter_last_out = avg;
+	return avg;
+}
+
+/* ============================ 小数字功率显示 ============================ */
+
 // 显示功率
 static void default_page_show_power(power_e port, uint8_t power_value, uint8_t status)
 {
 	static uint8_t last_power[3]  = {0xFF, 0xFF, 0xFF};
 	static uint8_t last_status[3] = {0xFF, 0xFF, 0xFF};
 
+	/* 滤波: 状态变化时重置窗口(避免空闲/使用切换时旧值拉低), 同状态则滑动平均 */
+	if (status != last_status[port])
+		power_filter_fill(port, power_value);
+	else
+		power_filter_push(port, power_value);
+	power_value = power_filter_get(port);
+
 	/* 无变化则跳过 */
 	if (power_value == last_power[port] && status == last_status[port])
 		return;
 
 	/* 状态变化或位数变化时需擦除旧内容, 同级(如个位→个位)不擦 */
-	uint8_t lp = last_power[port];
-	uint8_t ls = last_status[port];
-	bool same_level = (lp != 0xFF) && (ls == status)
-					&& ((lp >= 10) == (power_value >= 10));
-
-	if (!same_level)
 	{
-		range_t r = power_range[port];
-		DispBlock(r.x1, r.y1, r.x2 - 1, r.y1 + FREE_H - 1);
+		uint8_t lp = last_power[port];
+		uint8_t ls = last_status[port];
+		bool same_level = (lp != 0xFF) && (ls == status)
+		               && ((lp >= 10) == (power_value >= 10));
+
+		if (!same_level)
+		{
+			range_t r = power_range[port];
+			DispBlock(r.x1, r.y1, r.x2 - 1, r.y1 + FREE_H - 1);
+		}
 	}
-	
 
 	if (status == 0)
 	{
@@ -474,13 +568,18 @@ void default_page_init()
 	Dispphoto_Dispaly_flash(176, 83, FLASH_ADDR_USB);
 	Dispphoto_Dispaly_flash(208, 83, FLASH_ADDR_USB_3);
 
-	// 显示USB功率
+	// 显示USB功率 (先填满滤波窗口, 避免冷启动被 0 拉低)
+	power_filter_fill(C1_POWER, ui_data.usb_c1_power);
+	power_filter_fill(C2_POWER, ui_data.usb_c2_power);
+	power_filter_fill(A_POWER, ui_data.usb_a_power);
 	default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
 	default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_status);
 	default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_status);
 }
 
 /* ============================ 数据更新 ============================ */
+
+#define UPDATA_INTERVAL_MS 500
 
 void default_page_updata(void)
 {
@@ -514,11 +613,16 @@ void default_page_updata(void)
 #endif
 
 	/* ---- 普通更新: 10ms 间隔 ---- */
-	if (now - last_ms < 50)
+	if (now - last_ms < UPDATA_INTERVAL_MS)
 		return;
 	last_ms = now;
 
 	int charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
+
+	/* 电量滤波: 滑动平均 + 充电单调增 / 放电单调减 */
+	bat_filter_push(ui_data.bat_power);
+	ui_data.bat_power = bat_filter_get(ui_data.is_charge);
+
 	int power_changed = (ui_data.bat_power_last != ui_data.bat_power);
 
 	/* 充放电切换: 启动非阻塞动画 (或直接重绘) */
