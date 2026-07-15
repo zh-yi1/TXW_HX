@@ -106,10 +106,21 @@ static uint8_t bat_filter_get(bool is_charge)
 /* ============================ 小数字功率显示 ============================ */
 
 // 显示功率
+static uint8_t last_power[3]  = {0xFF, 0xFF, 0xFF};
+static uint8_t last_status[3] = {0xFF, 0xFF, 0xFF};
+
+/* 切页时强制重绘, 避免 last_power/last_status 残留导致 skip */
+void default_page_power_force_redraw(void)
+{
+	uint8_t i;
+	for (i = 0; i < 3; i++) {
+		last_power[i]  = 0xFF;
+		last_status[i] = 0xFF;
+	}
+}
+
 static void default_page_show_power(power_e port, uint8_t power_value, uint8_t status)
 {
-	static uint8_t last_power[3]  = {0xFF, 0xFF, 0xFF};
-	static uint8_t last_status[3] = {0xFF, 0xFF, 0xFF};
 
 	/* 滤波: 状态变化时重置窗口(避免空闲/使用切换时旧值拉低), 同状态则滑动平均 */
 	if (status != last_status[port])
@@ -120,7 +131,10 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 
 	/* 无变化则跳过 */
 	if (power_value == last_power[port] && status == last_status[port])
+	{
+		LOGI("[POWER] port=%d skip: power=%d status=%d unchanged\n", port, power_value, status);
 		return;
+	}
 
 	/* 状态变化或位数变化时需擦除旧内容, 同级(如个位→个位)不擦 */
 	{
@@ -138,12 +152,14 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 
 	if (status == 0)
 	{
+		LOGI("[POWER] port=%d draw FREE power=%d\n", port, power_value);
 		range_t r = power_range[port];
 		int free_x = r.x1 + (r.x2 - r.x1 - FREE_W) / 2;
 		Dispphoto_Dispaly_flash(free_x, r.y1, FLASH_ADDR_FREE);
 	}
 	else
 	{
+		LOGI("[POWER] port=%d draw num=%d status=%d\n", port, power_value, status);
 		int area_x = power_range[port].x1;
 		int area_y = power_range[port].y1;
 		int area_w = power_range[port].x2 - area_x;
@@ -567,7 +583,8 @@ void default_page_init()
 	Dispphoto_Dispaly_flash(208, 83, FLASH_ADDR_USB_3);
 
 	// 显示USB功率 (先填满滤波窗口, 避免冷启动被 0 拉低)
-	power_filter_fill(C1_POWER, ui_data.usb_c1_power);
+	default_page_power_force_redraw(); /* 切页强制重绘 */
+		power_filter_fill(C1_POWER, ui_data.usb_c1_power);
 	power_filter_fill(C2_POWER, ui_data.usb_c2_power);
 	power_filter_fill(A_POWER, ui_data.usb_a_power);
 	default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
