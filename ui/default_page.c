@@ -594,7 +594,6 @@ void default_page_init()
 
 /* ============================ 数据更新 ============================ */
 
-#define UPDATA_INTERVAL_MS 500
 
 void default_page_updata(void)
 {
@@ -627,10 +626,6 @@ void default_page_updata(void)
 	}
 #endif
 
-	/* ---- 普通更新: 10ms 间隔 ---- */
-	if (now - last_ms < UPDATA_INTERVAL_MS)
-		return;
-	last_ms = now;
 
 	int charge_changed = (ui_data.is_charge_last != ui_data.is_charge);
 
