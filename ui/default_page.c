@@ -204,8 +204,6 @@ static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
 
 	if (power > 100)
 		power = 100;
-	if (power == 0)
-		power = 1;
 
 	/* 拆位 */
 	if (power >= 100)
