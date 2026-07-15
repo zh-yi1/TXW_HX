@@ -178,19 +178,19 @@ void information_page_2_init(void)
         if (h >= 10 || p > 0) { buf[p++] = '0' + h / 10; h %= 10; }
         buf[p++] = '0' + h;
         buf[p] = '\0';
-        digit_display_string(buf, x, y, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+        digit_display_string(buf, x, y - 2, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
         w = digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
         x += w;
-        Dispphoto_Dispaly_flash(x, y, FLASH_ADDR_HOUR);
+        Dispphoto_Dispaly_flash(x, y + 1, FLASH_ADDR_HOUR);
         x += 32;
         p = 0;
         buf[p++] = '0' + m / 10;
         buf[p++] = '0' + m % 10;
         buf[p] = '\0';
-        digit_display_string(buf, x, y, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+        digit_display_string(buf, x, y - 2, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
         w = digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
         x += w;
-        Dispphoto_Dispaly_flash(x, y, FLASH_ADDR_MINUTE);
+        Dispphoto_Dispaly_flash(x, y + 1, FLASH_ADDR_MINUTE);
     }
 }
 
@@ -235,15 +235,15 @@ void information_page_3_init(void)
 
         fmt_voltage(buf, (uint16_t)total_mv, '.');
 
-        Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y, FLASH_ADDR_TOTAL_VOLTAGE);
+        Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y + 1, FLASH_ADDR_TOTAL_VOLTAGE);
         digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
                              DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
     }
 
     /* 电池型号 */
 
-    Dispphoto_Dispaly_flash(34, 113, FLASH_ADDR_CELL_MODEL);
-    digit_display_string("506578AFU", 114, 116,
+    Dispphoto_Dispaly_flash(34, 116, FLASH_ADDR_CELL_MODEL);
+    digit_display_string("506578AFU", 114, 114,
                              DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
 }
 
@@ -321,24 +321,24 @@ void information_page_2_updata(void)
             char buf[8];
             uint8_t p = 0;
             uint16_t w;
-            DispBlock(x, y, x + 114, y + DIGIT_HEIGHT_16 - 1);
+            DispBlock(x, y - 2, x + 114, y + DIGIT_HEIGHT_16 - 1 - 2);
             if (h >= 100)  { buf[p++] = '0' + h / 100; h %= 100; }
             if (h >= 10 || p > 0) { buf[p++] = '0' + h / 10; h %= 10; }
             buf[p++] = '0' + h;
             buf[p] = '\0';
-            digit_display_string(buf, x, y, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+            digit_display_string(buf, x, y - 2, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
             w = digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
             x += w;
-            Dispphoto_Dispaly_flash(x, y, FLASH_ADDR_HOUR);
+            Dispphoto_Dispaly_flash(x, y + 1, FLASH_ADDR_HOUR);
             x += 32;
             p = 0;
             buf[p++] = '0' + m / 10;
             buf[p++] = '0' + m % 10;
             buf[p] = '\0';
-            digit_display_string(buf, x, y, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+            digit_display_string(buf, x, y - 2, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
             w = digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
             x += w;
-            Dispphoto_Dispaly_flash(x, y, FLASH_ADDR_MINUTE);
+            Dispphoto_Dispaly_flash(x, y + 1, FLASH_ADDR_MINUTE);
             last_run_min = run_min;
         }
     }
