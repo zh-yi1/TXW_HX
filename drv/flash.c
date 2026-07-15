@@ -341,6 +341,34 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
     /* 等待 RX DMA 完成 */
     timeout = 100000U;
     while (!md_dma_is_active_flag_done(MD_DMA_CH_1) && --timeout);
+    if (timeout == 0) {
+        LOGI("[FLASH] RX DMA timeout! addr=0x%lX size=%d, retry\n", addr, size);
+        /* 清理失败的传输 */
+        md_spi_disable_tx_dma(SPI0);
+        md_spi_disable_rx_dma(SPI0);
+        FLASH_CS_SET();
+        /* 从头重试: 命令 + DMA */
+        FLASH_CS_CLR();
+        for (i = 0; i < sizeof(cmd_buf); i++) {
+            if (spi_xfer_byte(cmd_buf[i], NULL) != MD_OK) {
+                FLASH_CS_SET();
+                LCD_CS_LOW();
+                return MD_ERROR;
+            }
+        }
+        md_dma_config_base(DMA0, MD_DMA_CYCLE_CTRL_BASIC, &spi_dma_tx_config);
+        md_dma_config_base(DMA0, MD_DMA_CYCLE_CTRL_BASIC, &spi_dma_rx_config);
+        md_dma_enable_channel(MD_DMA_CH_1);
+        md_dma_enable_channel(MD_DMA_CH_0);
+        md_spi_enable_tx_dma(SPI0);
+        md_spi_enable_rx_dma(SPI0);
+        timeout = 100000U;
+        while (!md_dma_is_active_flag_done(MD_DMA_CH_0) && --timeout);
+        md_dma_clear_flag_done(MD_DMA_CH_0);
+        timeout = 100000U;
+        while (!md_dma_is_active_flag_done(MD_DMA_CH_1) && --timeout);
+        if (timeout == 0) LOGI("[FLASH] RX DMA retry also failed! addr=0x%lX\n", addr);
+    }
     md_dma_clear_flag_done(MD_DMA_CH_1);
 
     md_spi_disable_tx_dma(SPI0);
