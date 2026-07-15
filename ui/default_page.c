@@ -597,8 +597,8 @@ void default_page_init()
 
 void default_page_updata(void)
 {
-	static uint32_t last_ms      = 0;
 #ifdef ENABLE_CHARGE_ANIM
+	static uint32_t last_ms      = 0;
 	static uint32_t anima_last_ms = 0;
 #endif
 	uint32_t now = md_get_tick();

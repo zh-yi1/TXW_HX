@@ -204,11 +204,7 @@ void rtc_timer_reinit(void)
     if (cfg.magic != 0x55)
         return;
 
-    /* start_timestamp 没变且已同步 → 无需重复初始化 */
-    if (g_time_synced && cfg.start_timestamp == g_start_timestamp)
-        return;
-
-    /* start_timestamp 变了 → 擦除旧时间戳块，避免重启后恢复出混合时间 */
+    /* 擦除旧时间戳块，避免重启后恢复出混合时间 */
     if (g_time_synced) {
         flash_page_erase(ts_block_addrs[0]);
         flash_wait_unbusy();
