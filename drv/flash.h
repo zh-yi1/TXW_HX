@@ -4,6 +4,9 @@
 #include "global_define.h"
 
 #define READ_BUFFER_MAX		(1024)
+#define FLASH_DMA_TIMEOUT	(5000U)
+#define FLASH_UNBUSY_TIMEOUT	(50000U)
+#define FLASH_WEL_DELAY		(100U)
 
 md_status_t flash_read(uint32_t addr, unsigned char *buf, uint16_t size);
 md_status_t flash_write(uint32_t addr, unsigned char *buf, uint16_t size);

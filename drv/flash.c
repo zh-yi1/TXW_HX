@@ -96,7 +96,7 @@ static md_status_t flash_write_enable(void)
     /* 等待 CS 上升沿锁存后短暂延迟 */
     {
         uint8_t i;
-        for (i = 0; i < 100; i++) { ; }
+        for (i = 0; i < FLASH_WEL_DELAY; i++) { ; }
     }
 
     /* 校验 WEL 位 */
@@ -334,12 +334,26 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
     md_spi_enable_rx_dma(SPI0);
 
     /* 等待 TX DMA 完成 */
-    timeout = 100000U;
+    timeout = FLASH_DMA_TIMEOUT;
     while (!md_dma_is_active_flag_done(MD_DMA_CH_0) && --timeout);
     md_dma_clear_flag_done(MD_DMA_CH_0);
+    if (timeout == 0) {
+        LOGI("[FLASH] TX DMA timeout! addr=0x%lX size=%d\n", addr, size);
+        md_spi_disable_tx_dma(SPI0);
+        md_spi_disable_rx_dma(SPI0);
+        FLASH_CS_SET();
+        spi_dma_tx_config.interrupt = tx_int_save;
+        spi_dma_rx_config.interrupt = rx_int_save;
+        spi_dma_tx_config.src       = tx_src_save;
+        spi_dma_tx_config.size      = tx_size_save;
+        spi_dma_rx_config.dst       = rx_dst_save;
+        spi_dma_rx_config.size      = rx_size_save;
+        LCD_CS_LOW();
+        return MD_ERROR;
+    }
 
     /* 等待 RX DMA 完成 */
-    timeout = 100000U;
+    timeout = FLASH_DMA_TIMEOUT;
     while (!md_dma_is_active_flag_done(MD_DMA_CH_1) && --timeout);
     if (timeout == 0) {
         LOGI("[FLASH] RX DMA timeout! addr=0x%lX size=%d, retry\n", addr, size);
@@ -362,12 +376,40 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
         md_dma_enable_channel(MD_DMA_CH_0);
         md_spi_enable_tx_dma(SPI0);
         md_spi_enable_rx_dma(SPI0);
-        timeout = 100000U;
+        timeout = FLASH_DMA_TIMEOUT;
         while (!md_dma_is_active_flag_done(MD_DMA_CH_0) && --timeout);
         md_dma_clear_flag_done(MD_DMA_CH_0);
-        timeout = 100000U;
+        if (timeout == 0) {
+            LOGI("[FLASH] TX DMA retry timeout! addr=0x%lX\n", addr);
+            md_spi_disable_tx_dma(SPI0);
+            md_spi_disable_rx_dma(SPI0);
+            FLASH_CS_SET();
+            spi_dma_tx_config.interrupt = tx_int_save;
+            spi_dma_rx_config.interrupt = rx_int_save;
+            spi_dma_tx_config.src       = tx_src_save;
+            spi_dma_tx_config.size      = tx_size_save;
+            spi_dma_rx_config.dst       = rx_dst_save;
+            spi_dma_rx_config.size      = rx_size_save;
+            LCD_CS_LOW();
+            return MD_ERROR;
+        }
+        timeout = FLASH_DMA_TIMEOUT;
         while (!md_dma_is_active_flag_done(MD_DMA_CH_1) && --timeout);
-        if (timeout == 0) LOGI("[FLASH] RX DMA retry also failed! addr=0x%lX\n", addr);
+        if (timeout == 0) {
+            LOGI("[FLASH] RX DMA retry failed! addr=0x%lX\n", addr);
+            md_dma_clear_flag_done(MD_DMA_CH_1);
+            md_spi_disable_tx_dma(SPI0);
+            md_spi_disable_rx_dma(SPI0);
+            FLASH_CS_SET();
+            spi_dma_tx_config.interrupt = tx_int_save;
+            spi_dma_rx_config.interrupt = rx_int_save;
+            spi_dma_tx_config.src       = tx_src_save;
+            spi_dma_tx_config.size      = tx_size_save;
+            spi_dma_rx_config.dst       = rx_dst_save;
+            spi_dma_rx_config.size      = rx_size_save;
+            LCD_CS_LOW();
+            return MD_ERROR;
+        }
     }
     md_dma_clear_flag_done(MD_DMA_CH_1);
 
@@ -394,7 +436,7 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
 md_status_t flash_wait_unbusy(void)
 {
     uint8_t status;
-    uint32_t timeout = 100000U;   /* 防止死循环 */
+    uint32_t timeout = FLASH_UNBUSY_TIMEOUT;   /* 防止死循环，tSE≈20ms */
     uint8_t dummy;
 
     FLASH_CS_CLR();
