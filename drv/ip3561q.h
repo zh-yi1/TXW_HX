@@ -111,7 +111,7 @@ typedef struct
     uint16_t vbat_mv;       /* 电池包总电压 mV (VBAT ADC) */
     uint32_t rntc1_ohm;      /* NTC1 阻值 Ω (IP3561Q NTC1) */
     uint32_t rntc2_ohm;     /* NTC2 阻值 Ω (IP3561Q NTC2) */
-    int32_t  current_ma;    /* 电流 mA (正=充电) */
+    int16_t  current_ma;    /* 电流 mA (正=充电) */
 } ip3561q_proc_data_t;
 
 #define IP3561Q_CELL_CNT    4U   /* 4 串电芯 */
