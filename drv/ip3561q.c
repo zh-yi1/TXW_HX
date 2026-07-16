@@ -448,10 +448,13 @@ void ip3561q_calc_data(ip3561q_data_t *raw, ip3561q_proc_data_t *p)
     g_bat_high_temp = ((p->rntc1_ohm  > 0 && p->rntc1_ohm  <= 3340UL) ||
                        (p->rntc2_ohm > 0 && p->rntc2_ohm <= 3340UL)) ? 1 : 0;
 
-    /* 电流: I(mA) = ADC_signed * 375 / 256 */
+    /* 电流: I(mA) = ADC_signed * 375 / 256
+     * IP3561Q 手册: 正=放电, 负=充电
+     * 协议规范:   正=充电, 负=放电
+     * 取反以统一为协议方向 */
     {
         int32_t cadc = (int32_t)raw->current_adc;  /* 已是 int16_t, 符号正确 */
-        p->current_ma = (cadc * 375L) / 256L;
+        p->current_ma = -(cadc * 375L) / 256L;
     }
 }
 
