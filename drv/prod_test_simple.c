@@ -121,7 +121,7 @@ static void pt_init_data(void)
     pt_bat_sn[0] = '\0';
 
     factory_cfg_read(&cfg);
-    if (cfg.magic != 0x55) return;
+    if (!factory_cfg_is_valid(&cfg)) return;
 
     /* SN */
     memcpy(pt_sn, cfg.device_sn, PT_SN_LEN);

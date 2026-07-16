@@ -431,7 +431,7 @@ void static_cfg_load_to_ui(void)
     factory_cfg_read(&cfg);
 
     /* magic 正确才复制数据 (上位机已写入) */
-    if (cfg.magic != 0x55) 
+    if (!factory_cfg_is_valid(&cfg))
         return;
     
     memcpy(ui_data.bat_model_1, cfg.bat_model[0], sizeof(ui_data.bat_model_1));

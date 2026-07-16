@@ -77,7 +77,7 @@ static void pt_load_factory_cfg(void)
     uint8_t i, pos;
 
     factory_cfg_read(&cfg);
-    if (cfg.magic != 0x55)
+    if (!factory_cfg_is_valid(&cfg))
         return; /* 未写过, 保留测试默认值 */
 
     /* SN: ASCII 字符串直接回读 */

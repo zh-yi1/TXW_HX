@@ -115,10 +115,11 @@ void rtc_reset_running_time_on_event(void);/* 充电完成/场测同步时复位
 uint32_t rtc_get_dis_seconds(void);       /* 获取运行时间 (秒) */
 
 /* ---- 生产配置读写 ---- */
-void factory_cfg_read(factory_cfg_t *cfg);
-void factory_cfg_write(const factory_cfg_t *cfg);
-void factory_cfg_write_soh(uint8_t soh);            /* 读-改-写 SOH */
-void factory_cfg_write_cycle(uint16_t cycle_count); /* 读-改-写 循环次数 */
+void     factory_cfg_read(factory_cfg_t *cfg);
+void     factory_cfg_write(const factory_cfg_t *cfg);
+uint8_t  factory_cfg_is_valid(const factory_cfg_t *cfg);  /* magic==0x55 && CRC8 正确 */
+void     factory_cfg_write_soh(uint8_t soh);              /* 读-改-写 SOH */
+void     factory_cfg_write_cycle(uint16_t cycle_count);   /* 读-改-写 循环次数 */
 
 /* ---- 时间转换 ---- */
 uint32_t rtc_bcd6_to_unix(const uint8_t bcd[6]);           /* BCD(YYMMDDHHMMSS) → Unix */

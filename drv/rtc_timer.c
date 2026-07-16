@@ -147,7 +147,7 @@ void rtc_timer_init(void)
     factory_cfg_read(&cfg);
 
     /* magic != 0x55 → 首次开机, 给默认初始时间 2026-07-11 12:00:00 */
-    if (cfg.magic != 0x55) {
+    if (!factory_cfg_is_valid(&cfg)) {
         g_running_seconds   = 0;
         g_ts_block_idx      = 0;
         g_saved_addr        = ts_block_addrs[0];
@@ -201,7 +201,7 @@ void rtc_timer_reinit(void)
 
     factory_cfg_read(&cfg);
 
-    if (cfg.magic != 0x55)
+    if (!factory_cfg_is_valid(&cfg))
         return;
 
     /* 擦除旧时间戳块，避免重启后恢复出混合时间 */
@@ -357,7 +357,7 @@ void rtc_reset_running_time_on_event(void)
 
     /* 读-改-写 factory_cfg: 仅更新 dis_start_ts */
     factory_cfg_read(&cfg);
-    if (cfg.magic != 0x55)
+    if (!factory_cfg_is_valid(&cfg))
         return;
 
     cfg.dis_start_ts = now_ts;
@@ -375,6 +375,35 @@ void factory_cfg_read(factory_cfg_t *cfg)
     if (cfg == NULL) return;
 
     flash_read(addr, (uint8_t *)cfg, sizeof(factory_cfg_t));
+}
+
+/*
+ * factory_cfg_is_valid — 校验 magic + CRC8
+ *
+ * 仅 magic==0x55 不足以保证数据完整:
+ * Flash 写入被中断 (掉电/复位) 时 magic 可能已写入但其余字段是垃圾值,
+ * 此时 disable_reason 等字段不可信, 必须通过 CRC 二次确认.
+ */
+uint8_t factory_cfg_is_valid(const factory_cfg_t *cfg)
+{
+    const uint8_t *p;
+    uint8_t crc;
+    uint8_t i;
+
+    if (cfg == NULL)
+        return 0;
+
+    if (cfg->magic != 0x55)
+        return 0;
+
+    /* CRC8 覆盖 crc8 字段之前的所有字节 */
+    p   = (const uint8_t *)cfg;
+    crc = 0;
+    for (i = 0; i < sizeof(factory_cfg_t) - 1; i++) {
+        crc = crc8_update(crc, p[i]);
+    }
+
+    return (crc == cfg->crc8) ? 1 : 0;
 }
 
 void factory_cfg_write(const factory_cfg_t *cfg)
@@ -412,7 +441,7 @@ void factory_cfg_write_soh(uint8_t soh)
     factory_cfg_t cfg;
 
     factory_cfg_read(&cfg);
-    if (cfg.magic != 0x55)
+    if (!factory_cfg_is_valid(&cfg))
         return; /* 未写入过配置, 不单独写 SOH */
 
     cfg.soh = soh;
@@ -427,7 +456,7 @@ void factory_cfg_write_cycle(uint16_t cycle_count)
     factory_cfg_t cfg;
 
     factory_cfg_read(&cfg);
-    if (cfg.magic != 0x55)
+    if (!factory_cfg_is_valid(&cfg))
         return; /* 未写入过配置, 不单独写循环次数 */
 
     cfg.cycle_count = cycle_count;
