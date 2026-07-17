@@ -6,8 +6,8 @@ md_dma_config_t spi_dma_tx_config, spi_dma_rx_config;
 uint8_t spi_dma_buf[FLASH_READ_BUF_SIZE] = {0};
 uint16_t spi_dma_buf_len = sizeof(spi_dma_buf);
 
-uint8_t spi_dma_send_ok;
-uint8_t spi_dma_send_clc;
+volatile uint8_t spi_dma_send_ok;   /* DMA ISR 置位, 主循环轮询, 必须 volatile */
+volatile uint8_t spi_dma_send_clc;
 
 static void config_dma_struct_tx(void);
 static void config_dma_struct_rx(void);
@@ -45,6 +45,25 @@ void dma_send_enable(uint16_t send_size)
         spi_dma_tx_config.size = spi_dma_buf_len;
 
     md_dma_config_base(DMA0, MD_DMA_CYCLE_CTRL_BASIC, &spi_dma_tx_config);
+    md_dma_enable_channel(MD_DMA_CH_0);
+    md_spi_enable_tx_dma(SPI0);
+}
+
+/* 同 dma_send_enable, 但可从 spi_dma_buf 内任意偏移发送 (用于跳过 BMP 行尾填充) */
+void dma_send_buf(const uint8_t *buf, uint16_t size)
+{
+    LCD_RS_HIGH();
+    LCD_CS_LOW();
+
+    spi_dma_tx_config.src  = (void *)buf;
+    spi_dma_tx_config.size = size;
+
+    md_dma_config_base(DMA0, MD_DMA_CYCLE_CTRL_BASIC, &spi_dma_tx_config);
+
+    /* 描述符已生成, 恢复默认 src/size, 维持 dma_send_enable 的缓冲区约定 */
+    spi_dma_tx_config.src  = (void *)spi_dma_buf;
+    spi_dma_tx_config.size = spi_dma_buf_len;
+
     md_dma_enable_channel(MD_DMA_CH_0);
     md_spi_enable_tx_dma(SPI0);
 }
