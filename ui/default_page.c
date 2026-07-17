@@ -595,35 +595,45 @@ void default_page_init()
 /* ============================ 数据更新 ============================ */
 
 
+#ifdef ENABLE_CHARGE_ANIM
+/* 主界面动画高频驱动 — ui_proc 每次主循环调用, 不受 500ms 限流,
+ * 内部按 ANIM_STEP_MS 自限帧率 (充放电切换动画逐帧 / 充电粒子效果) */
+void default_page_anim_proc(void)
+{
+	static uint32_t anim_ms = 0;
+	uint32_t now = md_get_tick();
+
+	if (now - anim_ms < ANIM_STEP_MS)
+		return;
+	anim_ms = now;
+
+	if (anima_active)
+	{
+		if (anima_tick())
+		{
+			/* 动画结束, 最终全量重绘 */
+			default_page_show_battery();
+
+			/* V1.3: 充电完成时显示剩余时间 (在 battery 之后绘制, 避免被覆盖) */
+			if (anima_is_charge)
+				draw_charge_remain_time();
+		}
+	}
+	else if (ui_data.is_charge)
+	{
+		/* 充电粒子效果逐帧推进 */
+		default_page_show_bar_effect();
+	}
+}
+#endif /* ENABLE_CHARGE_ANIM */
+
 void default_page_updata(void)
 {
 #ifdef ENABLE_CHARGE_ANIM
-	static uint32_t last_ms      = 0;
-	static uint32_t anima_last_ms = 0;
-#endif
-	uint32_t now = md_get_tick();
-
-#ifdef ENABLE_CHARGE_ANIM
-	/* ---- 充放电动画进行中: 按 ANIM_STEP_MS 逐帧推进, 暂停普通更新 ---- */
+	/* ---- 充放电切换动画进行中: 帧推进由 default_page_anim_proc 高频驱动,
+	        此处暂停普通数据更新 ---- */
 	if (anima_active)
-	{
-		if (now - anima_last_ms >= ANIM_STEP_MS)
-		{
-			anima_last_ms = now;
-			if (anima_tick())
-			{
-				/* 动画结束, 最终全量重绘 */
-				default_page_show_battery();
-
-				/* V1.3: 充电完成时显示剩余时间 (在 battery 之后绘制, 避免被覆盖) */
-				if (anima_is_charge)
-					draw_charge_remain_time();
-
-				last_ms = now;
-			}
-		}
 		return;
-	}
 #endif
 
 
@@ -647,7 +657,6 @@ void default_page_updata(void)
 
 #ifdef ENABLE_CHARGE_ANIM
 		start_change_anima(ui_data.is_charge);
-		anima_last_ms = now;
 		return;
 #else
 		/* 无动画时充放电切换: 擦除电量区(全宽×48) + 进度条周边动画残留 */
@@ -674,10 +683,7 @@ void default_page_updata(void)
 		if (ui_data.is_charge)
 			draw_charge_remain_time();
 	}
-#ifdef ENABLE_CHARGE_ANIM
-	else if (ui_data.is_charge)
-		default_page_show_bar_effect();
-#endif
+	/* 充电粒子效果已由 default_page_anim_proc 按 ANIM_STEP_MS 高频驱动 */
 
 	/* V1.3: 充电剩余时间每分钟刷新 (动画/非动画模式统一处理) */
 	if (ui_data.is_charge)

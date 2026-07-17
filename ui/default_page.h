@@ -26,6 +26,7 @@ typedef enum
 void default_page_init(void);
 #ifdef ENABLE_CHARGE_ANIM
 void start_change_anima(bool is_charge);
+void default_page_anim_proc(void);   /* 动画高频驱动, 由 ui_proc 每次主循环调用 */
 #endif
 void anima_erase_area(int x, int y, int w, int h);
 void default_page_show_power(power_e port, uint8_t power_value, uint8_t status);

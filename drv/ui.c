@@ -174,7 +174,13 @@ void ui_proc(void)
 		ui_data.last_page = ui_data.cur_page;
 	}
 
-	/* 各界面周期性更新, 统一 500ms 限流 */	
+#ifdef ENABLE_CHARGE_ANIM
+	/* 主界面动画 (切换动画/充电粒子) 高频驱动, 不受下方 500ms 限流 */
+	if (ui_data.cur_page == PAGE_DEFAULT)
+		default_page_anim_proc();
+#endif
+
+	/* 各界面周期性更新, 统一 500ms 限流 */
 	static uint32_t last_updata_ms = 0;
 	uint32_t _now = md_get_tick();
 	if (_now - last_updata_ms < 500)
