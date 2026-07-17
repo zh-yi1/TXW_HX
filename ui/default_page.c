@@ -387,6 +387,11 @@ static void draw_charge_remain_time(void)
 	uint8_t  m = min % 60;
 	int x = TIME_ICON_X;
 
+	/* 100% 时电量占 3 位数, 充电图标(x=132..171)与时间区(x=136起)重叠,
+	   屏宽也放不下两者; 满电无倒计时意义, 不绘制 */
+	if (ui_data.bat_power >= 100)
+		return;
+
 	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, FLASH_ADDR_TIME);
 	x += TIME_ICON_W;
 
@@ -678,6 +683,10 @@ void default_page_updata(void)
 	/* 电量变化时重绘电池+进度条, 充电时每帧更新动画, 否则不更新 */
 	if (power_changed || charge_changed)
 	{
+		/* 满电时 3 位数电量+充电图标会盖到时间区: 先擦时间再重绘电池,
+		   图标在擦除之后绘制, 不会被切掉 */
+		if (ui_data.is_charge && ui_data.bat_power >= 100)
+			erase_charge_remain_time();
 		default_page_show_battery();
 		/* battery 重绘可能与时间区域重叠, 充电中补绘时间 */
 		if (ui_data.is_charge)
@@ -690,7 +699,8 @@ void default_page_updata(void)
 	{
 		static uint16_t last_remain_min = 0xFFFF;
 		uint16_t cur_min = calc_charge_remain_min();
-		if (cur_min > 0 && cur_min != last_remain_min)
+		/* 满电时时间区已让位给充电图标, 这里的擦除/重绘都会切掉图标, 跳过 */
+		if (ui_data.bat_power < 100 && cur_min > 0 && cur_min != last_remain_min)
 		{
 			erase_charge_remain_time();
 			draw_charge_remain_time();
