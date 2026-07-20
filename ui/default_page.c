@@ -595,6 +595,10 @@ void default_page_init()
 	default_page_show_power(C1_POWER, ui_data.usb_c1_power, ui_data.usb_c1_status);
 	default_page_show_power(C2_POWER, ui_data.usb_c2_power, ui_data.usb_c2_status);
 	default_page_show_power(A_POWER, ui_data.usb_a_power, ui_data.usb_a_status);
+
+	/* 小电流模式图标: 切页时 init 清屏后需补绘, 否则 updata 里仅变化检测不会触发 */
+	if (ui_data.low_current_flag)
+		Dispphoto_Dispaly_flash(12, 4, FLASH_ADDR_BATTERY);
 }
 
 /* ============================ 数据更新 ============================ */
