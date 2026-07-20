@@ -382,15 +382,22 @@ static bool anima_tick(void)
 /* 绘制充电剩余时间 — 图标(24x24) + HH:MM(24px白字) */
 static void draw_charge_remain_time(void)
 {
-	uint16_t min = calc_charge_remain_min();
-	uint8_t  h = min / 60;
-	uint8_t  m = min % 60;
+	int16_t  min = calc_charge_remain_min();
+	uint8_t  h;
+	uint8_t  m;
 	int x = TIME_ICON_X;
+
+	/* 估算未准备好(-1)不显示 */
+	if (min < 0)
+		return;
 
 	/* 100% 时电量占 3 位数, 充电图标(x=132..171)与时间区(x=136起)重叠,
 	   屏宽也放不下两者; 满电无倒计时意义, 不绘制 */
 	if (ui_data.bat_power >= 100)
 		return;
+
+	h = (uint16_t)min / 60;
+	m = (uint16_t)min % 60;
 
 	Dispphoto_Dispaly_flash(x, TIME_ICON_Y, FLASH_ADDR_TIME);
 	x += TIME_ICON_W;
@@ -701,14 +708,21 @@ void default_page_updata(void)
 	/* V1.3: 充电剩余时间每分钟刷新 (动画/非动画模式统一处理) */
 	if (ui_data.is_charge)
 	{
-		static uint16_t last_remain_min = 0xFFFF;
-		uint16_t cur_min = calc_charge_remain_min();
-		/* 满电时时间区已让位给充电图标, 这里的擦除/重绘都会切掉图标, 跳过 */
-		if (ui_data.bat_power < 100 && cur_min > 0 && cur_min != last_remain_min)
+		static int16_t last_remain_min = -1;
+		int16_t cur_min = calc_charge_remain_min();
+		/* 满电时时间区已让位给充电图标, 这里的擦除/重绘都会切掉图标;
+		   -1 表示估算未准备好, 不显示 */
+		if (ui_data.bat_power < 100 && cur_min >= 0 && cur_min != last_remain_min)
 		{
 			erase_charge_remain_time();
 			draw_charge_remain_time();
 			last_remain_min = cur_min;
+		}
+		else if (ui_data.bat_power < 100 && cur_min < 0 && last_remain_min >= 0)
+		{
+			/* 估算失效(-1): 清掉残留的旧时间, 恢复有效后会重绘 */
+			erase_charge_remain_time();
+			last_remain_min = -1;
 		}
 	}
 
@@ -736,7 +750,7 @@ void default_page_updata(void)
  * ======================================================================== */
 #define IBAT_BUF_SIZE  10U
 
-static int32_t ibat_buf[10];          /* 电流环形缓冲 */
+static int32_t ibat_buf[IBAT_BUF_SIZE];   /* 电流环形缓冲 */
 
 /* 电池循环降额系数 (%) */
 static uint8_t bat_cycle_derate(uint16_t cycle_times)
@@ -747,7 +761,7 @@ static uint8_t bat_cycle_derate(uint16_t cycle_times)
     return 100;
 }
 
-uint16_t calc_charge_remain_min(void)
+int16_t calc_charge_remain_min(void)
 {
     static uint32_t last_ms   = 0;
     static uint8_t  ibat_idx  = 0;
@@ -761,8 +775,12 @@ uint16_t calc_charge_remain_min(void)
     int32_t  ibat;
     uint8_t  derate;
 
-	if (!ui_data.is_charge)
-		return 0;
+	if (!ui_data.is_charge || ui_data.bat_power > 100)
+	{
+		ibat_idx  = 0;              /* 停充清缓冲，避免下次用旧电流 */
+		ibat_full = 0;
+		return -1;
+	}
 
     /* ---- 1 秒采样 ---- */
     now = md_get_tick();
@@ -778,7 +796,7 @@ uint16_t calc_charge_remain_min(void)
     }
 
     if (!ibat_full)
-        return 0;
+        return -1;
 
     /* 平滑电流（10 点环形缓冲平均） */
     {
@@ -790,24 +808,21 @@ uint16_t calc_charge_remain_min(void)
     }
     if (ibat_avg < 50) ibat_avg = 50;   /* 最小电流下限，防除零及极端值 */
 
-    /* 总容量 = 标称容量(4节×5000mAh) * 循环降额系数 */
+    /* 总容量 = 标称容量(5000mAh) * 循环降额系数 */
     derate        = bat_cycle_derate(ui_data.bat_cycle_cnt);
-    total_cap_mah = 20000UL * 3600UL;
-    total_cap_mah = total_cap_mah * derate / 100U;
+    total_cap_mah = 5000UL * derate / 100U;
 
     /* ----- 充电剩余时间（秒）----- */
-    if (ui_data.is_charge && ip3561q_info.current_ma > 0)
-    {
-        remain_cap = (uint32_t)(100U - ui_data.bat_power) * total_cap_mah / 100U;
-        seconds    = (remain_cap * 3600UL / ibat_avg);
-        seconds    = (seconds > 0xFFFFU) ? 0xFFFFU : seconds;
-    }
-    else
-    {
-        seconds = 0;
-    }
+    if (ip3561q_info.current_ma <= 0)
+        return -1;
 
-    return (uint16_t)(seconds / 60U);
+    remain_cap = (uint32_t)(100U - ui_data.bat_power) * total_cap_mah / 100U;
+    seconds    = remain_cap * 3600UL / ibat_avg;
+
+    if (seconds > 5999UL * 60U)         /* HH:MM 两位小时, 上限 99:59 */
+        seconds = 5999UL * 60U;
+
+    return (int16_t)(seconds / 60U);
 }
 
 
