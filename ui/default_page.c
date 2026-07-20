@@ -428,6 +428,10 @@ static void erase_charge_remain_time(void)
 	anima_erase_area(TIME_ICON_X, TIME_ICON_Y, TIME_AREA_W, TIME_AREA_H);
 }
 
+/* 上次绘制的剩余分钟数, -1=屏上未显示; 切页 init 清屏后必须复位,
+   否则新值与旧值相同时不触发重绘, 时间要等分钟变化才出现 */
+static int16_t last_remain_min = -1;
+
 
 /* ============================ 电量显示 ============================ */
 #define BAR_PROGRESS_X 0
@@ -606,6 +610,19 @@ void default_page_init()
 	/* 小电流模式图标: 切页时 init 清屏后需补绘, 否则 updata 里仅变化检测不会触发 */
 	if (ui_data.low_current_flag)
 		Dispphoto_Dispaly_flash(12, 4, FLASH_ADDR_BATTERY);
+
+	/* 充电剩余时间: 清屏后立即补绘并同步变化检测基准,
+	   否则要等分钟数变化才会重新显示 */
+	last_remain_min = -1;
+	if (ui_data.is_charge)
+	{
+		int16_t m = calc_charge_remain_min();
+		if (m >= 0 && ui_data.bat_power < 100)
+		{
+			draw_charge_remain_time();
+			last_remain_min = m;
+		}
+	}
 }
 
 /* ============================ 数据更新 ============================ */
@@ -708,7 +725,6 @@ void default_page_updata(void)
 	/* V1.3: 充电剩余时间每分钟刷新 (动画/非动画模式统一处理) */
 	if (ui_data.is_charge)
 	{
-		static int16_t last_remain_min = -1;
 		int16_t cur_min = calc_charge_remain_min();
 		/* 满电时时间区已让位给充电图标, 这里的擦除/重绘都会切掉图标;
 		   -1 表示估算未准备好, 不显示 */
