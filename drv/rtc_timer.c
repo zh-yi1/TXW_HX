@@ -158,6 +158,8 @@ void rtc_timer_init(void)
         /* 首次开机: 将默认时间和运行起始时间写入 Flash, 防止重启后重置 */
         cfg.start_timestamp      = g_start_timestamp;
         cfg.dis_start_ts  = g_dis_start_ts;
+        cfg.cell_count = 4;
+        cfg.disable_reason = 0;
         factory_cfg_write(&cfg);
         return;
     }
