@@ -272,9 +272,19 @@ void information_page_1_updata(void)
         last_max_cap = ui_data.bat_max_cap;
     }
 
-    /* 循环次数 — 变化时刷新 */
+    /* 循环次数 — 变化时刷新, 位数变化先擦除 */
     if (ui_data.bat_cycle_cnt != last_cycle)
     {
+        /* 位数变化时擦除旧区域 (如 1000→999, 100→99) */
+        uint8_t last_digits = (last_cycle >= 1000) ? 4 :
+                              (last_cycle >= 100)  ? 3 :
+                              (last_cycle >= 10)   ? 2 : 1;
+        uint8_t cur_digits  = (ui_data.bat_cycle_cnt >= 1000) ? 4 :
+                              (ui_data.bat_cycle_cnt >= 100)  ? 3 :
+                              (ui_data.bat_cycle_cnt >= 10)   ? 2 : 1;
+        if (last_digits != cur_digits)
+            DispBlock(R_CYCLE_CNT.x1, R_CYCLE_CNT.y1, R_CYCLE_CNT.x2, R_CYCLE_CNT.y2);
+
         draw_value_in_area(R_CYCLE_CNT, ui_data.bat_cycle_cnt,
                            FLASH_ADDR_CI, CI_W, CI_H, 0);
         last_cycle = ui_data.bat_cycle_cnt;
