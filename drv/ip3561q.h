@@ -116,6 +116,16 @@ typedef struct
 
 #define IP3561Q_CELL_CNT    4U   /* 4 串电芯 */
 
+/* ---- 过流保护阈值 Flash 备份 ---- */
+typedef struct {
+    uint8_t magic;       /* 0xA5 = 已保存 */
+    uint8_t doc1;        /* 0x04 放电过流1阈值 */
+    uint8_t doc2;        /* 0x05 放电过流2阈值 */
+    uint8_t sc;          /* 0x06 短路阈值 */
+    uint8_t coc;         /* 0x07 充电过流阈值 */
+    uint8_t crc8;        /* 覆盖 magic ~ coc */
+} ip3561q_oc_cfg_t;
+
 /* ==========================================================================
  *  API
  * ========================================================================== */
@@ -127,6 +137,8 @@ uint8_t  ip3561q_write_reg(uint8_t reg, uint8_t *buf, uint8_t len);
 uint8_t  ip3561q_read_all(ip3561q_data_t *data);
 void     ip3561q_calc_data(ip3561q_data_t *raw, ip3561q_proc_data_t *p);
 void     ip3561q_proc(void);
+uint8_t  ip3561q_oc_cfg_read(ip3561q_oc_cfg_t *cfg);   /* 从 Flash 读取 OC 阈值备份, 校验通过返回 1 */
+void     ip3561q_oc_cfg_save(const ip3561q_oc_cfg_t *cfg);  /* 保存 OC 阈值到 Flash */
 
 #define IP3561Q_POLL_MS        500U
 #define IP3561Q_CFG_RETRY_MS  200U

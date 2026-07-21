@@ -212,9 +212,73 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
 }
 
 /* ==========================================================================
+ *  OC 阈值 Flash 备份 (CRC-8 校验)
+ * ========================================================================== */
+#define IP3561Q_OC_MAGIC    0xA5U
+#define IP3561Q_CRC8_POLY   0x07U
+
+static uint8_t ip3561q_crc8(const uint8_t *data, uint8_t len)
+{
+    uint8_t crc = 0;
+    uint8_t i, j;
+
+    for (i = 0; i < len; i++)
+    {
+        crc ^= data[i];
+        for (j = 0; j < 8; j++)
+        {
+            if (crc & 0x80)
+                crc = (uint8_t)((crc << 1) ^ IP3561Q_CRC8_POLY);
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
+}
+
+uint8_t ip3561q_oc_cfg_read(ip3561q_oc_cfg_t *cfg)
+{
+    uint8_t expected_crc;
+
+    if (cfg == NULL)
+        return 0;
+
+    if (flash_read(FLASH_DATA_BASE + FLASH_OFFS_IP3561Q_OC_CFG,
+                   (uint8_t *)cfg, sizeof(ip3561q_oc_cfg_t)) != MD_OK)
+        return 0;
+
+    if (cfg->magic != IP3561Q_OC_MAGIC)
+        return 0;
+
+    /* CRC8 覆盖 magic ~ coc (前 5 字节) */
+    expected_crc = ip3561q_crc8((const uint8_t *)cfg, sizeof(ip3561q_oc_cfg_t) - 1);
+    if (cfg->crc8 != expected_crc)
+        return 0;
+
+    return 1;
+}
+
+void ip3561q_oc_cfg_save(const ip3561q_oc_cfg_t *cfg)
+{
+    ip3561q_oc_cfg_t local;
+
+    if (cfg == NULL)
+        return;
+
+    local = *cfg;
+    local.magic = IP3561Q_OC_MAGIC;
+    /* CRC8 覆盖 magic ~ coc (前 5 字节) */
+    local.crc8 = ip3561q_crc8((const uint8_t *)&local, sizeof(ip3561q_oc_cfg_t) - 1);
+
+    flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_IP3561Q_OC_CFG);
+    flash_write(FLASH_DATA_BASE + FLASH_OFFS_IP3561Q_OC_CFG,
+                (uint8_t *)&local, sizeof(ip3561q_oc_cfg_t));
+}
+
+/* ==========================================================================
  *  配置寄存器写入 (按海信20K项目寄存器操作手册)
  *
- *  注意: 0x04-0x07 由 ip3561q_calc_oc_thresholds() 动态计算,
+ *  注意: 0x04-0x07 优先从 Flash 备份加载, 备份无效时动态计算并保存;
  *        补偿寄存器 (0x2F/0x3E/0x7E/0x7F) 为工厂校准值, 不写入
  * ========================================================================== */
 static const uint8_t ip3561q_cfg_static[][2] = {
@@ -251,8 +315,28 @@ static uint8_t ip3561q_config_regs(void)
     if (ip3561q_read_reg(IP3561Q_REG_CELL_PD, &rbuf, 1) || rbuf != cell_pd_val)
         res = 0;
 
-    /* Step 1: 读取工厂校准值, 计算 0x04-0x07 过流保护阈值 */
-    ip3561q_calc_oc_thresholds(&doc1_val, &doc2_val, &sc_val, &coc_val);
+    /* Step 1: 获取 0x04-0x07 过流保护阈值 (优先 Flash 备份, 无效则计算并保存) */  
+    ip3561q_oc_cfg_t oc_cfg;
+    
+    if (ip3561q_oc_cfg_read(&oc_cfg))
+    {
+        /* Flash 备份有效, 直接使用 */
+        doc1_val = oc_cfg.doc1;
+        doc2_val = oc_cfg.doc2;
+        sc_val   = oc_cfg.sc;
+        coc_val  = oc_cfg.coc;
+    }
+    else
+    {
+        /* 首次上电或备份无效: 读取工厂校准值, 计算并保存 */
+        ip3561q_calc_oc_thresholds(&doc1_val, &doc2_val, &sc_val, &coc_val);
+
+        oc_cfg.doc1 = doc1_val;
+        oc_cfg.doc2 = doc2_val;
+        oc_cfg.sc   = sc_val;
+        oc_cfg.coc  = coc_val;
+        ip3561q_oc_cfg_save(&oc_cfg);
+    }   
 
     /* Step 2: 写入固定配置寄存器 (0x00-0x03, 0x0A-0x17, 0x42 等) */
     for (i = 0; i < IP3561Q_CFG_STATIC_COUNT; i++)

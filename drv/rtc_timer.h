@@ -37,6 +37,9 @@
  *  │  ■ 时间戳块1 (256B)             │
  *  ├─────────────────────────────────┤ +0x0300
  *  │  ■ 时间戳块2 (256B)             │
+ *  ├─────────────────────────────────┤ +0x0400  ← FLASH_OFFS_IP3561Q_OC_CFG
+ *  │  ■ IP3561Q OC 阈值备份 (256B)    │
+ *  │    DOC1/DOC2/SC/COC + CRC8      │
  *  │                                │
  *  │  ... 预留 ...                   │
  *  │                                │
@@ -72,6 +75,9 @@
 #define FLASH_OFFS_TIMESTAMP_BLOCK0  (0x0100)      /* 时间戳块 0 */
 #define FLASH_OFFS_TIMESTAMP_BLOCK1  (0x0200)      /* 时间戳块 1 */
 #define FLASH_OFFS_TIMESTAMP_BLOCK2  (0x0300)      /* 时间戳块 2 */
+
+/* ---- BMS OC (过流保护) 初始值 ---- */
+#define FLASH_OFFS_IP3561Q_OC_CFG      (0x0400)      /* IP3561Q 过流保护阈值备份 (256B) */
 
 /* ---- 异常记录区 ---- */
 #define FLASH_OFFS_ABNORMAL_VOLTAGE     (0x3000)      /* 电压异常固定区 */
