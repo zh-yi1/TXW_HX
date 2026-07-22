@@ -228,14 +228,17 @@ void power_mgr_enter_stop(void)
 
     do
     {
+        /* 强制记录时间 — 必须在 io_low_power_config() 关闭 SPI 引脚之前,
+           否则写在死总线上静默失败, 复位后时间回退到上一个 120s 存盘点.
+           注意: IWDG 轻量唤醒循环 (第 2 次起) SPI 引脚仍是关闭的, 此时
+           写入仍会失败 (回读校验会打印 FAIL), 时间靠 AFE 增量保证. */
+        rtc_save_checkpoint();
+
         /* IO 低功耗配置 (防漏电) */
         power_mgr_io_low_power_config();
 
         /* 清零唤醒原因 */
         g_wakeup_cause = WAKEUP_CAUSE_NONE;
-
-        // 强制记录时间
-        rtc_save_checkpoint();
 
         /* 进STOP前喂狗, 确保计数器从满载开始.
            注意: md_iwdt_clear_flag_interrupt() 只清中断标志, 不重载下计数器;
@@ -277,6 +280,7 @@ void power_mgr_enter_stop(void)
         }
         if (g_wakeup_cause == WAKEUP_CAUSE_IWDG)
             rtc_save_checkpoint(); /* 立刻存盘, 防止下次进STOP前丢数据 */
+        LOGI("[PWR] wake ts=%lu\r\n", (unsigned long)rtc_get_timestamp());
         rtc_timer_proc();
 
         if (g_wakeup_cause == WAKEUP_CAUSE_KEY)

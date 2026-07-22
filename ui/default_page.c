@@ -132,7 +132,7 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 	/* 无变化则跳过 */
 	if (power_value == last_power[port] && status == last_status[port])
 	{
-		LOGI("[POWER] port=%d skip: power=%d status=%d unchanged\n", port, power_value, status);
+		// LOGI("[POWER] port=%d skip: power=%d status=%d unchanged\n", port, power_value, status);
 		return;
 	}
 

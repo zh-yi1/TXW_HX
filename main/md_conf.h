@@ -112,9 +112,9 @@
 /* ========================================================================== */
 /*  Feature Switch                                                            */
 /* ========================================================================== */
-// #define DEBUG_EN            /* 注释此宏关闭 printf 调试，恢复 USART1 产测协议        */
+#define DEBUG_EN            /* 注释此宏关闭 printf 调试，恢复 USART1 产测协议        */
 #define UPGRADE_EN        /* 注释此宏关闭固件升级功能，节省 Flash             */
-// #define RTC_TIME_PRINT_EN   /* 注释此宏关闭每 5 秒串口打印当前时间                   */
+#define RTC_TIME_PRINT_EN   /* 注释此宏关闭每 5 秒串口打印当前时间                   */
 // #define PROD_TEST_SIMPLE_EN   /* 启用简化版产测协议 (CMD 0x01上报 / CMD 0x02写密匙)   */
 #define ENABLE_CHARGE_ANIM    /* 注释此宏关闭充放电动画和粒子效果，节省 Flash          */
 

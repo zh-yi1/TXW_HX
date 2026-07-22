@@ -170,6 +170,8 @@ void rtc_timer_init(void)
         cfg.cell_count = 4;
         cfg.disable_reason = 0;
         factory_cfg_write(&cfg);
+        LOGI("[RTC] init: first boot, default ts=%lu\r\n",
+             (unsigned long)g_start_timestamp);
         return;
     }
 
@@ -198,6 +200,12 @@ void rtc_timer_init(void)
         }
     }
 
+    /* 恢复诊断: run_sec 来自 Flash 最后一条有效存盘, 若明显偏小说明
+       之前的存盘失败或复位间隔内未存盘 */
+    LOGI("[RTC] init: restore run=%lu ts=%lu blk=%d\r\n",
+         (unsigned long)g_running_seconds,
+         (unsigned long)(g_start_timestamp + g_running_seconds),
+         (int)g_ts_block_idx);
 }
 
 /*
@@ -252,19 +260,32 @@ uint8_t rtc_timer_afe_update(void)
     if (!g_time_synced)
         return 1;
 
-    if (ip3561q_read_timer(&now_sec) != 0)
+    if (ip3561q_read_timer(&now_sec) != 0) {
+        LOGI("[RTC] afe read FAIL\r\n");
         return 1;
+    }
 
     if (!g_afe_valid) {
         /* 首次成功读取: 只建立基准, 不推进时间 */
         g_afe_valid = 1;
+        LOGI("[RTC] afe baseline=%lu run=%lu\r\n",
+             (unsigned long)now_sec, (unsigned long)g_running_seconds);
     } else {
         uint32_t delta;
 
-        if (now_sec >= g_afe_last)
+        if (now_sec >= g_afe_last) {
             delta = now_sec - g_afe_last;
-        else
+        } else {
             delta = now_sec;    /* AFE 掉电重启计数清零: 至少过了 now_sec 秒 */
+            LOGI("[RTC] afe BACKWARD %lu->%lu\r\n",
+                 (unsigned long)g_afe_last, (unsigned long)now_sec);
+        }
+
+        /* 正常每秒对时 delta=0~1, >=3 说明经历了 STOP/阻塞, 打印便于核对 */
+        if (delta >= 3)
+            LOGI("[RTC] afe +%lus (fb=%lu) run=%lu\r\n",
+                 (unsigned long)delta, (unsigned long)g_fallback_secs,
+                 (unsigned long)(g_running_seconds + delta - g_fallback_secs));
 
         if (delta > g_fallback_secs)
             g_running_seconds += delta - g_fallback_secs;
@@ -373,10 +394,23 @@ void rtc_save_checkpoint(void)
     entry.running_seconds = g_running_seconds;
     entry.crc8 = entry_crc8(&entry);
 
-    /* 写入 */
+    /* 写入 + 回读校验: SPI 引脚被低功耗配置关闭时写入会静默失败,
+       回读比对才能暴露 (此时打印 FAIL, 条目未落盘) */
     if (write_ts_entry(g_saved_addr, &entry) == 0) {
+        timestamp_entry_t verify;
+
         flash_wait_unbusy();
-        g_saved_addr += TS_ENTRY_SIZE;
+        if (flash_read(g_saved_addr, (uint8_t *)&verify, TS_ENTRY_SIZE) == MD_OK &&
+            verify.running_seconds == entry.running_seconds &&
+            verify.crc8 == entry.crc8) {
+            LOGI("[RTC] ckpt ok sec=%lu\r\n", (unsigned long)g_running_seconds);
+            g_saved_addr += TS_ENTRY_SIZE;
+        } else {
+            /* 写入未落盘 (如 SPI 引脚被关): 不推进地址, 避免留下 0xFF 空洞
+               导致重启扫描提前终止; 下次在同一槽位重写 */
+            LOGI("[RTC] ckpt FAIL sec=%lu @0x%lX\r\n",
+                 (unsigned long)g_running_seconds, (unsigned long)g_saved_addr);
+        }
     }
 }
 
