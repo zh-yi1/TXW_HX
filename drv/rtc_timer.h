@@ -26,6 +26,7 @@
  *  │    禁用原因 1B                   │
  *  │    SOH 1B                       │
  *  │    循环次数 2B                   │
+ *  │    SOC 1B                       │
  *  │    CRC8 1B                      │
  *  │    生产时串口写入, 永不擦除       │
  *  │                                │
@@ -105,8 +106,9 @@ typedef struct {
     uint8_t  disable_reason;        /* 禁用原因: 0=正常 1=过压 2=欠压 (持久化) */
     uint8_t  soh;                   /* 电池健康度 SOH (%) */
     uint16_t cycle_count;           /* 真实循环次数 CYCLE_A (掉电保存) */
-    uint8_t  crc8;                  /* 覆盖 magic ~ cycle_count 的 CRC-8 */
-} factory_cfg_t;                    /* 共 124B */
+    uint8_t  soc;                   /* 电池电量 SOC (%, 掉电保存, 进休眠前写) */
+    uint8_t  crc8;                  /* 覆盖 magic ~ soc 的 CRC-8 */
+} factory_cfg_t;                    /* 共 126B */
 #pragma pack()
 
 /* ---- 外部接口 ---- */
@@ -125,8 +127,8 @@ uint32_t rtc_get_dis_seconds(void);       /* 获取运行时间 (秒) */
 void     factory_cfg_read(factory_cfg_t *cfg);
 void     factory_cfg_write(const factory_cfg_t *cfg);
 uint8_t  factory_cfg_is_valid(const factory_cfg_t *cfg);  /* magic==0x55 && CRC8 正确 */
-void     factory_cfg_write_soh(uint8_t soh);              /* 读-改-写 SOH */
-void     factory_cfg_write_cycle(uint16_t cycle_count);   /* 读-改-写 循环次数 */
+void     factory_cfg_write_bat(uint8_t soc, uint8_t soh, uint16_t cycle); /* 读-改-写 SOC+SOH+循环 */
+void     factory_cfg_write_soc(uint8_t soc);              /* 读-改-写 SOC (进休眠前, 不同才写) */
 
 /* ---- 时间转换 ---- */
 uint32_t rtc_bcd6_to_unix(const uint8_t bcd[6]);           /* BCD(YYMMDDHHMMSS) → Unix */

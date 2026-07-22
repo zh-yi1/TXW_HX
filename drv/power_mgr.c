@@ -226,6 +226,11 @@ void power_mgr_enter_stop(void)
     WriteComm(0x28); /* Display OFF */
     WriteComm(0x10); /* Sleep In */
 
+    /* 进 STOP 前: SOC 有变化则存盘 (内部先校验 cfg 有效, SOC 没变不写).
+       放在 do 循环外: IWDG 周期唤醒重进 STOP 时主机没起来, SOC 不会变,
+       无需重复写 (且轻量唤醒循环里 SPI 引脚已关, 写也写不进去) */
+    factory_cfg_write_soc(ui_data.bat_power);
+
     do
     {
         /* 强制记录时间 — 必须在 io_low_power_config() 关闭 SPI 引脚之前,

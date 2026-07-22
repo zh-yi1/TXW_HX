@@ -497,9 +497,12 @@ void static_cfg_save_test(void)
     strcpy(cfg.bat_model[1], "GDHPCDG6L-X2222222");
     strcpy(cfg.bat_model[2], "GDHPCDG6L-X3333333");
     strcpy(cfg.bat_model[3], "GDHPCDG6L-X4444444");
-    cfg.cell_count = 4;     
+    cfg.cell_count = 4;
     memset(cfg.device_sn, 0, sizeof(cfg.device_sn));
     cfg.disable_reason = 0;
+    cfg.soh = 0;            /* 0=未收到过电池数据, 开机不做恢复 */
+    cfg.cycle_count = 0;
+    cfg.soc = 0;
     factory_cfg_write(&cfg);
 }
 

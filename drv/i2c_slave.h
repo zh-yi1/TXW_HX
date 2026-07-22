@@ -132,6 +132,7 @@ uint8_t i2c_is_host_sleeping(void);     /* 连续 5s 无地址匹配 → 主机�
 /* ---- 对外接口 ---- */
 void i2c_slave_init(void);
 void i2c_slave_proc(void);
+void i2c_slave_restore_bat_backup(void);  /* 开机回填 0x71~0x74 + 密码位 (V1.3 §4.7/§4.8) */
 
 /* ---- I2C flag 清除辅助函数 (硬件序列清除) ---- */
 __STATIC_INLINE void i2c_clear_flag_addr(I2C_TypeDef *i2c)

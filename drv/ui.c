@@ -74,6 +74,9 @@ void ui_init(void)
 	// over_temp_hint_page();
 	//获取FLASH芯片 ID
 //	ui_ctrl.flash_id = flash_read_id();
+
+	//开机从 factory_cfg 恢复 SOC/SOH/循环, 回填 0x71~0x74 + 密码位
+	i2c_slave_restore_bat_backup();
 }
 
 

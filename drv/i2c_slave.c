@@ -5,6 +5,7 @@
 #define I2C_REG_MAP_SIZE  0x90
 volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE] = {
     [REG_SOC]             = 0xFF,  /* 0xFF=未收到, 区分电量 0% */
+    [REG_SOH]             = 0xFF,  /* 0xFF=未收到, 区分健康度数据 */
     [REG_FW_VERSION_L]    = 0x00,  /* V1.00 BCD */
     [REG_FW_VERSION_H]    = 0x01,
     [REG_TFT_ONLINE_CRC]  = 0x55,  /* 从机就绪标志 */
@@ -385,6 +386,54 @@ static void pull_sensor_data(void)
     i2c_reg_map[REG_AFE_PROTECT3] = ip3561q_raw.status3;
 }
 
+/* ---- 已收到主机正常 SOH/循环数据 (开机后置位一次, 之后一直保持) ---- */
+static uint8_t s_host_bat_seen = 0;
+
+/* ---- 电池数据有效标志 (开机恢复过 或 收到过主机正常数据) ---- */
+static uint8_t s_bat_data_valid = 0;
+
+/* ========================================================================
+ * bms_backup_regs_fill — 回填 BMS 备用寄存器 0x71~0x74 + 密码位 0x84
+ *
+ * 协议 V1.3 §4.7/§4.8: 密码位 0x66 表示 0x71~0x74 的回传值有效,
+ * 主机上电先比对密码, 密码对了才提取数据恢复. 一旦填充就一直保持.
+ * ======================================================================== */
+static void bms_backup_regs_fill(void)
+{
+    i2c_reg_map[REG_BMS_SOC]     = ui_data.bat_power;
+    i2c_reg_map[REG_BMS_SOH]     = ui_data.bat_max_cap;
+    i2c_reg_map[REG_BMS_CYCLE_L] = (uint8_t)(ui_data.bat_cycle_cnt & 0xFF);
+    i2c_reg_map[REG_BMS_CYCLE_H] = (uint8_t)(ui_data.bat_cycle_cnt >> 8);
+    i2c_reg_map[REG_PASSWORD]    = 0x66;
+    s_bat_data_valid             = 1;
+}
+
+/* ========================================================================
+ * i2c_slave_restore_bat_backup — 开机从 factory_cfg 恢复 SOC/SOH/循环
+ *
+ * 收到过正常数据 (soh 1~100): 回填 ui_data + 0x71~0x74 + 密码位,
+ * 掉电/复位后主机比对密码 0x66 通过即可提取恢复.
+ * 首次开机无数据: 不填充, 密码位保持 0x00, 主机按首次处理.
+ * ======================================================================== */
+void i2c_slave_restore_bat_backup(void)
+{
+    factory_cfg_t cfg;
+
+    factory_cfg_read(&cfg);
+    if (!factory_cfg_is_valid(&cfg))
+        return;
+
+    if (cfg.soh < 1 || cfg.soh > 100)
+        return; /* 从未收到过正常 SOH, 无可恢复数据 */
+
+    if (cfg.soc <= 100)
+        ui_data.bat_power = cfg.soc;
+        
+    ui_data.bat_max_cap   = cfg.soh;
+    ui_data.bat_cycle_cnt = cfg.cycle_count;
+    bms_backup_regs_fill();
+}
+
 /* ========================================================================
  * apply_host_data — 解析 G020 写入的 W 寄存器 → ui_data
  * ======================================================================== */
@@ -395,26 +444,23 @@ static void apply_host_data(void)
         uint8_t  host_soc   = i2c_reg_map[REG_SOC];
         uint8_t  host_soh   = i2c_reg_map[REG_SOH];
         uint16_t host_cycle = reg_read_u16(REG_CYCLE_L);
-        uint8_t  updated    = 0;
 
-        /* SOH / CYCLE 与 ui_data 旧值比较, 变化时写 Flash */
-        if (host_soh != ui_data.bat_max_cap) {
-            factory_cfg_write_soh(host_soh);
-            updated = 1;
-        }
-        if (host_cycle != ui_data.bat_cycle_cnt) {
-            factory_cfg_write_cycle(host_cycle);
-            updated = 1;
-        }
-        if (updated) {
-            i2c_reg_map[REG_BMS_SOH]     = host_soh;
-            i2c_reg_map[REG_BMS_CYCLE_L] = (uint8_t)(host_cycle & 0xFF);
-            i2c_reg_map[REG_BMS_CYCLE_H] = (uint8_t)(host_cycle >> 8);
+        if (host_soc <= 100)
+            ui_data.bat_power = host_soc;
+
+        if (host_soh >= 1 && host_soh <= 100) {
+            if (host_soh != ui_data.bat_max_cap ||
+                host_cycle != ui_data.bat_cycle_cnt)
+                factory_cfg_write_bat(ui_data.bat_power, host_soh, host_cycle);
+            ui_data.bat_max_cap   = host_soh;
+            ui_data.bat_cycle_cnt = host_cycle;
+            s_host_bat_seen = 1;
         }
 
-        ui_data.bat_power     = host_soc;
-        ui_data.bat_max_cap   = host_soh;
-        ui_data.bat_cycle_cnt = host_cycle;
+        /* 收到过正常数据或开机已恢复:
+           保持 0x71~0x74 回传值 + 密码位 0x66 (协议 V1.3) */
+        if (s_host_bat_seen || s_bat_data_valid)
+            bms_backup_regs_fill();
     }
 
     ui_data.charge_remain_time    = reg_read_u32(REG_CHARGE_REMAIN_0);    /* V1.3 未使用 */
@@ -497,12 +543,6 @@ static void apply_host_data(void)
     if (ui_data.is_charge)
         ui_data.low_current_flag = false;
 
-    /* V1.3: 收到电量数据后, password 寄存器写 0x66 告知主机已就绪
-     * SOC 初始值为 0xFF, 主机写入合法值 (0~100) 后触发 */
-    if (i2c_reg_map[REG_SOC] <= 100) {
-        i2c_reg_map[REG_PASSWORD] = 0x66;
-    }
-
     /* 充电完成检测: is_charge 下降沿 (1→0) 时复位运行时间
      * 注意: 此处使用独立静态变量做边沿检测, 不修改 ui_data.is_charge_last,
      * 该字段由 default_page_updata() 负责维护, 用于 UI 层充放电切换重绘 */
@@ -530,9 +570,10 @@ void i2c_slave_proc(void)
     /* 恢复出厂设置: 场测解锁后 prod_test 置标志, 此处消费并通知主机 */
     if (prod_test_get_unlock_flag()) {
         i2c_reg_map[0x70] = 0xC0;                  /* 通知主机: 已进入场测模式 */
-        i2c_reg_map[0x72] = 100;   /* SOH */
-        i2c_reg_map[0x73] = 0;     /* CYCLE 低字节 */
-        i2c_reg_map[0x74] = 0;     /* CYCLE 高字节 */
+        i2c_reg_map[REG_BMS_SOC]     = ui_data.bat_power;
+        i2c_reg_map[REG_BMS_SOH]     = 100;   /* SOH 还原 */
+        i2c_reg_map[REG_BMS_CYCLE_L] = 0;     /* CYCLE 清零 */
+        i2c_reg_map[REG_BMS_CYCLE_H] = 0;
         prod_test_clear_unlock_flag();
     }
 

@@ -526,33 +526,43 @@ void factory_cfg_write(const factory_cfg_t *cfg)
 }
 
 /*
- * factory_cfg_write_soh — 读-改-写 SOH (电池健康度)
+ * factory_cfg_write_bat — 读-改-写 SOC + SOH + 循环次数 (值有变才写)
  */
-void factory_cfg_write_soh(uint8_t soh)
+void factory_cfg_write_bat(uint8_t soc, uint8_t soh, uint16_t cycle)
 {
     factory_cfg_t cfg;
 
     factory_cfg_read(&cfg);
     if (!factory_cfg_is_valid(&cfg))
-        return; /* 未写入过配置, 不单独写 SOH */
+        return; /* 未写入过配置, 不单独写电池数据 */
 
-    cfg.soh = soh;
+    if (cfg.soc == soc && cfg.soh == soh && cfg.cycle_count == cycle)
+        return;
+
+    cfg.soc         = soc;
+    cfg.soh         = soh;
+    cfg.cycle_count = cycle;
     factory_cfg_write(&cfg);
+    LOGI("[CFG] save soc=%d soh=%d cyc=%d\r\n", (int)soc, (int)soh, (int)cycle);
 }
 
 /*
- * factory_cfg_write_cycle — 读-改-写 循环次数
+ * factory_cfg_write_soc — 读-改-写 SOC, 不同才写 (进 STOP 休眠前调用)
  */
-void factory_cfg_write_cycle(uint16_t cycle_count)
+void factory_cfg_write_soc(uint8_t soc)
 {
     factory_cfg_t cfg;
 
     factory_cfg_read(&cfg);
     if (!factory_cfg_is_valid(&cfg))
-        return; /* 未写入过配置, 不单独写循环次数 */
+        return;
 
-    cfg.cycle_count = cycle_count;
+    if (cfg.soc == soc)
+        return;
+
+    cfg.soc = soc;
     factory_cfg_write(&cfg);
+    LOGI("[CFG] save soc=%d\r\n", (int)soc);
 }
 
 /* ========================================================================== */
