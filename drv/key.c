@@ -192,10 +192,10 @@ void key_combo_cb(void)
 	g_key_event = KEY_EVENT_COMBO;
 
 #ifdef UPGRADE_EN
-	/* 仅充电时允许触发升级模式: 设置标志位, main() 循环中处理 */
-	if (ui_data.is_charge) {
-		g_enter_upgrade = 1;
-	}
+	/* 升级模式改由场测指令 0x24 (解锁后有效) 触发, 按键组合不再置位 */
+	// if (ui_data.is_charge) {
+	// 	g_enter_upgrade = 1;
+	// }
 #endif
 }
 

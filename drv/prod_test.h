@@ -48,6 +48,7 @@ typedef enum {
 #define PT_CMD_WRITE_SN     0x21U  /* 写入整机 SN */
 #define PT_CMD_WRITE_BAT_SN 0x22U  /* 写入电池 SN */
 #define PT_CMD_SYNC_TIME    0x23U  /* 同步时间 */
+#define PT_CMD_ENTER_UPGRADE 0x24U /* 进入升级模式 (解锁后有效) */
 
 /* ---- 模式控制参数 ---- */
 #define PT_MODE_ENTER_TEST  0x01U  /* 进入测试模式 */

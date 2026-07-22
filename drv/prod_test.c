@@ -585,6 +585,23 @@ static void pt_handle_sync_time(const uint8_t *params, uint8_t len)
     PT_PUTS("\r\n");
 }
 
+/* CMD 0x24 — 进入升级模式 (解锁后有效): 置升级标志, main() 循环消费后跳转 Bootloader */
+static void pt_handle_enter_upgrade(void)
+{
+    if (!pt_rt.unlocked)
+    {
+        pt_send_line("ERR=NOT_UNLOCKED");
+        return;
+    }
+
+#ifdef UPGRADE_EN
+    g_enter_upgrade = 1;
+    pt_send_line("ACK=OK");
+#else
+    pt_send_line("ERR=UPGRADE_DISABLED");
+#endif
+}
+
 /* ========================================================================== */
 /*  帧处理                                                                   */
 /* ========================================================================== */
@@ -612,6 +629,9 @@ static void pt_dispatch_frame(uint8_t cmd, const uint8_t *params, uint8_t param_
         break;
     case PT_CMD_SYNC_TIME:
         pt_handle_sync_time(params, param_len);
+        break;
+    case PT_CMD_ENTER_UPGRADE:
+        pt_handle_enter_upgrade();
         break;
     default:
         pt_send_line("ERR=UNKNOWN_CMD");
