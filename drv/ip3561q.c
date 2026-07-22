@@ -441,8 +441,17 @@ uint8_t ip3561q_read_all(ip3561q_data_t *data)
         data->current_adc = (int16_t)(((uint16_t)ca[0] << 8) | ca[1]);
     }
 
-    /* TIMER: 0x63, 0x64, 0x7C, 0x7D */
-    err |= ip3561q_read_timer(&data->timer);
+    /* TIMER: 0x63, 0x64, 0x7C, 0x7D
+       注意: data 是 pack(1) 结构体, timer 成员地址非 4 字节对齐,
+       不能把 &data->timer 直接传给 uint32_t* (M0 非对齐访问 HardFault),
+       必须经对齐的局部变量中转, 由编译器按 packed 成员拆字节写入 */
+    {
+        uint32_t tmr;
+        if (ip3561q_read_timer(&tmr) == 0)
+            data->timer = tmr;
+        else
+            err |= 1;
+    }
 
     return err;
 }
