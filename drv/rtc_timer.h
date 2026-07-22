@@ -115,7 +115,8 @@ void rtc_timer_reinit(void);               /* 生产配置写入后重新初始�
 void rtc_timer_proc(void);
 uint32_t rtc_get_timestamp(void);          /* 返回当前 Unix 时间戳，未同步返回 0 */
 void rtc_save_checkpoint(void);            /* 强制保存时间戳存盘点 */
-void rtc_timer_compensate_stop(uint32_t seconds); /* STOP唤醒后补偿丢失的时间 */
+uint8_t rtc_timer_afe_update(void);        /* 用 AFE 实时计时器推进时间, 0=成功 */
+void rtc_timer_compensate_stop(uint32_t seconds); /* STOP唤醒后按名义时长补偿 (AFE 读失败时的回退) */
 uint8_t rtc_is_synced(void);               /* 是否已时间同步 */
 void rtc_reset_running_time_on_event(void);/* 充电完成/场测同步时复位运行时间起始点 */
 uint32_t rtc_get_dis_seconds(void);       /* 获取运行时间 (秒) */

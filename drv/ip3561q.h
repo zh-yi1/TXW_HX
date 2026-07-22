@@ -135,6 +135,7 @@ uint8_t  ip3561q_is_ready(void);
 uint8_t  ip3561q_read_reg(uint8_t reg, uint8_t *buf, uint8_t len);
 uint8_t  ip3561q_write_reg(uint8_t reg, uint8_t *buf, uint8_t len);
 uint8_t  ip3561q_read_all(ip3561q_data_t *data);
+uint8_t  ip3561q_read_timer(uint32_t *sec);   /* 读 32 位实时计时器 (LSB=1s), 0=成功 */
 void     ip3561q_calc_data(ip3561q_data_t *raw, ip3561q_proc_data_t *p);
 void     ip3561q_proc(void);
 uint8_t  ip3561q_oc_cfg_read(ip3561q_oc_cfg_t *cfg);   /* 从 Flash 读取 OC 阈值备份, 校验通过返回 1 */
