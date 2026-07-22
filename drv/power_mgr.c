@@ -256,21 +256,27 @@ void power_mgr_enter_stop(void)
         LOGI("[PWR] === WFI exit, cause=%d ===\r\n", g_wakeup_cause);
 #endif
 
-        /* 补偿 STOP 期间丢失的时间 */
+        /* 补偿 STOP 期间丢失的时间: 先恢复软件 I2C 引脚 (STOP 前被设为
+           高阻), 直读 AFE 实时计时器增量; 读失败才退回名义时长估算 */
+        ip3561q_wakeup_init();
+        if (rtc_timer_afe_update() != 0)
+        {
+            if (g_wakeup_cause == WAKEUP_CAUSE_IWDG)
+            {
+                rtc_timer_compensate_stop(POWER_MGR_IWDG_WAKEUP_SEC);
+            }
+            else
+            {
+                /* 按键唤醒: 用 IWDT 计数器估算 */
+                uint32_t iwdt_load = 32000UL * POWER_MGR_IWDG_WAKEUP_SEC;
+                uint32_t iwdt_val = md_iwdt_get_count_value();
+                uint32_t elapsed = (iwdt_load - iwdt_val) / 32000UL;
+                if (elapsed > 0 && elapsed < POWER_MGR_IWDG_WAKEUP_SEC * 2)
+                    rtc_timer_compensate_stop(elapsed);
+            }
+        }
         if (g_wakeup_cause == WAKEUP_CAUSE_IWDG)
-        {
-            rtc_timer_compensate_stop(POWER_MGR_IWDG_WAKEUP_SEC);
             rtc_save_checkpoint(); /* 立刻存盘, 防止下次进STOP前丢数据 */
-        }
-        else
-        {
-            /* 按键唤醒: 用 IWDT 计数器估算 */
-            uint32_t iwdt_load = 32000UL * POWER_MGR_IWDG_WAKEUP_SEC;
-            uint32_t iwdt_val = md_iwdt_get_count_value();
-            uint32_t elapsed = (iwdt_load - iwdt_val) / 32000UL;
-            if (elapsed > 0 && elapsed < POWER_MGR_IWDG_WAKEUP_SEC * 2)
-                rtc_timer_compensate_stop(elapsed);
-        }
         rtc_timer_proc();
 
         if (g_wakeup_cause == WAKEUP_CAUSE_KEY)

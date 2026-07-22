@@ -442,18 +442,45 @@ uint8_t ip3561q_read_all(ip3561q_data_t *data)
     }
 
     /* TIMER: 0x63, 0x64, 0x7C, 0x7D */
-    {
-        uint8_t tm[4];
-        err |= ip3561q_read_reg(IP3561Q_REG_TIMER0, tm, 4);
-        data->timer  = ((uint32_t)tm[0]);
-        data->timer |= ((uint32_t)tm[1] << 8);
-
-        err |= ip3561q_read_reg(IP3561Q_REG_TIMER2, tm, 2);
-        data->timer |= ((uint32_t)tm[0] << 16);
-        data->timer |= ((uint32_t)tm[1] << 24);
-    }
+    err |= ip3561q_read_timer(&data->timer);
 
     return err;
+}
+
+/* ==========================================================================
+ *  读取 32 位实时计时器 (手册 §10.13)
+ *
+ *  LSB=1s, 上电即计数且 IDLE 下不停, 掉电清零.
+ *  低 16 位在 0x63/0x64, 高 16 位在 0x7C/0x7D, 两笔传输之间低 16 位可能
+ *  进位, 用 "高-低-高" 一致性读法: 两次高 16 位一致才接受, 否则重读.
+ *  注意起始地址必须用 0x63 而非连读 4 字节: 0x65/0x66 是读清零的标志位
+ *  寄存器, 连读会把它们误清除.
+ * ========================================================================== */
+uint8_t ip3561q_read_timer(uint32_t *sec)
+{
+    uint8_t retry;
+
+    if (sec == NULL)
+        return 1;
+
+    for (retry = 0; retry < 3; retry++)
+    {
+        uint8_t hi1[2], lo[2], hi2[2];
+
+        if (ip3561q_read_reg(IP3561Q_REG_TIMER2, hi1, 2))
+            continue;
+        if (ip3561q_read_reg(IP3561Q_REG_TIMER0, lo, 2))
+            continue;
+        if (ip3561q_read_reg(IP3561Q_REG_TIMER2, hi2, 2))
+            continue;
+        if (hi1[0] != hi2[0] || hi1[1] != hi2[1])
+            continue;
+
+        *sec = ((uint32_t)hi1[1] << 24) | ((uint32_t)hi1[0] << 16) |
+               ((uint32_t)lo[1]  << 8)  | ((uint32_t)lo[0]);
+        return 0;
+    }
+    return 1;
 }
 
 /* ==========================================================================

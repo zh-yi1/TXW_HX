@@ -30,7 +30,16 @@ static uint32_t g_saved_addr;          /* 当前写入地址 (绝对) */
 static uint32_t g_dis_start_ts;        /* 显示的运行时间起始点 (Flash dis_start_ts 的 RAM 镜像) */
 
 static uint8_t  g_time_synced;         /* 是否已时间同步 */
-static uint32_t g_last_second_tick;    /* 上次秒数更新时刻 */
+static uint32_t g_last_second_tick;    /* 上次秒数更新时刻 (AFE 读失败时的回退时基) */
+
+/* ---- AFE (IP3561Q) 实时计时器时基 ----
+ * TIMER[31:0] LSB=1s, 上电即计数、IDLE 下不停 (手册 §10.13), STOP 期间
+ * MCU 停表而 AFE 照常计数, 用增量推进 g_running_seconds 可同时消除
+ * LSI ±5% 漂移补偿和 STOP 名义时长估算误差. AFE 掉电 (拔电芯) 时计数
+ * 器清零, 表现为读数回退, 按 "至少过了 now 秒" 处理. */
+static uint32_t g_afe_last;            /* 上次读到的 AFE TIMER 值 (秒) */
+static uint8_t  g_afe_valid;           /* AFE 时基基准已建立 */
+static uint32_t g_fallback_secs;       /* 上次 AFE 成功读取以来, 回退路径补入的秒数 */
 
 /* 当前使用的时间戳块索引 (0/1/2) */
 static uint8_t  g_ts_block_idx;
@@ -223,6 +232,49 @@ void rtc_timer_reinit(void)
     g_saved_addr         = ts_block_addrs[0];
     g_time_synced        = 1;
     g_dis_start_ts = cfg.dis_start_ts;
+
+    /* AFE 时基重新建立基准 */
+    g_afe_valid     = 0;
+    g_fallback_secs = 0;
+}
+
+/*
+ * rtc_timer_afe_update — 用 AFE 实时计时器推进 g_running_seconds
+ *
+ * 返回 0=成功 (时间已按 AFE 增量推进), 1=失败 (未同步或 I2C 读失败,
+ * 调用方可退回内部 tick / 名义时长补偿, 补入的秒数须累计到
+ * g_fallback_secs, 下次 AFE 读取成功时从增量中扣除, 防止双重累计).
+ */
+uint8_t rtc_timer_afe_update(void)
+{
+    uint32_t now_sec;
+
+    if (!g_time_synced)
+        return 1;
+
+    if (ip3561q_read_timer(&now_sec) != 0)
+        return 1;
+
+    if (!g_afe_valid) {
+        /* 首次成功读取: 只建立基准, 不推进时间 */
+        g_afe_valid = 1;
+    } else {
+        uint32_t delta;
+
+        if (now_sec >= g_afe_last)
+            delta = now_sec - g_afe_last;
+        else
+            delta = now_sec;    /* AFE 掉电重启计数清零: 至少过了 now_sec 秒 */
+
+        if (delta > g_fallback_secs)
+            g_running_seconds += delta - g_fallback_secs;
+    }
+
+    g_fallback_secs    = 0;
+    g_afe_last         = now_sec;
+    /* 与 AFE 对齐后丢弃内部 tick 余数, 回退路径从此刻重新起算 */
+    g_last_second_tick = md_get_tick();
+    return 0;
 }
 
 void rtc_timer_proc(void)
@@ -236,12 +288,16 @@ void rtc_timer_proc(void)
     if (!g_time_synced)
         return;
 
-    /* 按实际经过的整秒数累加，保留余数避免累积误差 */
+    /* 每秒用 AFE 计时器对时; 读失败时退回内部 tick 按整秒累加,
+       保留余数避免累积误差, 并记入 g_fallback_secs 供 AFE 恢复后扣除 */
     if (now - g_last_second_tick >= 1000) {
-        uint32_t elapsed = now - g_last_second_tick;
-        uint32_t seconds = elapsed / 1000;
-        g_running_seconds += seconds;
-        g_last_second_tick += seconds * 1000;
+        if (rtc_timer_afe_update() != 0) {
+            uint32_t elapsed = now - g_last_second_tick;
+            uint32_t seconds = elapsed / 1000;
+            g_running_seconds += seconds;
+            g_fallback_secs   += seconds;
+            g_last_second_tick += seconds * 1000;
+        }
     }
 
 #ifdef RTC_TIME_PRINT_EN
@@ -541,7 +597,11 @@ void rtc_unix_to_datetime(uint32_t ts, uint16_t *year, uint8_t *month,
     *sec   = (uint8_t)(s % 60UL);
 }
 
-/* STOP 唤醒后补偿丢失的时间.
+/* STOP 唤醒后补偿丢失的时间 (回退路径).
+   主时基已改为 AFE 实时计时器: STOP 唤醒后 power_mgr 先尝试
+   rtc_timer_afe_update() 直读 AFE 增量, 仅当 AFE 读取失败时才走本函数
+   按名义时长估算. 补入的秒数记入 g_fallback_secs, AFE 恢复后扣除.
+
    每个 STOP 周期实际耗时 = IWDG睡眠N秒 + ~600ms awake工作 (NTC读取/存盘等).
    原实现只补 N 秒, 并把 awake 期间 SysTick 走过的进度丢弃, 导致每周期慢
    ~0.6s. 这里把上次补偿以来的 tick 增量 (即上一周期的 awake 毫秒数) 一并
@@ -579,6 +639,7 @@ void rtc_timer_compensate_stop(uint32_t seconds)
         sum_sec = 0;
 
     g_running_seconds += sum_sec;
+    g_fallback_secs   += sum_sec;   /* AFE 恢复后从增量中扣除, 防双重累计 */
 
     /* 回拨到 now - remainder, 让余数 ms 平滑累计到下一周期;
        仍保证 g_last_second_tick <= now, 不会触发 rtc_timer_proc 下溢.
