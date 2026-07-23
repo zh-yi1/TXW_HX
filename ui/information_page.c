@@ -164,7 +164,7 @@ void information_page_2_init(void)
     draw_value_in_area(R_BAT_TEMP, temp_filter_get() / 10,
                        FLASH_ADDR_DEGREE, DEGREE_CENTIGRDE_W, DEGREE_CENTIGRDE_H, FLASH_ADDR_NUM_40);
     //运行时间
-    Dispphoto_Dispaly_flash(36, 113, FLASH_ADDR_RUN_TIME);
+    // Dispphoto_Dispaly_flash(36, 113, FLASH_ADDR_RUN_TIME);
     /* 运行时间值: 格式 xx小时xx分 (白色字) */
     {
         uint32_t sec = rtc_get_dis_seconds();
@@ -242,7 +242,7 @@ void information_page_3_init(void)
 
     /* 电池型号 */
 
-    Dispphoto_Dispaly_flash(34, 116, FLASH_ADDR_CELL_MODEL);
+    // Dispphoto_Dispaly_flash(34, 116, FLASH_ADDR_CELL_MODEL);
     digit_display_string("506578AFU", 114, 114,
                              DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
 }

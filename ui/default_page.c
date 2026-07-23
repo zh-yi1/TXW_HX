@@ -364,10 +364,10 @@ static bool anima_tick(void)
 		{
 			int n = (ui_data.anim_power >= 100) ? 3 : (ui_data.anim_power >= 10) ? 2 : 1;
 			int icon_x = x + n * NUM_48_W;
-			uint32_t icon_addr = (ui_data.bat_power > 10)
-			                     ? FLASH_ADDR_CHARGING_BLUE
-			                     : FLASH_ADDR_CHARGING_ORANGE;
-			Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
+			// uint32_t icon_addr = (ui_data.bat_power > 10)
+			//                      ? FLASH_ADDR_CHARGING_BLUE
+			//                      : FLASH_ADDR_CHARGING_ORANGE;
+			// Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
 		}
 		return true;
 	}
@@ -469,10 +469,10 @@ void default_page_show_battery(void)
 		int n = (ui_data.bat_power >= 100) ? 3 : (ui_data.bat_power >= 10) ? 2
 																		   : 1;
 		int icon_x = x + n * NUM_48_W;
-		uint32_t icon_addr = (ui_data.bat_power > 10)
-								 ? FLASH_ADDR_CHARGING_BLUE
-								 : FLASH_ADDR_CHARGING_ORANGE;
-		Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
+		// uint32_t icon_addr = (ui_data.bat_power > 10)
+		// 						 ? FLASH_ADDR_CHARGING_BLUE
+		// 						 : FLASH_ADDR_CHARGING_ORANGE;
+		// Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
 	}
 
 	/* 更新追踪 */
@@ -591,11 +591,11 @@ void default_page_init()
 	default_page_show_battery();
 
 	// 显示固定位置图标
-	Dispphoto_Dispaly_flash(14, 83, FLASH_ADDR_TYPE_C);
+	// Dispphoto_Dispaly_flash(14, 83, FLASH_ADDR_TYPE_C);
 	Dispphoto_Dispaly_flash(46, 83, FLASH_ADDR_USB_1);
-	Dispphoto_Dispaly_flash(95, 83, FLASH_ADDR_TYPE_C);
+	// Dispphoto_Dispaly_flash(95, 83, FLASH_ADDR_TYPE_C);
 	Dispphoto_Dispaly_flash(127, 83, FLASH_ADDR_USB_2);
-	Dispphoto_Dispaly_flash(176, 83, FLASH_ADDR_USB);
+	// Dispphoto_Dispaly_flash(176, 83, FLASH_ADDR_USB);
 	Dispphoto_Dispaly_flash(208, 83, FLASH_ADDR_USB_3);
 
 	// 显示USB功率 (先填满滤波窗口, 避免冷启动被 0 拉低)
