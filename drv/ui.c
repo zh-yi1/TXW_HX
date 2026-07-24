@@ -257,41 +257,61 @@ void key_single_click_ui_proc(void)
 		break;
 	case PAGE_INFO_2:
 		ui_data.last_page = PAGE_INFO_2;
-		ui_data.cur_page = PAGE_INFO_3;
+		ui_data.cur_page = PAGE_DEFAULT;
 		break;
 	case PAGE_INFO_3:
+		/* 电压界面单击 -> 温度异常界面 */
 		ui_data.last_page = PAGE_INFO_3;
-		ui_data.cur_page = PAGE_DEFAULT;
+		ui_data.cur_page = PAGE_TEMP_ABNORMAL;
 		break;
 	case PAGE_DISABLED:
 		ui_data.last_page = PAGE_DISABLED;
 		ui_data.cur_page = PAGE_DEFAULT;
 		break;
-	case PAGE_VOLTAGE_ABNORMAL:
-		{
-			uint8_t cnt = abnormal_log_voltage_count();
-			ui_data.abnormal_idx++;
-			if (ui_data.abnormal_idx >= cnt) {
-				ui_data.abnormal_idx = 0;
-			} 
-			ui_data.last_page = PAGE_ABNORMAL_UPDATA;  /* 强制重绘 */
-			
-		}
+	case PAGE_TEMP_ABNORMAL:
+		/* 温度异常界面单击 -> 电压异常界面 */
+		ui_data.last_page = PAGE_TEMP_ABNORMAL;
+		ui_data.cur_page = PAGE_VOLTAGE_ABNORMAL;
 		break;
+	case PAGE_VOLTAGE_ABNORMAL:
+		/* 电压异常界面单击 -> 电压界面 */
+		ui_data.last_page = PAGE_VOLTAGE_ABNORMAL;
+		ui_data.cur_page = PAGE_INFO_3;
+		break;
+	default:
+		break;
+	}
+}
+
+/* 双击处理.
+ * 异常记录页: 切换到下一条记录 (轮回, 播放完最后一条回到第一条), 返回 0 保持亮屏;
+ * 其余界面: 返回 true 表示需主动灭屏 */
+bool key_double_click_ui_proc(void)
+{
+	switch (ui_data.cur_page)
+	{
 	case PAGE_TEMP_ABNORMAL:
 		{
 			uint8_t cnt = abnormal_log_temperature_count();
 			ui_data.abnormal_idx++;
-			if (ui_data.abnormal_idx >= cnt) {
+			if (ui_data.abnormal_idx >= cnt)
 				ui_data.abnormal_idx = 0;
-			} 
-			ui_data.last_page = PAGE_ABNORMAL_UPDATA;  /* 强制重绘 */
-			
+			ui_data.last_page = PAGE_ABNORMAL_UPDATA;  /* 强制重绘, 保留 idx */
 		}
-		break;
+		return false;
+	case PAGE_VOLTAGE_ABNORMAL:
+		{
+			uint8_t cnt = abnormal_log_voltage_count();
+			ui_data.abnormal_idx++;
+			if (ui_data.abnormal_idx >= cnt)
+				ui_data.abnormal_idx = 0;
+			ui_data.last_page = PAGE_ABNORMAL_UPDATA;  /* 强制重绘, 保留 idx */
+		}
+		return false;
 	default:
 		break;
-	}	
+	}
+	return true;  /* 非异常页: 双击灭屏 */
 }
 
 bool key_long_press_ui_proc(void)
@@ -304,20 +324,24 @@ bool key_long_press_ui_proc(void)
 			ret = true;
 			break;
 		case PAGE_INFO_2:
+			/* 温度界面长按 -> 电压界面 */
 			ui_data.last_page = PAGE_INFO_2;
-			ui_data.cur_page = PAGE_TEMP_ABNORMAL;
+			ui_data.cur_page = PAGE_INFO_3;
 			break;
 		case PAGE_INFO_3:
-			ui_data.last_page =PAGE_INFO_3;
-			ui_data.cur_page = PAGE_VOLTAGE_ABNORMAL;
+			/* 电压界面长按 -> 温度界面 */
+			ui_data.last_page = PAGE_INFO_3;
+			ui_data.cur_page = PAGE_INFO_2;
 			break;
 		case PAGE_TEMP_ABNORMAL:
+			/* 温度异常界面长按 -> 温度界面 */
 			ui_data.last_page = PAGE_TEMP_ABNORMAL;
 			ui_data.cur_page = PAGE_INFO_2;
 			break;
 		case PAGE_VOLTAGE_ABNORMAL:
-			ui_data.last_page =PAGE_VOLTAGE_ABNORMAL;
-			ui_data.cur_page = PAGE_INFO_3;
+			/* 电压异常界面长按 -> 温度界面 */
+			ui_data.last_page = PAGE_VOLTAGE_ABNORMAL;
+			ui_data.cur_page = PAGE_INFO_2;
 			break;
 		default:
 			break;

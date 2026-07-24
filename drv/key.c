@@ -5,12 +5,9 @@ static uint32_t    state_entry_ms  = 0;
 static uint32_t    press_start_ms  = 0;
 static uint32_t    last_press_ms   = 0;
 static uint8_t     burst_cnt       = 0;   /* presses in current burst, for single/double resolution */
-static uint8_t     combo_cnt       = 0;   /* total presses for combo tracking */
 static bool        is_2nd_click    = false;
-static bool        combo_fired     = false;
+static bool        long_fired      = false;  /* 本次按住的长按已触发, 防止重复 */
 static key_event_t g_key_event     = KEY_EVENT_NONE;   /* 按键事件, 供 power_mgr 使用 */
-
-#define KEY_IDLE_RESET_MS   3000    /* reset combo_cnt after 3s idle */
 
 void key_init(void)
 {
@@ -49,9 +46,7 @@ void key_proc(void)
 	{
 	/* ---- IDLE ---- */
 	case KEY_STATE_IDLE:
-		combo_fired = false;
-		if (now - last_press_ms > KEY_IDLE_RESET_MS)
-			combo_cnt = 0;
+		long_fired = false;
 		if (KEY_PRESSED())
 		{
 			key_state       = KEY_STATE_DEBOUNCE;
@@ -73,7 +68,6 @@ void key_proc(void)
 		else if (elapsed >= KEY_DEBOUNCE_MS)
 		{
 			burst_cnt++;
-			combo_cnt++;
 			last_press_ms  = now;
 			key_state      = KEY_STATE_PRESS;
 			state_entry_ms = now;
@@ -96,24 +90,16 @@ void key_proc(void)
 			{
 				/* too short, dead zone, or long-press already fired */
 				burst_cnt    = 0;
-				combo_cnt    = 0;
 				is_2nd_click = false;
 				key_state    = KEY_STATE_IDLE;
 			}
 		}
-		else if (held >= KEY_LONG_MIN_MS && !combo_fired)
+		else if (held >= KEY_LONG_MIN_MS && !long_fired)
 		{
-			/* ----- 5s threshold reached, fire immediately (no wait for release) ----- */
-			if (combo_cnt >= KEY_COMBO_CLICKS)
-			{
-				key_combo_cb();
-			}
-			else
-			{
-				key_long_press_cb();
-			}
-			combo_fired = true;
-			key_state   = KEY_STATE_LONG_HOLD;
+			/* ----- 长按阈值到达, 立即触发 (不等松手) ----- */
+			key_long_press_cb();
+			long_fired = true;
+			key_state  = KEY_STATE_LONG_HOLD;
 		}
 		break;
 
@@ -136,7 +122,7 @@ void key_proc(void)
 				key_single_click_cb();
 			else if (burst_cnt == 2)
 				key_double_click_cb();
-			/* burst_cnt >= 3: no click event, just accumulate for combo */
+			/* burst_cnt >= 3: 忽略 (无对应事件) */
 
 			burst_cnt = 0;
 			key_state = KEY_STATE_IDLE;
@@ -148,7 +134,6 @@ void key_proc(void)
 		if (!KEY_PRESSED())
 		{
 			burst_cnt = 0;
-			combo_cnt = 0;
 			key_state = KEY_STATE_IDLE;
 		}
 		break;
@@ -166,8 +151,11 @@ void key_single_click_cb(void)
 
 void key_double_click_cb(void)
 {
-	g_key_event = KEY_EVENT_DOUBLE;  /* 通知 power_mgr */
-	key_event_buf |= 0x02;
+	/* 由 UI 决定: 返回 1 = 需主动灭屏; 返回 0 = 异常页已切记录, 保持亮屏. 均不上报主机 */
+	if (key_double_click_ui_proc())
+		g_key_event = KEY_EVENT_DOUBLE;  /* 通知 power_mgr 主动灭屏 */
+	else
+		g_key_event = KEY_EVENT_CLICK;   /* 刷新活动计时防息屏, 不灭屏 */
 }
 
 void key_long_press_cb(void)
@@ -185,18 +173,6 @@ void key_long_press_cb(void)
 		/* 设置按键事件 bit4: 长按3S (写入影子缓冲) */
 		key_event_buf |= 0x10;
 	}
-}
-
-void key_combo_cb(void)
-{
-	g_key_event = KEY_EVENT_COMBO;
-
-#ifdef UPGRADE_EN
-	/* 升级模式改由场测指令 0x24 (解锁后有效) 触发, 按键组合不再置位 */
-	// if (ui_data.is_charge) {
-	// 	g_enter_upgrade = 1;
-	// }
-#endif
 }
 
 /* ========================================================================
