@@ -13,13 +13,11 @@ static const range_t power_range[] = {
 
 #define NUM_32_ADDR(d)  (FLASH_ADDR_NUM_32_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_32)
 
-#define NUM_32_W   20   /* 功率数字一般宽 20x38 */
-#define NUM_32_W_1 10   /* 数字"1"特例宽 10x38 */
-#define NUM_32_H   38
-#define W_W 10          /* 单位 w: 10x28 */
-#define W_H 28
-#define FREE_H 38       /* 擦除高度, 跟随数字高 */
-#define FREE_W 50
+#define NUM_32_W   20   /* 功率数字一般宽 20x28 */
+#define NUM_32_W_1 10   /* 数字"1"特例宽 10x28 */
+#define NUM_32_H   28
+#define W_W 10          /* 单位 w: 10x28 (与数字同高同 y) */
+#define FREE_W 60       /* free 图标: 60x28 (与数字同高) */
 
 /* 功率数字宽度: 数字"1"较窄 */
 #define PW_DIGIT_W(d)  ((d) == 1 ? NUM_32_W_1 : NUM_32_W)
@@ -114,6 +112,11 @@ static uint8_t bat_filter_get(bool is_charge)
 static uint8_t last_power[3]  = {0xFF, 0xFF, 0xFF};
 static uint8_t last_status[3] = {0xFF, 0xFF, 0xFF};
 
+/* 上次实际绘制的 x / 宽度 (0 = 无旧内容, 不需擦除).
+   按实际宽度追踪, 才能处理含"1"变窄、位数变化导致的残留 */
+static uint8_t last_draw_x[3];
+static uint8_t last_draw_w[3];
+
 /* 切页时强制重绘, 避免 last_power/last_status 残留导致 skip */
 void default_page_power_force_redraw(void)
 {
@@ -121,6 +124,7 @@ void default_page_power_force_redraw(void)
 	for (i = 0; i < 3; i++) {
 		last_power[i]  = 0xFF;
 		last_status[i] = 0xFF;
+		last_draw_w[i] = 0;   /* init 已清屏, 无需擦旧 */
 	}
 }
 
@@ -141,51 +145,75 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 		return;
 	}
 
-	/* 状态变化或位数变化时需擦除旧内容, 同级(如个位→个位)不擦 */
 	{
-		uint8_t lp = last_power[port];
-		uint8_t ls = last_status[port];
-		bool same_level = (lp != 0xFF) && (ls == status)
-		               && ((lp >= 10) == (power_value >= 10));
+		range_t r      = power_range[port];
+		int area_x     = r.x1;
+		int area_y     = r.y1;
+		int area_w     = r.x2 - r.x1;
+		int new_x, new_w;
+		int ox, ow;
 
-		if (!same_level)
+		if (status == 0)
 		{
-			range_t r = power_range[port];
-			DispBlock(r.x1, r.y1, r.x2 - 1, r.y1 + FREE_H - 1);
+			LOGI("[POWER] port=%d draw FREE power=%d\n", port, power_value);
+			new_w = FREE_W;
+			new_x = area_x + (area_w - FREE_W) / 2;
+			Dispphoto_Dispaly_flash(new_x, area_y, FLASH_ADDR_FREE);
 		}
-	}
+		else
+		{
+			int cur_x;
+			int hundreds, tens, ones;
+			/* 限 199: 百位恒为"1"(窄10px), 3位总宽 10+20+20+1+w10=61 */
+			uint8_t pv = (power_value > 199) ? 199 : power_value;
 
-	if (status == 0)
-	{
-		LOGI("[POWER] port=%d draw FREE power=%d\n", port, power_value);
-		range_t r = power_range[port];
-		int free_x = r.x1 + (r.x2 - r.x1 - FREE_W) / 2;
-		Dispphoto_Dispaly_flash(free_x, r.y1, FLASH_ADDR_FREE);
-	}
-	else
-	{
-		LOGI("[POWER] port=%d draw num=%d status=%d\n", port, power_value, status);
-		int area_x = power_range[port].x1;
-		int area_y = power_range[port].y1;
-		int area_w = power_range[port].x2 - area_x;
-		int total_w, cur_x, cur_y;
-		int tens, ones;
-		uint8_t pv = (power_value > 99) ? 99 : power_value;
+			LOGI("[POWER] port=%d draw num=%d status=%d\n", port, power_value, status);
 
-		tens = pv / 10;
-		ones = pv % 10;
+			hundreds = pv / 100;
+			tens     = (pv / 10) % 10;
+			ones     = pv % 10;
 
-		total_w = (tens ? PW_DIGIT_W(tens) : 0) + PW_DIGIT_W(ones) + W_W;
-		cur_x = area_x + (area_w - total_w + 1) / 2;
-		cur_y = area_y;
+			/* +1 = 数字与 w 之间的间隙, 必须计入总宽, 否则右侧擦不干净 */
+			new_w = (hundreds ? PW_DIGIT_W(hundreds) : 0)
+			      + ((hundreds || tens) ? PW_DIGIT_W(tens) : 0)
+			      + PW_DIGIT_W(ones) + 1 + W_W;
+			new_x = area_x + (area_w - new_w + 1) / 2;
+			cur_x = new_x;
 
-		if (tens) {
-			Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(tens));
-			cur_x += PW_DIGIT_W(tens);
+			if (hundreds) {
+				Dispphoto_Dispaly_flash(cur_x, area_y, NUM_32_ADDR(hundreds));
+				cur_x += PW_DIGIT_W(hundreds);
+			}
+			if (hundreds || tens) {
+				Dispphoto_Dispaly_flash(cur_x, area_y, NUM_32_ADDR(tens));
+				cur_x += PW_DIGIT_W(tens);
+			}
+			Dispphoto_Dispaly_flash(cur_x, area_y, NUM_32_ADDR(ones));
+			cur_x += PW_DIGIT_W(ones);
+
+			/* 数字与 w 之间的 1px 间隙没有图片覆盖它, 必须主动擦除,
+			   否则位宽变化时(如 21w→11w)旧数字的像素会在这一列残留 */
+			DispBlock(cur_x, area_y, cur_x, area_y + NUM_32_H - 1);
+			cur_x += 1;
+
+			/* w 与数字同高(28), 同一 y */
+			Dispphoto_Dispaly_flash(cur_x, area_y, FLASH_ADDR_POWER_W);
 		}
-		Dispphoto_Dispaly_flash(cur_x, cur_y, NUM_32_ADDR(ones));
-		cur_x += PW_DIGIT_W(ones) + 1;
-		Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_32_H - W_H, FLASH_ADDR_POWER_W);
+
+		/* 先画后擦(无闪烁): 清掉旧内容超出新内容的左右残留.
+		   含"1"变窄、位数变化都会改变宽度和居中位置, 靠这里兜底 */
+		ox = last_draw_x[port];
+		ow = last_draw_w[port];
+		if (ow > 0)
+		{
+			/* 宽度由新旧范围算出, 高度固定取数字高度(free 图标同为 28 高) */
+			if (ox < new_x)
+				DispBlock(ox, area_y, new_x - 1, area_y + NUM_32_H - 1);
+			if (ox + ow > new_x + new_w)
+				DispBlock(new_x + new_w, area_y, ox + ow - 1, area_y + NUM_32_H - 1);
+		}
+		last_draw_x[port] = (uint8_t)new_x;
+		last_draw_w[port] = (uint8_t)new_w;
 	}
 
 	last_power[port]  = power_value;
@@ -194,14 +222,13 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 
 /* ============================ 充电百分比动画 ============================ */
 
-#define BLUE_NUM_48_ADDR(d)    (FLASH_ADDR_BLUE_NUM_48_BASE    + (uint32_t)(d) * FLASH_STRIDE_BLUE_NUM_48)
-#define ORANGE_NUM_48_ADDR(d)  (FLASH_ADDR_ORANGE_NUM_48_BASE  + (uint32_t)(d) * FLASH_STRIDE_ORANGE_NUM_48)
-
 #define NUM_48_W   42   /* 电量数字一般宽 42x56 */
 #define NUM_48_W_1 28   /* 数字"1"特例宽 28x56 */
 #define NUM_48_H   56
-#define PERCENT_W 24
-#define PERCENT_H 24
+/* 百分号实际 28x28 (由 FLASH_STRIDE_PERCENT_BLUE=1634 反算: (1634-66)/28=56 行宽).
+   写错会导致 total_w 少算, 右侧擦除起点落在 % 内部, 留残影 */
+#define PERCENT_W 28
+#define PERCENT_H 28
 #define SCREEN_W 240
 
 /* 电量数字宽度: 数字"1"较窄 */
@@ -209,8 +236,6 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
 
 #define CHARGE_POWER_X 12
 #define CHARGE_POWER_Y 0
-#define NORMAL_POWER_X 72
-#define NORMAL_POWER_Y 0
 
 #define BAR_PROGRESS_Y 70
 #include "bar_progress.h"
@@ -228,7 +253,7 @@ static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
 {
 	uint32_t base = is_blue ? FLASH_ADDR_BLUE_NUM_48_BASE : FLASH_ADDR_ORANGE_NUM_48_BASE;
 	uint32_t percent_addr = is_blue ? FLASH_ADDR_PERCENT_BLUE : FLASH_ADDR_PERCENT_ORANG;
-	int digits[3], n, i, cur_x;
+	int digits[3], n, i, cur_x, pct_y;
 
 	if (power > 100)
 		power = 100;
@@ -260,8 +285,17 @@ static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
 		cur_x += BAT_DIGIT_W(digits[i]);
 	}
 
-	/* 百分号, 底部对齐数字 */
-	Dispphoto_Dispaly_flash(cur_x, y + NUM_48_H - PERCENT_H, percent_addr);
+	/* 百分号, 底部对齐数字后再上移 3px */
+	pct_y = y + NUM_48_H - PERCENT_H - 3;
+	Dispphoto_Dispaly_flash(cur_x, pct_y, percent_addr);
+
+	/* % 只有 28 高, 数字 56 高: 位数变少时(如 100%→80%) % 会落到旧数字所在位置,
+	   上下两段盖不住, 而左右边角擦除又管不到这里, 必须按 % 的 x 范围补擦 */
+	if (pct_y > y)
+		anima_erase_area(cur_x, y, PERCENT_W, pct_y - y);
+	if (pct_y + PERCENT_H < y + NUM_48_H)
+		anima_erase_area(cur_x, pct_y + PERCENT_H, PERCENT_W,
+		                 (y + NUM_48_H) - (pct_y + PERCENT_H));
 }
 
 /* 电量数字串宽度 (不含百分号), 逐位按 "1" 特例累加 */
@@ -286,13 +320,12 @@ static int anima_power_width(uint8_t power)
 #define ANIM_STEP_MS        20    /* 动画每帧间隔, 可调 */
 
 /* V1.3 充电剩余时间显示常量 */
-#define TIME_ICON_X      152
+#define TIME_ICON_X      150
 #define TIME_ICON_Y      32
 #define TIME_ICON_W      24
 #define TIME_ICON_H      24
 #define NUM_24_DIGIT_W   14   /* 数字 14x24 */
 #define NUM_24_COLON_W   8    /* 冒号 8x24 */
-#define NUM_24_DIGIT_H   24
 #define TIME_AREA_W      (TIME_ICON_W + 4 * NUM_24_DIGIT_W + NUM_24_COLON_W)  /* 24+56+8=88 */
 #define TIME_AREA_H      TIME_ICON_H
 
@@ -325,10 +358,7 @@ void start_change_anima(bool is_charge)
 	}
 	else
 	{
-		/* 充电 → 未充电: 清除充电图标 + 粒子效果, 再左对齐 → 居中 */
-		int icon_x = ui_data.anim_cur_x + anima_digits_width(ui_data.anim_power);
-		anima_erase_area(icon_x, CHARGE_POWER_Y, NUM_48_W, NUM_48_H);
-
+		/* 充电 → 未充电: 清除粒子效果, 再左对齐 → 居中 */
 		/* 清除进度条上/下的充电动画粒子 (不擦进度条本身) */
 		anima_erase_area(0, BAR_EFFECT_UP_Y, BAR_PROGRESS_W, CHARGING_ICON_H);
 		anima_erase_area(0, BAR_EFFECT_DN_Y, BAR_PROGRESS_W, BLUR_H);
@@ -341,6 +371,17 @@ void start_change_anima(bool is_charge)
 	int left  = (anima_from_x < anima_to_x) ? anima_from_x : anima_to_x;
 	int right = (anima_from_x > anima_to_x) ? anima_from_x : anima_to_x;
 	right += anima_total_w - 1;
+
+	/* 并入屏上旧内容范围: 切换瞬间电量可能已被滤波改变(如 100%→99%, 宽 136→108),
+	   只按新宽度算走廊会漏掉旧内容露在外面的部分 */
+	if (ui_data.prev_disp_w > 0)
+	{
+		int old_l = ui_data.prev_disp_x;
+		int old_r = old_l + ui_data.prev_disp_w - 1;
+		if (old_l < left)  left  = old_l;
+		if (old_r > right) right = old_r;
+	}
+
 	anima_erase_area(left, CHARGE_POWER_Y, right - left + 1, NUM_48_H);
 
 	ui_data.anim_cur_x = anima_from_x;
@@ -378,16 +419,12 @@ static bool anima_tick(void)
 	{
 		anima_active = 0;
 
-		/* 动画结束, 充电时在 % 右侧显示充电图标 */
-		if (anima_is_charge)
-		{
-			int n = (ui_data.anim_power >= 100) ? 3 : (ui_data.anim_power >= 10) ? 2 : 1;
-			int icon_x = x + n * NUM_48_W;
-			// uint32_t icon_addr = (ui_data.bat_power > 10)
-			//                      ? FLASH_ADDR_CHARGING_BLUE
-			//                      : FLASH_ADDR_CHARGING_ORANGE;
-			// Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
-		}
+		/* 回填成末帧的真实位置/宽度: 动画期间 prev_disp_* 仍是切换前的旧值,
+		   不同步的话随后的 show_battery 会按错误的旧范围算边角, 末帧宽度/位置
+		   与新值不同时就会留残影 */
+		ui_data.prev_disp_x = x;
+		ui_data.prev_disp_w = (uint8_t)anima_total_w;
+
 		return true;
 	}
 	return false;
@@ -463,53 +500,35 @@ void default_page_show_battery(void)
 
 	total_w = anima_power_width(ui_data.bat_power);
 
+	/* total_w 必须等于实际绘制宽度(数字串+百分号), 不能额外修正,
+	   否则右侧边角擦除起点算错, 位宽变化(含"1"变窄)时会留残影小尾巴 */
 	if (ui_data.is_charge)
-	{
-		x = CHARGE_POWER_X;
-		total_w = total_w - PERCENT_W + NUM_48_W;
-	}
+		x = CHARGE_POWER_X;              /* 充电: 左对齐 */
 	else
-	{
-		x = (SCREEN_W - total_w) / 2;
-	}
+		x = (SCREEN_W - total_w) / 2;    /* 放电/空闲: 居中 */
 
 	old_x = ui_data.prev_disp_x;
 	old_w = ui_data.prev_disp_w;
 
-	/* 位数减少(3→2, 2→1): 先整块擦除旧区域, 再画新帧 */
-	if (old_w > 0 && old_w > total_w)
-		anima_erase_area(old_x, CHARGE_POWER_Y, old_w, NUM_48_H);
-
 	/* 画新帧 */
 	anima_draw_bat_power(x, CHARGE_POWER_Y, ui_data.bat_power, (ui_data.bat_power > 10));
 
-	if (ui_data.is_charge)
+	/* 先画后擦(无闪烁): 清掉旧内容超出新内容的左右残留.
+	   位数变化、含"1"变窄都会同时改变宽度和居中位置, 统一靠这里兜底 */
+	if (old_w > 0)
 	{
-		int n = (ui_data.bat_power >= 100) ? 3 : (ui_data.bat_power >= 10) ? 2
-																		   : 1;
-		int icon_x = x + n * NUM_48_W;
-		// uint32_t icon_addr = (ui_data.bat_power > 10)
-		// 						 ? FLASH_ADDR_CHARGING_BLUE
-		// 						 : FLASH_ADDR_CHARGING_ORANGE;
-		// Dispphoto_Dispaly_flash(icon_x, CHARGE_POWER_Y, icon_addr);
+		if (old_x < x)
+			anima_erase_area(old_x, CHARGE_POWER_Y, x - old_x, NUM_48_H);
+
+		if (old_x + old_w > x + total_w)
+			anima_erase_area(x + total_w, CHARGE_POWER_Y,
+							 (old_x + old_w) - (x + total_w), NUM_48_H);
 	}
 
 	/* 更新追踪 */
 	ui_data.prev_disp_x = x;
 	ui_data.prev_disp_w = total_w;
 
-	if (old_w == 0 || old_w > total_w)
-		goto draw_bar;
-
-	/* 同位数或位数增加: 只擦不重叠的边角 (先画后擦, 无闪烁) */
-	if (old_x < x)
-		anima_erase_area(old_x, CHARGE_POWER_Y, x - old_x, NUM_48_H);
-
-	if (old_x + old_w > x + total_w)
-		anima_erase_area(x + total_w, CHARGE_POWER_Y,
-						 (old_x + old_w) - (x + total_w), NUM_48_H);
-
-draw_bar:
 	default_page_show_bar_effect();
 }
 
@@ -613,6 +632,10 @@ void default_page_init()
 	Dispphoto_Dispaly_flash(90,  90, FLASH_ADDR_USB_2);
 	Dispphoto_Dispaly_flash(180, 90, FLASH_ADDR_USB_3);
 
+	// 分隔线
+	Dispphoto_Dispaly_flash(60,  90, FLASH_ADDR_LINE_45);
+	Dispphoto_Dispaly_flash(150, 90, FLASH_ADDR_LINE_45);
+
 	// 显示USB功率 (先填满滤波窗口, 避免冷启动被 0 拉低)
 	default_page_power_force_redraw(); /* 切页强制重绘 */
 		power_filter_fill(C1_POWER, ui_data.usb_c1_power);
@@ -695,7 +718,8 @@ void default_page_updata(void)
 
 	/* 充放电切换: 启动非阻塞动画 (或直接重绘) */
 	if (charge_changed) {
-		ui_data.prev_disp_w = 0;
+		/* 注意: 不要在此清零 prev_disp_w, start_change_anima 要用它
+		   把屏上旧内容范围并进预擦走廊, 否则旧内容比新宽时右端会残留 */
 		ui_data.is_charge_last = ui_data.is_charge;
 		ui_data.bat_power_last = ui_data.bat_power;
 
@@ -745,7 +769,7 @@ void default_page_updata(void)
 		   -1 表示估算未准备好, 不显示 */
 		if (ui_data.bat_power < 100 && cur_min >= 0 && cur_min != last_remain_min)
 		{
-			erase_charge_remain_time();
+			/* 时间区宽度恒定(图标+HH:MM=88), 直接覆盖绘制, 不擦除以免闪烁 */
 			draw_charge_remain_time();
 			last_remain_min = cur_min;
 		}

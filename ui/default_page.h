@@ -7,16 +7,6 @@
 
 typedef enum
 {
-	TYPE_C1_IMG = 0,
-	C1_IMG,
-	TYPE_C2_IMG = 1,
-	C2_IMG,
-	USB_A_IMG = 2,
-	A_IMG,
-} default_img_e;
-
-typedef enum
-{
 	C1_POWER,
 	C2_POWER,
 	A_POWER,
