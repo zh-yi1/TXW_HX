@@ -349,6 +349,15 @@ void power_mgr_proc(void)
 
     uint8_t usb_active = (ui_data.usb_c1_status != 0 || ui_data.usb_c2_status != 0 || ui_data.usb_a_status != 0);
 
+    /* USB 拔插沿检测: 仅"状态变化"(插入/拔出) 算一次活动, 持续插着不刷新 */
+    static uint8_t last_c1 = 0, last_c2 = 0, last_a = 0;
+    uint8_t usb_changed = (ui_data.usb_c1_status != last_c1)
+                        || (ui_data.usb_c2_status != last_c2)
+                        || (ui_data.usb_a_status  != last_a);
+    last_c1 = ui_data.usb_c1_status;
+    last_c2 = ui_data.usb_c2_status;
+    last_a  = ui_data.usb_a_status;
+
     key_event_t key_ev = key_get_event();
 
     /* 刚从 STOP/SLEEP 唤醒 → 刷新时间戳, 防止秒进 SLEEP */
@@ -358,8 +367,9 @@ void power_mgr_proc(void)
         last_activity_ms = now;
     }
 
-    /* 有 USB 活动或按键事件 -> 刷新活动时间戳 */
-    if (usb_active || key_ev != KEY_EVENT_NONE)
+    /* 按键 或 USB 拔插 -> 刷新活动时间戳
+     * (充放电持续插着不再刷新, 无论充放电状态 30s 无按键即自动熄屏) */
+    if (usb_changed || key_ev != KEY_EVENT_NONE)
         last_activity_ms = now;
 
     /* ====================================================================
@@ -401,11 +411,11 @@ void power_mgr_proc(void)
             LOGI("[PWR] -> NORMAL (test mode)\r\n");
             break;
         }
-        if (key_ev == KEY_EVENT_CLICK)
+        if (key_ev == KEY_EVENT_CLICK || usb_changed)
         {
             wake_screen();
             last_activity_ms = now;
-            LOGI("[PWR] -> NORMAL (click)\r\n");
+            LOGI("[PWR] -> NORMAL (click/usb)\r\n");
         }
         else if (!usb_active)
         {
@@ -426,17 +436,11 @@ void power_mgr_proc(void)
             LOGI("[PWR] -> NORMAL (test mode)\r\n");
             break;
         }
-        if (key_ev == KEY_EVENT_CLICK)
+        if (key_ev == KEY_EVENT_CLICK || usb_changed)
         {
             wake_screen();
             last_activity_ms = now;
-            LOGI("[PWR] -> NORMAL (click)\r\n");
-        }
-        else if (usb_active)
-        {
-            wake_screen();
-            last_activity_ms = now;
-            LOGI("[PWR] -> NORMAL (USB)\r\n");
+            LOGI("[PWR] -> NORMAL (click/usb)\r\n");
         }
 #ifdef DEBUG_STOP
         else if (now - sleep_entry_tick >= 5000)
