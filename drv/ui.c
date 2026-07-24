@@ -254,7 +254,7 @@ void key_single_click_ui_proc(void)
 		break;
 	case PAGE_INFO_2:
 		ui_data.last_page = PAGE_INFO_2;
-		ui_data.cur_page = PAGE_INFO_3;
+		ui_data.cur_page = PAGE_DEFAULT;
 		break;
 	case PAGE_INFO_3:
 		/* 电压界面单击 -> 温度异常界面 */
