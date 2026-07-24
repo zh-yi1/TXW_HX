@@ -49,10 +49,10 @@ static int16_t temp_filter_get(void)
 
 /* ================================================================ */
 
-/* 总电压显示固定布局 (按 "00-00V" 最大宽度 61px 居中于 240 屏) */
-#define VOLT_LABEL_X   60
-#define VOLT_LABEL_Y   95
-#define VOLT_DIGIT_X   118     /* 60 + 53(label) + 5(gap) */
+/* 总电压显示布局: 标签 (52,97) 60x16, 数值隔 2px 紧随其后 */
+#define VOLT_LABEL_X   52
+#define VOLT_LABEL_Y   97
+#define VOLT_DIGIT_X   114     /* 52 + 60(label) + 2(gap) */
 
 /* 40 号数字比例宽度: 数字"1" 较窄 */
 static uint8_t num40_prop_w(int d)
@@ -146,6 +146,10 @@ static void fmt_voltage(char *buf, uint16_t mv, char sep)
 static int temp_val_x;
 static int temp_val_w;
 
+/* 页3 电压串当前宽度 (4 节电芯电压 + 总电压), 供先写后擦只擦右侧残留 */
+static uint8_t cell_v_w[4];
+static uint8_t total_v_w;
+
 void information_page_1_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
@@ -184,15 +188,15 @@ void information_page_3_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
 
-    // 电芯电压
-    Dispphoto_Dispaly_flash(88, 12, FLASH_ADDR_A_CELL_VOLTAGE);
+    // 电芯电压 (0,0, 240x32)
+    Dispphoto_Dispaly_flash(0, 0, FLASH_ADDR_A_CELL_VOLTAGE);
 
     /* 4 节电芯: 电压 + 型号, 12 高度蓝色字体 */
     {
         uint8_t i;
         char buf[8];
 
-        const uint8_t cell_y[] = {38, 52, 66, 80};
+        const uint8_t cell_y[] = {32, 48, 64, 80};
 
         for (i = 0; i < 4; i++)
         {
@@ -206,8 +210,9 @@ void information_page_3_init(void)
             else if (i == 2) model = ui_data.bat_model_3;
             else             model = ui_data.bat_model_4;
 
-            digit_display_string(buf, 13, cell_y[i], DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
-            digit_display_string(model, 55, cell_y[i], DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+            digit_display_string(buf, 19, cell_y[i], DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+            cell_v_w[i] = (uint8_t)digit_string_width(buf, DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+            digit_display_string(model, 61, cell_y[i], DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
         }
     }
 
@@ -221,15 +226,15 @@ void information_page_3_init(void)
 
         fmt_voltage(buf, (uint16_t)total_mv, '.');
 
-        Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y + 1, FLASH_ADDR_TOTAL_VOLTAGE);
+        Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y, FLASH_ADDR_TOTAL_VOLTAGE);
         digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
                              DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+        total_v_w = (uint8_t)digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
     }
 
-    /* 电池型号 */
-
-    // Dispphoto_Dispaly_flash(34, 116, FLASH_ADDR_CELL_MODEL);
-    digit_display_string("506578AFU", 114, 114,
+    /* 电芯型号 (标签 18,119 78x16, 型号串隔 2px 紧随其后) */
+    Dispphoto_Dispaly_flash(18, 119, FLASH_ADDR_CELL_MODEL);
+    digit_display_string("506578AFU", 98, 119,
                              DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
 }
 
@@ -294,7 +299,7 @@ void information_page_3_updata(void)
 {
     /* 比较用百分位 (10mV), 与显示精度一致, 避免 mV 级抖动触发无意义刷新 */
     static uint16_t last_mv_cv[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
-    const uint8_t cell_y[] = {38, 52, 66, 80};
+    const uint8_t cell_y[] = {32, 48, 64, 80};
     uint8_t i;
 
     for (i = 0; i < 4; i++)
@@ -304,11 +309,19 @@ void information_page_3_updata(void)
         if (mv_cv != last_mv_cv[i])
         {
             char buf[8];
+            uint8_t neww;
 
             fmt_voltage(buf, ui_data.cell_voltage_mv[i], '.');
 
-            digit_display_string(buf, 13, cell_y[i],
+            /* 先写后擦 (左对齐, 防闪): 新串覆盖重叠区, 再擦旧串右侧露出的残留,
+             * 消除 "1"(宽5) 与其他数字(宽8) 位移带来的残影 */
+            digit_display_string(buf, 19, cell_y[i],
                                  DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+            neww = (uint8_t)digit_string_width(buf, DIGIT_16_COLOR_BLUE, DIGIT_HEIGHT_12);
+            if (cell_v_w[i] > neww)
+                DispBlock(19 + neww, cell_y[i], 19 + cell_v_w[i] - 1,
+                          cell_y[i] + DIGIT_12_LINE_H - 1);
+            cell_v_w[i] = neww;
             last_mv_cv[i] = mv_cv;
         }
     }
@@ -326,12 +339,18 @@ void information_page_3_updata(void)
         if (total_cv != last_total_cv)
         {
             char buf[8];
+            uint8_t neww;
 
             fmt_voltage(buf, (uint16_t)total_mv, '.');
 
+            /* 先写后擦 (左对齐, 防闪): 新串覆盖重叠区, 再擦旧串右侧露出的残留 */
             digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
                                  DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
-
+            neww = (uint8_t)digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+            if (total_v_w > neww)
+                DispBlock(VOLT_DIGIT_X + neww, VOLT_LABEL_Y,
+                          VOLT_DIGIT_X + total_v_w - 1, VOLT_LABEL_Y + DIGIT_16_LINE_H - 1);
+            total_v_w = neww;
             last_total_cv = total_cv;
         }
     }

@@ -16,13 +16,13 @@
  * 计算得出
  * ================================================================ */
 
-/* ---- 行高 ---- */
-#define DIGIT_HEIGHT_12      12           /* 行高 12px (字符高 10px) */
-#define DIGIT_HEIGHT_16      16           /* 行高 16px (字符高 12px) */
+/* ---- 字号选择 (字模已是全高, 顶部对齐, start_y 即字符顶部) ---- */
+#define DIGIT_HEIGHT_12      12           /* 12 号: 字符高 10px */
+#define DIGIT_HEIGHT_16      16           /* 16 号: 字符高 16px */
 
-/* ---- 字符高度 (向后兼容, 用于局部刷新擦除) ---- */
-#define DIGIT_12_LINE_H      10           /* 12 高度下的字符高度 */
-#define DIGIT_16_LINE_H      12           /* 16 高度下的字符高度 */
+/* ---- 字符高度 (用于局部刷新擦除) ---- */
+#define DIGIT_12_LINE_H      10           /* 12 号字符高 */
+#define DIGIT_16_LINE_H      16           /* 16 号字符高 */
 
 /* ---- 颜色选择 ---- */
 #define DIGIT_16_COLOR_WHITE  1
@@ -42,11 +42,11 @@
 uint16_t digit_string_width(const char *str, uint8_t color, uint8_t height);
 
 /*
- * 在指定位置显示字符串 (比例字体, 底部对齐)
+ * 在指定位置显示字符串 (比例字体, 顶部对齐)
  *
  *   str:     以 '\0' 结尾的字符串
  *   start_x: 起始 X 坐标 (像素)
- *   start_y: 起始 Y 坐标 (像素, 行高的顶部)
+ *   start_y: 起始 Y 坐标 (像素, 字符顶部)
  *   color:   DIGIT_16_COLOR_WHITE 或 DIGIT_16_COLOR_BLUE
  *   height:  DIGIT_HEIGHT_12 或 DIGIT_HEIGHT_16
  *
