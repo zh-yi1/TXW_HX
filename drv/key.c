@@ -133,9 +133,15 @@ void key_proc(void)
 		{
 			/* timeout: resolve burst */
 			if (burst_cnt == 1)
+			{
 				key_single_click_cb();
+				combo_cnt = 0;   /* 导航单击不计入 combo, 防止连续点击后长按被误判为 combo */
+			}
 			else if (burst_cnt == 2)
+			{
 				key_double_click_cb();
+				combo_cnt = 0;   /* 导航双击不计入 combo, 同上 */
+			}
 			/* burst_cnt >= 3: no click event, just accumulate for combo */
 
 			burst_cnt = 0;
