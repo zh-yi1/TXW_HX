@@ -166,8 +166,7 @@ void key_single_click_cb(void)
 
 void key_double_click_cb(void)
 {
-	g_key_event = KEY_EVENT_DOUBLE;  /* 通知 power_mgr */
-	key_event_buf |= 0x02;
+	g_key_event = KEY_EVENT_DOUBLE;  /* 通知 power_mgr (本地灭屏), 不再上报主机 */
 }
 
 void key_long_press_cb(void)
