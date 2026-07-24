@@ -166,7 +166,11 @@ void key_single_click_cb(void)
 
 void key_double_click_cb(void)
 {
-	g_key_event = KEY_EVENT_DOUBLE;  /* 通知 power_mgr (本地灭屏), 不再上报主机 */
+	/* 由 UI 决定: 返回 1 = 需主动灭屏; 返回 0 = 异常页已切记录, 保持亮屏. 均不上报主机 */
+	if (key_double_click_ui_proc())
+		g_key_event = KEY_EVENT_DOUBLE;  /* 通知 power_mgr 主动灭屏 */
+	else
+		g_key_event = KEY_EVENT_CLICK;   /* 刷新活动计时防息屏, 不灭屏 */
 }
 
 void key_long_press_cb(void)

@@ -162,6 +162,7 @@ extern ui_data_t ui_data;
 void ui_init(void);
 void ui_proc(void);
 void key_single_click_ui_proc(void);
+bool key_double_click_ui_proc(void);
 bool key_long_press_ui_proc(void);
 
 
