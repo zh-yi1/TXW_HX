@@ -2,16 +2,20 @@
 
 #define NUM_40_W 24
 #define NUM_40_H 40
-#define LITTLE_PERCENT_W 16
-#define LITTLE_PERCENT_H 16
-#define CI_W 16
-#define CI_H 16
 #define DEGREE_CENTIGRDE_W 16
 #define DEGREE_CENTIGRDE_H 16
 
-#define R_MAX_CAP     ((range_t){0,   48, 119, 87})
-#define R_CYCLE_CNT   ((range_t){120, 48, 239, 87})
+/* 信息页1: 40 号比例数字 — 常规数字 26 宽, 数字"1" 16 宽, 单位(%/次) 16 宽, 高 40 */
+#define NUM_40_PROP_W 26
+#define NUM_40_ONE_W  16
+#define UNIT_40_W     16
+
 #define R_BAT_TEMP    ((range_t){0,   48, 239, 87})
+
+/* 健康值居中于"电池健康"标签下方 [0,113]; 次数值居中于"循环次数"下方 [126,239];
+ * 两区均避开中间分隔线 (114~125), 保证擦除时不碰线 */
+#define R_HEALTH_VAL  ((range_t){0,   83, 113, 122})
+#define R_CYCLE_VAL   ((range_t){126, 83, 239, 122})
 
 #define NUM_40_ADDR(d)  (FLASH_ADDR_NUM_40_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_40)
 
@@ -116,6 +120,60 @@ static void draw_value_in_area(range_t r, int16_t value, uint32_t unit_addr,
     Dispphoto_Dispaly_flash(cur_x, cur_y + NUM_40_H - unit_h, unit_addr);
 }
 
+/* 40 号数字比例宽度: 数字"1" 较窄 */
+static uint8_t num40_prop_w(int d)
+{
+    return (d == 1) ? NUM_40_ONE_W : NUM_40_PROP_W;
+}
+
+/* 在区域内水平居中绘制 40 号比例数值 + 单位, 顶部对齐 r.y1 (仅正数) */
+static void draw_value_prop(range_t r, int value, uint32_t unit_addr, uint8_t unit_w)
+{
+    int digits[4], n, i, cur_x, total_w = 0;
+
+    if (value < 0)    value = 0;
+    if (value > 9999) value = 9999;
+
+    if (value >= 1000)
+    {
+        digits[0] = value / 1000;
+        digits[1] = (value / 100) % 10;
+        digits[2] = (value / 10) % 10;
+        digits[3] = value % 10;
+        n = 4;
+    }
+    else if (value >= 100)
+    {
+        digits[0] = value / 100;
+        digits[1] = (value / 10) % 10;
+        digits[2] = value % 10;
+        n = 3;
+    }
+    else if (value >= 10)
+    {
+        digits[0] = value / 10;
+        digits[1] = value % 10;
+        n = 2;
+    }
+    else
+    {
+        digits[0] = value;
+        n = 1;
+    }
+
+    for (i = 0; i < n; i++)
+        total_w += num40_prop_w(digits[i]);
+    total_w += unit_w;
+
+    cur_x = r.x1 + (int)(r.x2 - r.x1 - total_w) / 2;
+    for (i = 0; i < n; i++)
+    {
+        Dispphoto_Dispaly_flash(cur_x, r.y1, NUM_40_ADDR(digits[i]));
+        cur_x += num40_prop_w(digits[i]);
+    }
+    Dispphoto_Dispaly_flash(cur_x, r.y1, unit_addr);
+}
+
 /* 将 mV 值格式化为电压字符串 "XX<sep>XXV" (buf 至少 8 字节) */
 static void fmt_voltage(char *buf, uint16_t mv, char sep)
 {
@@ -136,16 +194,16 @@ void information_page_1_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
 
-    // 最大容量
-    Dispphoto_Dispaly_flash(32, 12, FLASH_ADDR_MAX_CAP);
-    // 循环次数
-    Dispphoto_Dispaly_flash(144, 12, FLASH_ADDR_CYCLE_INDEX);
-    //最大容量值
-    draw_value_in_area(R_MAX_CAP, ui_data.bat_max_cap,
-                       FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H, 0);
-    //循环次数值
-    draw_value_in_area(R_CYCLE_CNT, ui_data.bat_cycle_cnt,
-                       FLASH_ADDR_CI, CI_W, CI_H, 0);
+    // 电池健康 (0,0, 114x32)
+    Dispphoto_Dispaly_flash(0, 0, FLASH_ADDR_HEALTH);
+    // 分隔线 (114,0, 12x135)
+    Dispphoto_Dispaly_flash(114, 0, FLASH_ADDR_LINE_120);
+    // 循环次数 (126,0, 114x32)
+    Dispphoto_Dispaly_flash(126, 0, FLASH_ADDR_CYCLE_INDEX);
+    // 健康值 (电池健康正下方居中, 单位 %)
+    draw_value_prop(R_HEALTH_VAL, ui_data.bat_max_cap, FLASH_ADDR_PERCENT_SMALL, UNIT_40_W);
+    // 次数值 (循环次数正下方居中, 单位 次)
+    draw_value_prop(R_CYCLE_VAL, ui_data.bat_cycle_cnt, FLASH_ADDR_CI, UNIT_40_W);
 }
 
 void information_page_2_init(void)
@@ -249,47 +307,26 @@ void information_page_3_init(void)
 
 /* ============================ 数据更新 ============================ */
 
-#define BAT_MODEL_X      (98)
-#define BAT_MODEL_Y      (113)
-#define UPDATE_INTERVAL_MS (3000)
-
 void information_page_1_updata(void)
 {
-    static uint32_t last_ms       = 0;
-    static uint8_t  last_max_cap  = 0xFF;
-    static uint16_t last_cycle    = 0xFFFF;
-    uint32_t now = md_get_tick();
+    static uint8_t  last_max_cap = 0xFF;
+    static uint16_t last_cycle   = 0xFFFF;
 
-    /* 首次调用初始化计时 */
-    if (last_ms == 0)
-        last_ms = now;
-
-    /* 最大容量 — 变化时刷新 */
+    /* 健康值 — 变化时先擦除再重绘 (比例宽度, 居中位置随数值变化) */
     if (ui_data.bat_max_cap != last_max_cap)
     {
-        draw_value_in_area(R_MAX_CAP, ui_data.bat_max_cap,
-                           FLASH_ADDR_PERCENT_SMALL, LITTLE_PERCENT_W, LITTLE_PERCENT_H, 0);
+        DispBlock(R_HEALTH_VAL.x1, R_HEALTH_VAL.y1, R_HEALTH_VAL.x2, R_HEALTH_VAL.y2);
+        draw_value_prop(R_HEALTH_VAL, ui_data.bat_max_cap, FLASH_ADDR_PERCENT_SMALL, UNIT_40_W);
         last_max_cap = ui_data.bat_max_cap;
     }
 
-    /* 循环次数 — 变化时刷新, 位数变化先擦除 */
+    /* 次数值 — 变化时先擦除再重绘 */
     if (ui_data.bat_cycle_cnt != last_cycle)
     {
-        /* 位数变化时擦除旧区域 (如 1000→999, 100→99) */
-        uint8_t last_digits = (last_cycle >= 1000) ? 4 :
-                              (last_cycle >= 100)  ? 3 :
-                              (last_cycle >= 10)   ? 2 : 1;
-        uint8_t cur_digits  = (ui_data.bat_cycle_cnt >= 1000) ? 4 :
-                              (ui_data.bat_cycle_cnt >= 100)  ? 3 :
-                              (ui_data.bat_cycle_cnt >= 10)   ? 2 : 1;
-        if (last_digits != cur_digits)
-            DispBlock(R_CYCLE_CNT.x1, R_CYCLE_CNT.y1, R_CYCLE_CNT.x2, R_CYCLE_CNT.y2);
-
-        draw_value_in_area(R_CYCLE_CNT, ui_data.bat_cycle_cnt,
-                           FLASH_ADDR_CI, CI_W, CI_H, 0);
+        DispBlock(R_CYCLE_VAL.x1, R_CYCLE_VAL.y1, R_CYCLE_VAL.x2, R_CYCLE_VAL.y2);
+        draw_value_prop(R_CYCLE_VAL, ui_data.bat_cycle_cnt, FLASH_ADDR_CI, UNIT_40_W);
         last_cycle = ui_data.bat_cycle_cnt;
     }
-
 }
 
 void information_page_2_updata(void)
