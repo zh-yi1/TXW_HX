@@ -8,7 +8,7 @@
 static const range_t power_range[] = {
 	{0,   107, 0 + 60,   107 + 31},
 	{90,  107, 90 + 60,  107 + 31},
-	{180, 107, 180 + 60, 107 + 31},
+	{178, 107, 178 + 60, 107 + 31},   /* usb3 整体左移 2px */
 };
 
 #define NUM_32_ADDR(d)  (FLASH_ADDR_NUM_32_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_32)
@@ -630,7 +630,7 @@ void default_page_init()
 	// 显示固定位置图标: 每个端口仅一个 USB 图标(宽60), 位置 usb1(0,90)/usb2(90,90)/usb3(180,90)
 	Dispphoto_Dispaly_flash(0,   90, FLASH_ADDR_USB_1);
 	Dispphoto_Dispaly_flash(90,  90, FLASH_ADDR_USB_2);
-	Dispphoto_Dispaly_flash(180, 90, FLASH_ADDR_USB_3);
+	Dispphoto_Dispaly_flash(178, 90, FLASH_ADDR_USB_3);
 
 	// 分隔线
 	Dispphoto_Dispaly_flash(60,  90, FLASH_ADDR_LINE_45);
