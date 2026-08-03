@@ -288,8 +288,11 @@ static void anima_erase_area(int x, int y, int w, int h)
 	DispBlock(x, y, x + w - 1, y + h - 1);
 }
 
-/* 在 (x,y) 绘制电量百分比 (同步阻塞) */
-static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
+/* 在 (x,y) 绘制电量百分比 (同步阻塞)
+ * draw_icon: 充电时是否画 % 上方的充电图标。切换动画途中传 0 (图标不跟着数字
+ *            移动), 动画走到终点后的全量重绘传 1, 图标才出现 */
+static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue,
+                                 uint8_t draw_icon)
 {
 	uint32_t base = is_blue ? FLASH_ADDR_BLUE_NUM_48_BASE : FLASH_ADDR_ORANGE_NUM_48_BASE;
 	uint32_t percent_addr = is_blue ? FLASH_ADDR_PERCENT_BLUE : FLASH_ADDR_PERCENT_ORANG;
@@ -325,29 +328,19 @@ static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
 		cur_x += BAT_DIGIT_W(digits[i]);
 	}
 
-	if (ui_data.is_charge)
-	{
-		/* 充电: % 上方补一个 28x28 充电图标, 两块正好叠满 56 高(与数字等高),
-		   所以 % 不再上移 3px, 落到 y+28 给图标让位 */
-		pct_y = y + CHARGE_ICON_H;
+	/* % 固定贴数字底部 (y+28), 充电与否都不动, 避免切换时上下跳;
+	   上方那块 28x28 是充电图标位 */
+	pct_y = y + NUM_48_H - PERCENT_H;
+
+	/* % 只有 28 高, 数字 56 高: 位数变少时(如 100%→80%) 上半段会露出旧数字,
+	   左右边角擦除又管不到这里, 所以上方要么画图标要么擦黑 */
+	if (ui_data.is_charge && draw_icon)
 		Dispphoto_Dispaly_flash(cur_x, y,
 			is_blue ? FLASH_ADDR_CHARGING_BLUE : FLASH_ADDR_CHARGING_ORANGE);
-	}
 	else
-	{
-		/* 百分号, 底部对齐数字后再上移 3px */
-		pct_y = y + NUM_48_H - PERCENT_H - 3;
-	}
-	Dispphoto_Dispaly_flash(cur_x, pct_y, percent_addr);
+		anima_erase_area(cur_x, y, PERCENT_W, CHARGE_ICON_H);
 
-	/* % 只有 28 高, 数字 56 高: 位数变少时(如 100%→80%) % 会落到旧数字所在位置,
-	   上下两段盖不住, 而左右边角擦除又管不到这里, 必须按 % 的 x 范围补擦
-	   (充电时上方已被图标盖住, 不用擦) */
-	if (!ui_data.is_charge && pct_y > y)
-		anima_erase_area(cur_x, y, PERCENT_W, pct_y - y);
-	if (pct_y + PERCENT_H < y + NUM_48_H)
-		anima_erase_area(cur_x, pct_y + PERCENT_H, PERCENT_W,
-		                 (y + NUM_48_H) - (pct_y + PERCENT_H));
+	Dispphoto_Dispaly_flash(cur_x, pct_y, percent_addr);
 }
 
 /* 电量数字串宽度 (不含百分号), 逐位按 "1" 特例累加 */
@@ -410,35 +403,35 @@ void start_change_anima(bool is_charge)
 	}
 	else
 	{
-		/* 充电 → 未充电: 清除粒子效果, 再左对齐 → 居中 */
-		/* 清除进度条上/下的充电动画粒子 (不擦进度条本身) */
-		anima_erase_area(0, BAR_EFFECT_UP_Y, BAR_PROGRESS_W, CHARGING_ICON_H);
-		anima_erase_area(0, BAR_EFFECT_DN_Y, BAR_PROGRESS_W, BLUR_H);
-
+		/* 充电 → 未充电: 左对齐 → 居中。
+		   不在这里擦粒子效果: 那是整宽 240x14 两条, 擦完到动画结束前进度条周围
+		   一直是黑的, 插拔时看着就是闪一下。动画结束后的光晕图本身就是整宽 240,
+		   直接把粒子盖掉即可 */
 		anima_from_x = CHARGE_POWER_X;
 		anima_to_x   = (SCREEN_W - anima_total_w) / 2;
 	}
 
-	/* 预擦整条移动走廊, 立即画第一帧 (避免擦后黑窗) */
-	int left  = (anima_from_x < anima_to_x) ? anima_from_x : anima_to_x;
-	int right = (anima_from_x > anima_to_x) ? anima_from_x : anima_to_x;
-	right += anima_total_w - 1;
+	/* 先画第一帧, 再只擦旧内容露在第一帧外的左右边角。
+	   不整片预擦移动走廊: 走廊里本来就没别的内容, 移动途中的残留由 anima_tick
+	   每帧的拖尾擦除负责; 整片预擦会让电量区黑一下, 就是插拔时的闪屏 */
+	ui_data.anim_cur_x = anima_from_x;
+	anima_draw_bat_power(anima_from_x, CHARGE_POWER_Y, ui_data.anim_power,
+	                     (ui_data.bat_power > 10), 0);   /* 动画途中不画充电图标 */
 
-	/* 并入屏上旧内容范围: 切换瞬间电量可能已被滤波改变(如 100%→99%, 宽 136→108),
-	   只按新宽度算走廊会漏掉旧内容露在外面的部分 */
+	/* 切换瞬间电量可能已被滤波改变(如 100%→99%, 宽 136→108), 旧内容会比第一帧宽 */
 	if (ui_data.prev_disp_w > 0)
 	{
 		int old_l = ui_data.prev_disp_x;
-		int old_r = old_l + ui_data.prev_disp_w - 1;
-		if (old_l < left)  left  = old_l;
-		if (old_r > right) right = old_r;
+		int old_r = old_l + ui_data.prev_disp_w;          /* 开区间 */
+		int new_l = anima_from_x;
+		int new_r = anima_from_x + anima_total_w;
+
+		if (old_l < new_l)
+			anima_erase_area(old_l, CHARGE_POWER_Y, new_l - old_l, NUM_48_H);
+		if (old_r > new_r)
+			anima_erase_area(new_r, CHARGE_POWER_Y, old_r - new_r, NUM_48_H);
 	}
 
-	anima_erase_area(left, CHARGE_POWER_Y, right - left + 1, NUM_48_H);
-
-	ui_data.anim_cur_x = anima_from_x;
-	anima_draw_bat_power(anima_from_x, CHARGE_POWER_Y, ui_data.anim_power,
-	                     (ui_data.bat_power > 10));
 	anima_step = 1;  /* 第 0 帧已画, anima_tick 从第 1 帧开始 */
 }
 
@@ -461,9 +454,9 @@ static bool anima_tick(void)
 			                 prev_x - x, NUM_48_H);
 	}
 
-	/* 再画新帧 */
+	/* 再画新帧 (图标不跟着走, 留到动画结束后的全量重绘再画) */
 	anima_draw_bat_power(x, CHARGE_POWER_Y, ui_data.anim_power,
-	                     (ui_data.bat_power > 10));
+	                     (ui_data.bat_power > 10), 0);
 
 	anima_step++;
 
@@ -563,7 +556,7 @@ void default_page_show_battery(void)
 	old_w = ui_data.prev_disp_w;
 
 	/* 画新帧 */
-	anima_draw_bat_power(x, CHARGE_POWER_Y, ui_data.bat_power, (ui_data.bat_power > 10));
+	anima_draw_bat_power(x, CHARGE_POWER_Y, ui_data.bat_power, (ui_data.bat_power > 10), 1);
 
 	/* 先画后擦(无闪烁): 清掉旧内容超出新内容的左右残留.
 	   位数变化、含"1"变窄都会同时改变宽度和居中位置, 统一靠这里兜底 */
@@ -587,6 +580,10 @@ void default_page_show_battery(void)
 /* BAR_EFFECT_UP_Y / BAR_EFFECT_DN_Y 已在 BAR_PROGRESS_Y 处定义 */
 #define BAR_EFFECT_AREA_H (BAR_EFFECT_DN_Y + BLUR_H - BAR_EFFECT_UP_Y)
 
+/* 上一帧粒子图标宽度 (与 ui_data.prev_icon_x 配对): 蓝橙宽度不同, 电量跨过 10%
+   时图标会换宽度, 只记 x 算不出旧图标右边界, 拖尾会擦不干净 */
+static uint8_t prev_icon_w;
+
 static void default_page_show_bar_effect(void)
 {
 	int bat = ui_data.bat_power;
@@ -597,16 +594,22 @@ static void default_page_show_bar_effect(void)
 	else if (bat > 100)
 		bat = 100;
 
+#ifdef ENABLE_CHARGE_ANIM
+	/* 效果类型切换 (粒子 ↔ 光晕): 不在这里整片预擦 (240x34 黑一下 = 插拔闪屏),
+	   改为画完新内容后只擦盖不住的部分, 见下方 effect_changed 分支 */
+	int effect_changed = 0;
 	if (ui_data.prev_bar_effect > 0)
 	{
 		int cur_effect = ui_data.is_charge ? 1 : 2;
 		if (ui_data.prev_bar_effect != cur_effect)
 		{
-			anima_erase_area(0, BAR_EFFECT_UP_Y, BAR_PROGRESS_W, BAR_EFFECT_AREA_H);
+			effect_changed = 1;
 			ui_data.prev_icon_x = 0;
+			prev_icon_w         = 0;
 		}
 	}
 	ui_data.prev_bar_effect = ui_data.is_charge ? 1 : 2;
+#endif
 
 	Dispphoto_Dispaly_flash(BAR_PROGRESS_X, BAR_PROGRESS_Y,
 		FLASH_ADDR_BAR_PROGRESS_BASE + (uint32_t)(bat - 1) * FLASH_STRIDE_BAR_PROGRESS);
@@ -618,12 +621,16 @@ static void default_page_show_bar_effect(void)
 
 	if (ui_data.is_charge)
 	{
-		int icon_x = fill_x - CHARGING_ICON_W;
-		if (icon_x < 0)
-			icon_x = 0;
 		int is_blue = (bat > 10);
+		/* 蓝 72 宽 / 橙 24 宽, 位置和擦除都按当前颜色的实际宽度算 */
+		int icon_w = is_blue ? CHARGING_ICON_W_BLUE : CHARGING_ICON_W_ORANGE;
+		int icon_x = fill_x - icon_w;
 		int f = ui_data.charge_anim_frame;
 		int px = ui_data.prev_icon_x;
+		int pw = prev_icon_w;
+
+		if (icon_x < 0)
+			icon_x = 0;
 
 		/* 先画新帧 (偏移 = BASE + frame * STRIDE) */
 		if (is_blue)
@@ -641,33 +648,54 @@ static void default_page_show_bar_effect(void)
 				FLASH_ADDR_CHARGING_ORANGE_DOWN_BASE + (uint32_t)f * FLASH_STRIDE_CHARGING_ORANGE_DOWN);
 		}
 
-		/* 擦除旧图标不重叠部分 (先画后擦, 无闪烁) */
-		if (px > 0)
+		/* 旧内容范围: 刚从光晕切过来是整宽 240, 否则是上一帧图标 [px, px+pw) */
 		{
-			if (icon_x > px)
+			int old_l, old_r;
+
+			if (effect_changed)
 			{
-				anima_erase_area(px, BAR_EFFECT_UP_Y, icon_x - px, CHARGING_ICON_H);
-				anima_erase_area(px, BAR_EFFECT_DN_Y, icon_x - px, CHARGING_ICON_H);
+				old_l = 0;
+				old_r = BAR_PROGRESS_W;
 			}
-			else if (icon_x < px)
+			else if (pw > 0)
 			{
-				anima_erase_area(icon_x + CHARGING_ICON_W, BAR_EFFECT_UP_Y,
-								 px - icon_x, CHARGING_ICON_H);
-				anima_erase_area(icon_x + CHARGING_ICON_W, BAR_EFFECT_DN_Y,
-								 px - icon_x, CHARGING_ICON_H);
+				old_l = px;
+				old_r = px + pw;
+			}
+			else
+			{
+				old_l = old_r = 0;
+			}
+
+			/* 先画后擦: 只擦旧内容露在新图标外的两侧 (蓝橙宽度不同也算得准) */
+			if (old_l < icon_x)          /* 左侧露出段 */
+			{
+				int e_r = (old_r < icon_x) ? old_r : icon_x;
+				anima_erase_area(old_l, BAR_EFFECT_UP_Y, e_r - old_l, CHARGING_ICON_H);
+				anima_erase_area(old_l, BAR_EFFECT_DN_Y, e_r - old_l, CHARGING_ICON_H);
+			}
+			if (old_r > icon_x + icon_w) /* 右侧露出段 */
+			{
+				int e_l = (old_l > icon_x + icon_w) ? old_l : icon_x + icon_w;
+				anima_erase_area(e_l, BAR_EFFECT_UP_Y, old_r - e_l, CHARGING_ICON_H);
+				anima_erase_area(e_l, BAR_EFFECT_DN_Y, old_r - e_l, CHARGING_ICON_H);
 			}
 		}
 		ui_data.prev_icon_x = icon_x;
+		prev_icon_w         = (uint8_t)icon_w;
 
 		ui_data.charge_anim_frame = (f + 1) % 25;
 	}
 	else
 	{
+		/* 光晕整宽 240, 直接盖掉上一状态的粒子图标, 无需预擦 */
 		int idx = bat - 1;
 		Dispphoto_Dispaly_flash(0, BAR_EFFECT_UP_Y,
 			FLASH_ADDR_BLUR_UP_BASE + (uint32_t)idx * FLASH_STRIDE_BLUR_UP);
 		Dispphoto_Dispaly_flash(0, BAR_EFFECT_DN_Y,
 			FLASH_ADDR_BLUR_DOWN_BASE + (uint32_t)idx * FLASH_STRIDE_BLUR_DOWN);
+		ui_data.prev_icon_x = 0;
+		prev_icon_w         = 0;
 	}
 #endif /* ENABLE_CHARGE_ANIM */
 }

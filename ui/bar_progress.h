@@ -5,7 +5,11 @@
 
 #define BAR_PROGRESS_W   240
 #define BAR_PROGRESS_H   4
-#define CHARGING_ICON_W  72
+/* 粒子图标宽度蓝橙不同 (由 stride 反算: (2082-66)/14=144B/行 → 72px;
+   (738-66)/14=48B/行 → 24px), 擦除必须按当前颜色的实际宽度算 */
+#define CHARGING_ICON_W_BLUE    72
+#define CHARGING_ICON_W_ORANGE  24
+#define CHARGING_ICON_W  CHARGING_ICON_W_BLUE   /* 兼容旧用法, 指蓝色 */
 #define CHARGING_ICON_H  14
 #define BLUR_W           240
 #define BLUR_H           14
