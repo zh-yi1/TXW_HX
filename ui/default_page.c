@@ -709,6 +709,10 @@ void default_page_init()
 	// 清除屏幕
 	DispBlock(0, 0, ROW - 1, COL - 1);
 
+	/* 在其他页面期间 is_charge 可能变了, 不同步的话首次 updata 会触发
+	   一场终点和屏上一致的动画, 数字闪到旧位置再移回来 */
+	default_page_bat_filter_resync();
+
 	default_page_show_battery();
 
 	// 显示固定位置图标: 每个端口仅一个 USB 图标(宽60), 位置 usb1(0,90)/usb2(90,90)/usb3(180,90)
