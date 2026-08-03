@@ -73,7 +73,7 @@ void short_circuit_hint_page(void)
  * 布局 (标签均左对齐 x=6, 后接文字隔 2px):
  *   异常信息  (80,6)
  *   行1 (6,47): 电压保护 / 温度保护 (82x16) + 条数 "index/total"
- *   行2 (6,73): 时间 (44x16) + "YYYY-MM-DD" + 5px + "HH:MM"
+ *   行2 (6,73): 时间 (44x16) + "YYYY-MMDD-HH:MM"  (共 190px, 恰好占满剩余宽度)
  *   行3 (6,99): 电压 (44x16) + "X.XXV" + 6px + 编号前6位
  *               / 充电·静置·放电温度 (78x16) + "XX^"
  *   行4:        电压时换行显示编号第7位起, x 对齐电压值
@@ -142,13 +142,15 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 	buf[4] = '-';
 	buf[5] = '0' + month/10;
 	buf[6] = '0' + month%10;
-	buf[7] = '-';
-	buf[8] = '0' + day/10;
-	buf[9] = '0' + day%10;
+	/* 月日之间不加 '-': 带两个 '-' 时整行宽 195px, 超出可用宽度 190px, 分钟末位会被截掉。
+	 * 日期后的 '-' 兼作与时分的分隔, 不再留 5px 间隔 —— "YYYY-MMDD-HH:MM" 正好 190px */
+	buf[7] = '0' + day/10;
+	buf[8] = '0' + day%10;
+	buf[9] = '-';
 	buf[10] = '\0';
 	x = ABN_LABEL_X + ABN_TIME_W + ABN_GAP;
 	display_string_16(buf, x, ABN_ROW2_Y, DIGIT_16_COLOR_BLUE);
-	x += string_width_16(buf, DIGIT_16_COLOR_BLUE) + 5;
+	x += string_width_16(buf, DIGIT_16_COLOR_BLUE);
 
 	buf[0] = '0' + hour/10;
 	buf[1] = '0' + hour%10;
