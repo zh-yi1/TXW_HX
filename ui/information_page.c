@@ -53,6 +53,11 @@ static int16_t temp_filter_get(void)
 #define VOLT_LABEL_X   52
 #define VOLT_LABEL_Y   97
 #define VOLT_DIGIT_X   114     /* 52 + 60(label) + 2(gap) */
+#define VOLT_DIGIT_R   239     /* 该行 114~239 只有总电压数值, 擦尾不会碰到别的内容 */
+
+/* 清尾宽度: "XX.XXV" 共 4 位数字, 每位由 14 宽变 "1"(8 宽) 少 6px,
+ * 全变 "1" 最多左移 24px。不判断实际有几个 "1", 一律按最坏情况擦 24px */
+#define VOLT_ERASE_W   (4 * 6)
 
 /* 40 号数字比例宽度: 数字"1" 较窄 */
 static uint8_t num40_prop_w(int d)
@@ -146,9 +151,8 @@ static void fmt_voltage(char *buf, uint16_t mv, char sep)
 static int temp_val_x;
 static int temp_val_w;
 
-/* 页3 电压串当前宽度 (4 节电芯电压 + 总电压), 供先写后擦只擦右侧残留 */
+/* 页3 电芯电压串当前宽度, 供先写后擦只擦右侧残留 */
 static uint8_t cell_v_w[4];
-static uint8_t total_v_w;
 
 void information_page_1_init(void)
 {
@@ -229,7 +233,6 @@ void information_page_3_init(void)
         Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y, FLASH_ADDR_TOTAL_VOLTAGE);
         digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
                              DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
-        total_v_w = (uint8_t)digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
     }
 
     /* 电芯型号 (标签 18,119 78x16, 型号串隔 2px 紧随其后) */
@@ -343,14 +346,21 @@ void information_page_3_updata(void)
 
             fmt_voltage(buf, (uint16_t)total_mv, '.');
 
-            /* 先写后擦 (左对齐, 防闪): 新串覆盖重叠区, 再擦旧串右侧露出的残留 */
+            /* 先覆盖后擦尾: 新串盖住重叠区, 再固定擦掉右侧 VOLT_ERASE_W 像素。
+             * 不判断旧串有几个 "1", 直接按 4 位数字全是 "1" 的最坏情况算位移,
+             * 一定能盖住旧串 V 留下的残条 */
             digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y,
                                  DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
+
             neww = (uint8_t)digit_string_width(buf, DIGIT_16_COLOR_WHITE, DIGIT_HEIGHT_16);
-            if (total_v_w > neww)
-                DispBlock(VOLT_DIGIT_X + neww, VOLT_LABEL_Y,
-                          VOLT_DIGIT_X + total_v_w - 1, VOLT_LABEL_Y + DIGIT_16_LINE_H - 1);
-            total_v_w = neww;
+            {
+                int ex1 = VOLT_DIGIT_X + neww;
+                int ex2 = ex1 + VOLT_ERASE_W - 1;
+                if (ex2 > VOLT_DIGIT_R) ex2 = VOLT_DIGIT_R;
+                if (ex1 <= ex2)
+                    DispBlock(ex1, VOLT_LABEL_Y, ex2,
+                              VOLT_LABEL_Y + DIGIT_16_LINE_H - 1);
+            }
             last_total_cv = total_cv;
         }
     }
