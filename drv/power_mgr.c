@@ -34,6 +34,9 @@ static void screen_off(void)
 static void wake_screen(void)
 {
     s_just_woke_up = 1; /* 通知 power_mgr_proc 刷新活动时间 */
+    /* 灭屏期间 ui_proc 不跑, 电量滤波窗口停在灭屏前的旧值;
+       亮屏前对齐到实时电量, 否则屏上会从旧值花 2.5s 爬到实时值 */
+    default_page_bat_filter_resync();
     LCD_BLK_LOW();
     ui_data.dev_state = DEV_STATE_NORMAL;
     ui_data.cur_page = PAGE_DEFAULT;
@@ -199,6 +202,7 @@ static void power_mgr_exit_stop_full(void)
     LOGI("[PWR] exit_stop_full: done\r\n");
 
     /* 恢复 UI 状态 */
+    default_page_bat_filter_resync();   /* 同 wake_screen: 电量对齐实时值, 不做爬升 */
     ui_data.dev_state = DEV_STATE_NORMAL;
     ui_data.cur_page = PAGE_DEFAULT;
     ui_data.last_page = PAGE_MAX; /* 强制刷新 */

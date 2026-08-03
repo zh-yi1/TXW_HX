@@ -66,15 +66,51 @@ static uint8_t power_filter_get(power_e port)
 /* ============================ 电量滤波 ============================ */
 
 #define BAT_FILTER_WIN 5
+/* 实时电量与屏上显示值相差 ≥ 此值视为"显示中断过", 直接对齐不做平滑 */
+#define BAT_FILTER_SNAP 5
 
 static uint8_t bat_filter_buf[BAT_FILTER_WIN];
 static uint8_t bat_filter_idx;
 static bool    bat_filter_full;
 static uint8_t bat_filter_last_out = 0xFF;   /* 0xFF=未初始化 */
 
+/* 用同一个值填满整个窗口 — 丢弃历史, 输出立刻等于该值 */
+static void bat_filter_fill(uint8_t value)
+{
+	uint8_t i;
+	for (i = 0; i < BAT_FILTER_WIN; i++)
+		bat_filter_buf[i] = value;
+	bat_filter_idx      = 0;
+	bat_filter_full     = true;
+	bat_filter_last_out = value;
+}
+
+/* 息屏期间 ui_proc 直接 return, 滤波窗口停在灭屏前的旧样本, 而 i2c_slave_proc
+   在主循环里照常刷新 ui_data.bat_power。亮屏后若继续做滑动平均, 屏上会用 5 个
+   刷新周期(2.5s) 从旧值爬到实时值(0%→16% / 42%→0%)。
+   亮屏前调用本函数把窗口整体重置为当前实时电量, 亮屏首帧即真值, 无爬升 */
+void default_page_bat_filter_resync(void)
+{
+	bat_filter_fill(ui_data.bat_power);
+	ui_data.bat_power_last = ui_data.bat_power;
+}
+
 static void bat_filter_push(uint8_t value)
 {
 	uint8_t i = bat_filter_idx;
+
+	/* 与当前显示值相差过大 = 显示中断过(息屏/STOP 期间电量已经变了),
+	   不做平滑, 直接整窗对齐到实时值, 避免慢慢爬 */
+	if (bat_filter_last_out != 0xFF) {
+		uint8_t diff = (value > bat_filter_last_out)
+		             ? (uint8_t)(value - bat_filter_last_out)
+		             : (uint8_t)(bat_filter_last_out - value);
+		if (diff >= BAT_FILTER_SNAP) {
+			bat_filter_fill(value);
+			return;
+		}
+	}
+
 	bat_filter_buf[i] = value;
 	i++;
 	if (i >= BAT_FILTER_WIN) {
@@ -229,6 +265,10 @@ static void default_page_show_power(power_e port, uint8_t power_value, uint8_t s
    写错会导致 total_w 少算, 右侧擦除起点落在 % 内部, 留残影 */
 #define PERCENT_W 28
 #define PERCENT_H 28
+/* 充电图标与 % 同尺寸 (FLASH_STRIDE_CHARGING_BLUE=1634, 与 PERCENT 一致 → 28x28),
+   充电时叠在 % 正上方, 两块合起来正好 56 高, 与电量数字等高 */
+#define CHARGE_ICON_W 28
+#define CHARGE_ICON_H 28
 #define SCREEN_W 240
 
 /* 电量数字宽度: 数字"1"较窄 */
@@ -285,13 +325,25 @@ static void anima_draw_bat_power(int x, int y, uint8_t power, uint8_t is_blue)
 		cur_x += BAT_DIGIT_W(digits[i]);
 	}
 
-	/* 百分号, 底部对齐数字后再上移 3px */
-	pct_y = y + NUM_48_H - PERCENT_H - 3;
+	if (ui_data.is_charge)
+	{
+		/* 充电: % 上方补一个 28x28 充电图标, 两块正好叠满 56 高(与数字等高),
+		   所以 % 不再上移 3px, 落到 y+28 给图标让位 */
+		pct_y = y + CHARGE_ICON_H;
+		Dispphoto_Dispaly_flash(cur_x, y,
+			is_blue ? FLASH_ADDR_CHARGING_BLUE : FLASH_ADDR_CHARGING_ORANGE);
+	}
+	else
+	{
+		/* 百分号, 底部对齐数字后再上移 3px */
+		pct_y = y + NUM_48_H - PERCENT_H - 3;
+	}
 	Dispphoto_Dispaly_flash(cur_x, pct_y, percent_addr);
 
 	/* % 只有 28 高, 数字 56 高: 位数变少时(如 100%→80%) % 会落到旧数字所在位置,
-	   上下两段盖不住, 而左右边角擦除又管不到这里, 必须按 % 的 x 范围补擦 */
-	if (pct_y > y)
+	   上下两段盖不住, 而左右边角擦除又管不到这里, 必须按 % 的 x 范围补擦
+	   (充电时上方已被图标盖住, 不用擦) */
+	if (!ui_data.is_charge && pct_y > y)
 		anima_erase_area(cur_x, y, PERCENT_W, pct_y - y);
 	if (pct_y + PERCENT_H < y + NUM_48_H)
 		anima_erase_area(cur_x, pct_y + PERCENT_H, PERCENT_W,

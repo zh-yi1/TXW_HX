@@ -21,6 +21,7 @@ void default_page_anim_proc(void);   /* 动画高频驱动, 由 ui_proc 每次�
 void anima_erase_area(int x, int y, int w, int h);
 void default_page_show_power(power_e port, uint8_t power_value, uint8_t status);
 void default_page_updata(void);
+void default_page_bat_filter_resync(void);  /* 亮屏前调用: 电量滤波窗口对齐到实时值, 防止亮屏后爬升 */
 
 int16_t calc_charge_remain_min(void);    /* V1.3: 剩余充满时间 (分钟), 未准备好返回 -1 (不显示) */
 
