@@ -92,7 +92,11 @@ static void bat_filter_fill(uint8_t value)
 void default_page_bat_filter_resync(void)
 {
 	bat_filter_fill(ui_data.bat_power);
-	ui_data.bat_power_last = ui_data.bat_power;
+	ui_data.bat_power_last  = ui_data.bat_power;
+	/* 灭屏期间 is_charge 也可能变了, 不同步的话亮屏后 updata 里会
+	   charge_changed=true, 发起一场终点和屏上内容一致的动画, 看着就是
+	   数字从旧位置闪到当前位置再移回来 */
+	ui_data.is_charge_last = ui_data.is_charge;
 }
 
 static void bat_filter_push(uint8_t value)
