@@ -183,6 +183,7 @@ static void check_hour_commit(void)
 static void battery_mgr_jump_to_alert_page(page_t target_page)
 {
     if (ui_data.cur_page == PAGE_DEFAULT ||
+        ui_data.cur_page == PAGE_POWER ||
         ui_data.cur_page == PAGE_INFO_1 ||
         ui_data.cur_page == PAGE_INFO_2 ||
         ui_data.cur_page == PAGE_INFO_3) {

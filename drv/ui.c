@@ -112,6 +112,9 @@ void ui_proc(void)
 		case PAGE_DEFAULT:
 			default_page_init();
 			break;
+		case PAGE_POWER:
+			power_page_init();
+			break;
 		case PAGE_INFO_1:
 			information_page_1_init();
 			break;
@@ -183,6 +186,11 @@ void ui_proc(void)
 		default_page_anim_proc();
 #endif
 
+	/* 端口功率采样: 必须放在 500ms 限流之外, 否则滤波窗口跟着绘制节奏走,
+	   5 点窗口要跨 2.5s 才填满 */
+	if (ui_data.cur_page == PAGE_POWER)
+		power_page_sample();
+
 	/* 各界面周期性更新, 统一 500ms 限流 */
 	static uint32_t last_updata_ms = 0;
 	uint32_t _now = md_get_tick();
@@ -194,6 +202,9 @@ void ui_proc(void)
 	{
 	case PAGE_DEFAULT:
 		default_page_updata();
+		break;
+	case PAGE_POWER:
+		power_page_updata();
 		break;
 	case PAGE_INFO_1:
 		information_page_1_updata();
@@ -249,6 +260,10 @@ void key_single_click_ui_proc(void)
 	{
 	case PAGE_DEFAULT:
 		ui_data.last_page = PAGE_DEFAULT;
+		ui_data.cur_page = PAGE_POWER;
+		break;
+	case PAGE_POWER:
+		ui_data.last_page = PAGE_POWER;
 		ui_data.cur_page = PAGE_INFO_1;
 		break;
 	case PAGE_INFO_1:
@@ -320,6 +335,7 @@ bool key_long_press_ui_proc(void)
 	switch (ui_data.cur_page)
 	{
 		case PAGE_DEFAULT:
+		case PAGE_POWER:
 		case PAGE_INFO_1:
 			ret = true;
 			break;

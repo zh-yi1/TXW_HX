@@ -500,8 +500,8 @@ static void apply_host_data(void)
         uint16_t v = reg_read_u16(REG_C1_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_C1_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint8_t  w  = (uint8_t)(mw / 1000UL);
-        ui_data.usb_c1_power = (w > 99) ? 99 : w;
+        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
+        ui_data.usb_c1_power = (w > 255) ? 255 : (uint8_t)w;
     } else {
         ui_data.usb_c1_power = 0;
     }
@@ -512,8 +512,8 @@ static void apply_host_data(void)
         uint16_t v = reg_read_u16(REG_C2_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_C2_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint8_t  w  = (uint8_t)(mw / 1000UL);
-        ui_data.usb_c2_power = (w > 99) ? 99 : w;
+        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
+        ui_data.usb_c2_power = (w > 255) ? 255 : (uint8_t)w;
     } else {
         ui_data.usb_c2_power = 0;
     }
@@ -524,8 +524,8 @@ static void apply_host_data(void)
         uint16_t v = reg_read_u16(REG_USBA_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_USBA_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint8_t  w  = (uint8_t)(mw / 1000UL);
-        ui_data.usb_a_power = (w > 99) ? 99 : w;
+        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
+        ui_data.usb_a_power = (w > 255) ? 255 : (uint8_t)w;
     } else {
         ui_data.usb_a_power = 0;
     }
