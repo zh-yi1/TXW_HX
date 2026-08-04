@@ -11,14 +11,12 @@ static uint32_t disabled_leave_tick = 0;  /* 离开禁用界面的时刻, 用于
 ui_data_t ui_data = {
 	.bat_power = 50,
 	.is_charge = 1,
-	.is_charge_last = 0,
 	.usb_c1_status = 0,
 	.usb_c1_power = 5,
 	.usb_c2_status = 0,
 	.usb_c2_power = 30,
 	.usb_a_status = 0,
 	.usb_a_power = 10,
-	.count_down = 0,
 	.bat_max_cap = 100,
 	.bat_cycle_cnt = 9999,
 	.bat_temperature = 250,   /* 25.0℃ */
@@ -26,7 +24,7 @@ ui_data_t ui_data = {
 	.bat_current = 0,
 
 	.warning = WARNING_NONE,
-	.cur_page = PAGE_DEFAULT,
+	.cur_page = PAGE_HOME,
 	.last_page = PAGE_MAX,
 	.bat_model_1 = "1234567890_A",
 	.bat_model_2 = "BCDEFGHIJKLM",
@@ -60,16 +58,8 @@ void ui_init(void)
 	
 	//刷黑屏幕
 	DispColor(BLACK);
-	// md_delay_1ms(500);
-	// Dispphoto_Dispaly_flash(0,0,FLASH_ADDR_BLUE_NUM_64_0);
-	// start_change_anima(0);
-	// extern void draw_charging_blue_anima();
-	// draw_charging_blue_anima();
-
-	// default_page_test();
-	// default_page_init();
 	ui_data.last_page = PAGE_MAX;
-	ui_data.cur_page = PAGE_DEFAULT;
+	ui_data.cur_page = PAGE_HOME;
 	// information_page_1_init();
 	// over_temp_hint_page();
 	//获取FLASH芯片 ID
@@ -109,8 +99,8 @@ void ui_proc(void)
 		LOGI("[UI] ui_proc: cur_page=%d, last_page=%d\r\n", ui_data.cur_page, ui_data.last_page);
 		switch (ui_data.cur_page)
 		{
-		case PAGE_DEFAULT:
-			default_page_init();
+		case PAGE_HOME:
+			home_page_init();
 			break;
 		case PAGE_POWER:
 			power_page_init();
@@ -180,16 +170,17 @@ void ui_proc(void)
 		ui_data.last_page = ui_data.cur_page;
 	}
 
-#ifdef ENABLE_CHARGE_ANIM
-	/* 主界面动画 (切换动画/充电粒子) 高频驱动, 不受下方 500ms 限流 */
-	if (ui_data.cur_page == PAGE_DEFAULT)
-		default_page_anim_proc();
-#endif
-
 	/* 端口功率采样: 必须放在 500ms 限流之外, 否则滤波窗口跟着绘制节奏走,
 	   5 点窗口要跨 2.5s 才填满 */
 	if (ui_data.cur_page == PAGE_POWER)
 		power_page_sample();
+
+	/* 主页电量采样 + 充放电动画: 两者节奏都远快于 500ms, 同样不能受限流 */
+	if (ui_data.cur_page == PAGE_HOME)
+	{
+		home_page_sample();
+		home_page_anim_proc();
+	}
 
 	/* 各界面周期性更新, 统一 500ms 限流 */
 	static uint32_t last_updata_ms = 0;
@@ -200,8 +191,8 @@ void ui_proc(void)
 	
 	switch (ui_data.cur_page)
 	{
-	case PAGE_DEFAULT:
-		default_page_updata();
+	case PAGE_HOME:
+		home_page_updata();
 		break;
 	case PAGE_POWER:
 		power_page_updata();
@@ -258,8 +249,8 @@ void key_single_click_ui_proc(void)
 {
 	switch (ui_data.cur_page)
 	{
-	case PAGE_DEFAULT:
-		ui_data.last_page = PAGE_DEFAULT;
+	case PAGE_HOME:
+		ui_data.last_page = PAGE_HOME;
 		ui_data.cur_page = PAGE_POWER;
 		break;
 	case PAGE_POWER:
@@ -272,7 +263,7 @@ void key_single_click_ui_proc(void)
 		break;
 	case PAGE_INFO_2:
 		ui_data.last_page = PAGE_INFO_2;
-		ui_data.cur_page = PAGE_DEFAULT;
+		ui_data.cur_page = PAGE_HOME;
 		break;
 	case PAGE_INFO_3:
 		/* 电压界面单击 -> 温度异常界面 */
@@ -281,7 +272,7 @@ void key_single_click_ui_proc(void)
 		break;
 	case PAGE_DISABLED:
 		ui_data.last_page = PAGE_DISABLED;
-		ui_data.cur_page = PAGE_DEFAULT;
+		ui_data.cur_page = PAGE_HOME;
 		break;
 	case PAGE_TEMP_ABNORMAL:
 		/* 温度异常界面单击 -> 电压异常界面 */
@@ -334,7 +325,7 @@ bool key_long_press_ui_proc(void)
 	bool ret = false;
 	switch (ui_data.cur_page)
 	{
-		case PAGE_DEFAULT:
+		case PAGE_HOME:
 		case PAGE_POWER:
 		case PAGE_INFO_1:
 			ret = true;

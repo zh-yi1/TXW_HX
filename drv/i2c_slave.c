@@ -543,9 +543,7 @@ static void apply_host_data(void)
     if (ui_data.is_charge)
         ui_data.low_current_flag = false;
 
-    /* 充电完成检测: is_charge 下降沿 (1→0) 时复位运行时间
-     * 注意: 此处使用独立静态变量做边沿检测, 不修改 ui_data.is_charge_last,
-     * 该字段由 default_page_updata() 负责维护, 用于 UI 层充放电切换重绘 */
+    /* 充电完成检测: is_charge 下降沿 (1→0) 时复位运行时间 */
     {
         static bool s_charge_last = false;
         if (s_charge_last && !ui_data.is_charge)

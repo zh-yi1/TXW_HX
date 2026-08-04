@@ -71,7 +71,7 @@ typedef struct
 /* 界面名称 */
 typedef enum
 {
-	PAGE_DEFAULT            = 0,  /* 默认主页 (电量) */
+	PAGE_HOME               = 0,  /* 主页 (电量胶囊 + 充放电动画) */
 	PAGE_POWER              ,  /* 端口功率页 (3 个端口的状态和功率) */
 	PAGE_INFO_1             ,  /* 电池信息页1 (最大容量/循环次数/电池编号) */
 	PAGE_INFO_2             ,  /* 电池信息页2 (温度/运行时间) */
@@ -105,14 +105,12 @@ typedef struct
 {
 	uint8_t  bat_power;		/* 电池电量 0-100% */
 	bool     is_charge;		/* 是否充电中 */
-	bool     is_charge_last;	/* 上一轮的充电状态，用于检测变化 */
 	uint8_t  usb_c1_status;		/* USB-C1 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_c1_power;		/* USB-C1 实时功率 0-255W */
 	uint8_t  usb_c2_status;		/* USB-C2 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_c2_power;		/* USB-C2 实时功率 0-255W */
 	uint8_t  usb_a_status;		/* USB-A  端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_a_power;		/* USB-A  实时功率 0-255W */
-	uint16_t count_down;		/* 倒计时剩余秒数（0=无倒计时） */
 	uint8_t  bat_max_cap;		/* 电池最大容量 0-100% */
 	uint16_t bat_cycle_cnt;	/* 循环次数 0-9999 */
 	int16_t  bat_temperature;	/* 电池温度 -20~80℃, 单位为0.1℃ */
@@ -120,14 +118,6 @@ typedef struct
 	int16_t  bat_current;		/* 电池电流 mA (来自IP3561Q,充电为正) */
 
 	warning_t warning;		/* 警告状态 */
-	uint16_t anim_cur_x;		/* 电量百分比动画当前 X 偏移 */
-	uint8_t  anim_power;		/* 动画当前显示的电量值 1-100 */
-	uint16_t prev_disp_x;		/* 上一轮电量显示 X 坐标 */
-	uint8_t  prev_disp_w;		/* 上一轮电量显示总宽度 */
-	uint8_t  charge_anim_frame;	/* 充电图标动画当前帧 0-24 */
-	uint8_t  prev_bar_effect;	/* 上一轮进度条效果 0=初始 1=充电 2=放电 */
-	uint16_t prev_icon_x;		/* 上一轮充电图标 X 坐标 */
-	uint8_t  bat_power_last;	/* 上一轮电量值，检测变化 */
 	page_t   cur_page;		/* 当前界面 */
 	page_t   last_page;		/* 上一界面，用于检测切换 */
 	char     bat_model_1[19];	/* 电池型号 1 (18字符+\0) */

@@ -56,4 +56,8 @@ uint8_t  battery_mgr_is_any_protection(void);             /* 任意保护标志:
 void battery_mgr_sync_to_ui(void);                         /* 同步 battery_mgr → ui_data */
 void static_cfg_load_to_ui(void);                          /* 上电读静态配置区 → ui_data */
 
+/* V1.3: 剩余充满时间估算 (分钟), 未准备好返回 -1 (不显示)。
+   内部按 1s 采样电流, 需被主循环持续调用以维持环形缓冲 */
+int16_t  calc_charge_remain_min(void);
+
 #endif /* __BATTERY_MGR_H */

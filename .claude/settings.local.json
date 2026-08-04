@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:lanhuapp.com)"
+      "WebFetch(domain:lanhuapp.com)",
+      "Bash(python3 -)"
     ]
   }
 }

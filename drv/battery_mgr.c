@@ -182,7 +182,7 @@ static void check_hour_commit(void)
  * ========================================================================== */
 static void battery_mgr_jump_to_alert_page(page_t target_page)
 {
-    if (ui_data.cur_page == PAGE_DEFAULT ||
+    if (ui_data.cur_page == PAGE_HOME ||
         ui_data.cur_page == PAGE_POWER ||
         ui_data.cur_page == PAGE_INFO_1 ||
         ui_data.cur_page == PAGE_INFO_2 ||
@@ -658,3 +658,84 @@ void battery_mgr_sync_to_ui(void)
     ui_data.abnormal_volt_count = abnormal_log_voltage_count();
     ui_data.abnormal_temp_count = abnormal_log_temperature_count();
 }
+/* ========================================================================
+ * V1.3 剩余充满时间估算 (1s 更新一次, 返回分钟)
+ * ======================================================================== */
+#define IBAT_BUF_SIZE  10U
+
+static int32_t ibat_buf[IBAT_BUF_SIZE];   /* 电流环形缓冲 */
+
+/* 电池循环降额系数 (%) */
+static uint8_t bat_cycle_derate(uint16_t cycle_times)
+{
+    if (cycle_times >= 210) return 90;
+    if (cycle_times >= 140) return 93;
+    if (cycle_times >= 70)  return 97;
+    return 100;
+}
+
+int16_t calc_charge_remain_min(void)
+{
+    static uint32_t last_ms   = 0;
+    static uint8_t  ibat_idx  = 0;
+    static uint8_t  ibat_full = 0;
+
+    uint32_t total_cap_mah;         /* 折算后总容量 (mAh)    */
+    uint32_t remain_cap;            /* 剩余容量 (mAh)        */
+    uint32_t seconds;               /* 剩余时间 (秒)         */
+    uint32_t ibat_avg;              /* 平滑电流 (mA)         */
+    uint32_t now;
+    int32_t  ibat;
+    uint8_t  derate;
+
+	if (!ui_data.is_charge || ui_data.bat_power > 100)
+	{
+		ibat_idx  = 0;              /* 停充清缓冲，避免下次用旧电流 */
+		ibat_full = 0;
+		return -1;
+	}
+
+    /* ---- 1 秒采样 ---- */
+    now = md_get_tick();
+    if (now - last_ms >= 1000U) {
+        last_ms = now;
+        ibat = (int32_t)ip3561q_info.current_ma;
+        ibat_buf[ibat_idx] = (ibat < 0) ? -ibat : ibat;
+        ibat_idx++;
+        if (ibat_idx >= IBAT_BUF_SIZE) {
+            ibat_idx  = 0;
+            ibat_full = 1;
+        }
+    }
+
+    if (!ibat_full)
+        return -1;
+
+    /* 平滑电流（10 点环形缓冲平均） */
+    {
+        int32_t sum = 0;
+        uint8_t i;
+        for (i = 0; i < IBAT_BUF_SIZE; i++)
+            sum += ibat_buf[i];
+        ibat_avg = (uint32_t)(sum / IBAT_BUF_SIZE);
+    }
+    if (ibat_avg < 50) ibat_avg = 50;   /* 最小电流下限，防除零及极端值 */
+
+    /* 总容量 = 标称容量(5000mAh) * 循环降额系数 */
+    derate        = bat_cycle_derate(ui_data.bat_cycle_cnt);
+    total_cap_mah = 5000UL * derate / 100U;
+
+    /* ----- 充电剩余时间（秒）----- */
+    if (ip3561q_info.current_ma <= 0)
+        return -1;
+
+    remain_cap = (uint32_t)(100U - ui_data.bat_power) * total_cap_mah / 100U;
+    seconds    = remain_cap * 3600UL / ibat_avg;
+
+    if (seconds > 5999UL * 60U)         /* HH:MM 两位小时, 上限 99:59 */
+        seconds = 5999UL * 60U;
+
+    return (int16_t)(seconds / 60U);
+}
+
+
