@@ -118,10 +118,6 @@ void ui_proc(void)
 			high_temp_pro(battery_mgr_get_warning_chg_state());
 			hint_enter_tick = md_get_tick();
 			break;
-		case PAGE_LOW_TEMP:
-			low_temp_hint_page();
-			hint_enter_tick = md_get_tick();
-			break;
 		case PAGE_DISABLED:
 			disabled_hint_page();
 			break;
@@ -207,7 +203,6 @@ void ui_proc(void)
 		information_page_3_updata();
 		break;
 	case PAGE_OVER_TEMP:
-	case PAGE_LOW_TEMP:
 	case PAGE_SHORT_CIRCUIT:
 		if (md_get_tick() - hint_enter_tick >= 5000) {
 			ui_data.cur_page = (ui_data.cur_page == PAGE_SHORT_CIRCUIT)

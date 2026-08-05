@@ -5,7 +5,6 @@ typedef enum
 	HINT_OVER_TEMP_IDLE = 0,  /* 静置过温保护 (对齐 CHG_STATE_IDLE) */
 	HINT_OVER_TEMP_CHG  = 1,  /* 充电过温保护 (对齐 CHG_STATE_CHARGING) */
 	HINT_OVER_TEMP_DSG  = 2,  /* 放电过温保护 (对齐 CHG_STATE_DISCHARGING) */
-	HINT_LOW_TEMP,            /* 低温保护 */
 	HINT_SHORT_CIRCUIT,       /* 短路保护 */
 	HINT_SAFEGUARD,			  /* 安全保护 */
 
@@ -16,7 +15,6 @@ pos_and_addr_t hint_img_pos[] = {
 	{80, 0, FLASH_ADDR_TEMP_ORANGE},       /* HINT_OVER_TEMP_IDLE */
 	{80, 0, FLASH_ADDR_TEMP_ORANGE},       /* HINT_OVER_TEMP_CHG */
 	{80, 0, FLASH_ADDR_TEMP_ORANGE},       /* HINT_OVER_TEMP_DSG */
-	{80, 0, FLASH_ADDR_TEMP_BLUE},         /* HINT_LOW_TEMP */
 	{80, 0, FLASH_ADDR_CIRCUIT_PROTECTION},/* HINT_SHORT_CIRCUIT */
 	{80, 0, FLASH_ADDR_SAFE},			   /* HINT_SAFEGUARD */
 };
@@ -25,7 +23,6 @@ pos_and_addr_t hint_text_img_pos[] = {
 	{0, 80, FLASH_ADDR_NOAMAL_HIGH_TEMP_PRO},       /* HINT_OVER_TEMP_IDLE */
 	{0, 80, FLASH_ADDR_CHARGE_HIGH_TEMP_PRO},       /* HINT_OVER_TEMP_CHG */
 	{0, 80, FLASH_ADDR_DISCHARGE_HIGH_TEMP_PRO},    /* HINT_OVER_TEMP_DSG */
-	{0, 80, FLASH_ADDR_LOW_TMP_TEXT},     			/* HINT_LOW_TEMP */
 	{0, 80, FLASH_ADDR_CIRCUIT_PROTECTION_TEXT}, 	/* HINT_SHORT_CIRCUIT */
 	{0, 80, FLASH_ADDR_SAFEGUARD}, 					/* HINT_SHORT_CIRCUIT */
 };
@@ -40,14 +37,6 @@ void high_temp_pro(uint8_t type)
 	DispBlock(0, 0, ROW - 1, COL - 1);
 	Dispphoto_Dispaly_flash(hint_img_pos[type].x, hint_img_pos[type].y, hint_img_pos[type].img_addr);
 	Dispphoto_Dispaly_flash(hint_text_img_pos[type].x, hint_text_img_pos[type].y, hint_text_img_pos[type].img_addr);
-	Dispphoto_Dispaly_flash(0, 116, FLASH_ADDR_TEMPERATURE_RECOVERY);
-}
-
-void low_temp_hint_page(void)
-{
-	DispBlock(0, 0, ROW - 1, COL - 1);
-	Dispphoto_Dispaly_flash(hint_img_pos[HINT_LOW_TEMP].x, hint_img_pos[HINT_LOW_TEMP].y, hint_img_pos[HINT_LOW_TEMP].img_addr);
-	Dispphoto_Dispaly_flash(hint_text_img_pos[HINT_LOW_TEMP].x, hint_text_img_pos[HINT_LOW_TEMP].y, hint_text_img_pos[HINT_LOW_TEMP].img_addr);
 	Dispphoto_Dispaly_flash(0, 116, FLASH_ADDR_TEMPERATURE_RECOVERY);
 }
 
@@ -70,25 +59,39 @@ void short_circuit_hint_page(void)
 /* ================================================================
  * 电压 / 温度异常信息页
  *
- * 布局 (标签均左对齐 x=6, 后接文字隔 2px):
- *   异常信息  (80,6)
- *   行1 (6,47): 电压保护 / 温度保护 (82x16) + 条数 "index/total"
- *   行2 (6,73): 时间 (44x16) + "YYYY-MMDD-HH:MM"  (共 190px, 恰好占满剩余宽度)
- *   行3 (6,99): 电压 (44x16) + "X.XXV" + 6px + 编号前6位
- *               / 充电·静置·放电温度 (78x16) + "XX^"
- *   行4:        电压时换行显示编号第7位起, x 对齐电压值
- *   无记录: (0,70) 无异常提示
+ *   标题 (0,0)     电压异常 / 温度异常, 240x32
+ *   行1 (y=53)     "第n条，共m条" 整屏居中
+ *                  第/条/共 各 18 宽, "，" 12 宽, 数字用 16 号字体
+ *   行2 (y=77)     "时间：" + "YYYY-MM-DD" + 5px + "HH:MM", 整屏居中
+ *   行3 (y=101)    电压页: "电压：" @31, 电压值 @75, 编号前 6 位 @132
+ *                  温度页: 充电/放电/静置温度标签 (78x16) + 温度值, 整屏居中
+ *   行4 (y=119)    电压页: 编号第 7 位起 @45
+ *   无记录         "无异常记录" (124x20) @ (58,77), 标题仍按类型显示
+ *
+ *   两页的标题/行1/行2 完全一致, 只有行3 起分叉。文字统一 16 号字体。
  * ================================================================ */
-#define ABN_LABEL_X     6      /* 标签左对齐 X */
-#define ABN_GAP         0      /* 标签与后随文字间距 */
-#define ABN_ROW1_Y      47
-#define ABN_ROW2_Y      73
-#define ABN_ROW3_Y      99
-#define ABN_ROW4_Y      119    /* 行3 换行: 电芯编码 */
-#define ABN_PROT_W      82     /* 电压保护 / 温度保护 宽 */
-#define ABN_TIME_W      44     /* 时间标签宽 */
-#define ABN_V_W         44     /* 电压标签宽 */
+#define ABN_CNT_Y       53     /* 行1: 第n条，共m条 */
+#define ABN_TIME_Y      77     /* 行2: 时间 */
+#define ABN_ROW3_Y      101    /* 行3: 电压 + 编号前6位 */
+#define ABN_SN2_Y       119    /* 行4: 编号第7位起 */
+
+#define ABN_W_DI        18     /* 第 */
+#define ABN_W_TIAO      18     /* 条 */
+#define ABN_W_GONG      18     /* 共 */
+#define ABN_W_DOUHAO    12     /* ， */
+
+#define ABN_LABEL_W     44     /* "时间："/"电压：" 标签宽 */
+#define ABN_TIME_GAP    5      /* 日期与时分之间的间隔 */
+
+#define ABN_VOLT_LBL_X  31     /* "电压：" 起点 */
+#define ABN_VOLT_VAL_X  75     /* 电压值起点 (31+44) */
+#define ABN_SN1_X       132    /* 编号前 6 位起点 */
+#define ABN_SN2_X       45     /* 编号第 7 位起起点 */
+
 #define ABN_TMP_W       78     /* 温度标签宽 */
+
+#define ABN_NONE_X      58     /* 无异常记录 (124x20), 58 = 整屏居中 */
+#define ABN_NONE_Y      77
 
 void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度                */
                                 uint8_t  index,       /* 第几条 (1-based)            */
@@ -104,35 +107,49 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 	uint8_t  p;
 	uint16_t x;
 
+	char     buf2[8];
+	uint16_t w;
+
 	/* 清屏 */
 	DispBlock(0, 0, ROW - 1, COL - 1);
 
-	Dispphoto_Dispaly_flash(80, 6, FLASH_ADDR_ABNORMAL_INF);   /* 异常信息 (80,6) */
+	/* 标题 (0,0) 240x32 */
+	Dispphoto_Dispaly_flash(0, 0,
+		(type == 0) ? FLASH_ADDR_VOLTAGE_ABNORMAL : FLASH_ADDR_TEMP_ABNORMAL);
 
-	/* 无记录时仅显示空状态提示 (居中: 122 宽, x=(240-122)/2=59, y=70) */
+	/* 无记录: 标题下方只显示"无异常记录" (124x20, 58 即整屏居中) */
 	if (total == 0) {
-		Dispphoto_Dispaly_flash(59, 70,
-			(type == 0) ? FLASH_ADDR_VOLTAGE_NO_ABNORMAL : FLASH_ADDR_TEMP_NO_ABNORMAL);
+		Dispphoto_Dispaly_flash(ABN_NONE_X, ABN_NONE_Y, FLASH_ADDR_NO_ABNORMAL);
 		return;
 	}
 
-	/* ---- 行1 (6,47): 保护标签 + 条数 "index/total" ---- */
-	Dispphoto_Dispaly_flash(ABN_LABEL_X, ABN_ROW1_Y,
-		(type == 0) ? FLASH_ADDR_VOLTAGE_PROTECTION : FLASH_ADDR_TMP_PROTECT);
-
+	/* ---- 行1 (y=53): "第n条，共m条" 整屏居中 ----
+	   固定图 第/条/共 各 18, "，" 12, 共 5 张 = 84; 数字宽按字体表算 */
 	p = 0;
 	if (index >= 100) { buf[p++] = '0' + index/100; index %= 100; }
 	if (index >= 10)  { buf[p++] = '0' + index/10;  index %= 10;  }
 	buf[p++] = '0' + index;
-	buf[p++] = '/';
-	if (total >= 100) { buf[p++] = '0' + total/100; total %= 100; }
-	if (total >= 10)  { buf[p++] = '0' + total/10;  total %= 10;  }
-	buf[p++] = '0' + total;
 	buf[p] = '\0';
-	display_string_16(buf, ABN_LABEL_X + ABN_PROT_W + ABN_GAP, ABN_ROW1_Y, DIGIT_16_COLOR_BLUE);
 
-	/* ---- 行2 (6,73): 时间标签 + 日期 + 5px + 时间 ---- */
-	Dispphoto_Dispaly_flash(ABN_LABEL_X, ABN_ROW2_Y, FLASH_ADDR_ABNORMAL_TIME);
+	p = 0;
+	if (total >= 100) { buf2[p++] = '0' + total/100; total %= 100; }
+	if (total >= 10)  { buf2[p++] = '0' + total/10;  total %= 10;  }
+	buf2[p++] = '0' + total;
+	buf2[p] = '\0';
+
+	w = (uint16_t)(ABN_W_DI + ABN_W_TIAO + ABN_W_DOUHAO + ABN_W_GONG + ABN_W_TIAO)
+	  + string_width_16(buf) + string_width_16(buf2);
+	x = (w < ROW) ? (uint16_t)((ROW - w) / 2) : 0;
+
+	Dispphoto_Dispaly_flash(x, ABN_CNT_Y, FLASH_ADDR_DI);        x += ABN_W_DI;
+	display_string_16(buf, x, ABN_CNT_Y);                        x += string_width_16(buf);
+	Dispphoto_Dispaly_flash(x, ABN_CNT_Y, FLASH_ADDR_TIAO);      x += ABN_W_TIAO;
+	Dispphoto_Dispaly_flash(x, ABN_CNT_Y, FLASH_ADDR_DOUHAO);    x += ABN_W_DOUHAO;
+	Dispphoto_Dispaly_flash(x, ABN_CNT_Y, FLASH_ADDR_GONG);      x += ABN_W_GONG;
+	display_string_16(buf2, x, ABN_CNT_Y);                       x += string_width_16(buf2);
+	Dispphoto_Dispaly_flash(x, ABN_CNT_Y, FLASH_ADDR_TIAO);
+
+	/* ---- 行2 (y=77): "时间：YYYY-MM-DD HH:MM" 整屏居中, 日期与时分间隔 5px ---- */
 	rtc_unix_to_datetime(timestamp, &year, &month, &day, &hour, &min, &sec);
 
 	buf[0] = '0' + year/1000; year %= 1000;
@@ -142,31 +159,34 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 	buf[4] = '-';
 	buf[5] = '0' + month/10;
 	buf[6] = '0' + month%10;
-	/* 月日之间不加 '-': 带两个 '-' 时整行宽 195px, 超出可用宽度 190px, 分钟末位会被截掉。
-	 * 日期后的 '-' 兼作与时分的分隔, 不再留 5px 间隔 —— "YYYY-MMDD-HH:MM" 正好 190px */
-	buf[7] = '0' + day/10;
-	buf[8] = '0' + day%10;
-	buf[9] = '-';
+	buf[7] = '-';
+	buf[8] = '0' + day/10;
+	buf[9] = '0' + day%10;
 	buf[10] = '\0';
-	x = ABN_LABEL_X + ABN_TIME_W + ABN_GAP;
-	display_string_16(buf, x, ABN_ROW2_Y, DIGIT_16_COLOR_BLUE);
-	x += string_width_16(buf, DIGIT_16_COLOR_BLUE);
 
-	buf[0] = '0' + hour/10;
-	buf[1] = '0' + hour%10;
-	buf[2] = ':';
-	buf[3] = '0' + min/10;
-	buf[4] = '0' + min%10;
-	buf[5] = '\0';
-	display_string_16(buf, x, ABN_ROW2_Y, DIGIT_16_COLOR_BLUE);
+	buf2[0] = '0' + hour/10;
+	buf2[1] = '0' + hour%10;
+	buf2[2] = ':';
+	buf2[3] = '0' + min/10;
+	buf2[4] = '0' + min%10;
+	buf2[5] = '\0';
 
-	/* ---- 行3 (6,99): 值标签 + 值 ---- */
+	w = (uint16_t)ABN_LABEL_W + string_width_16(buf) + ABN_TIME_GAP + string_width_16(buf2);
+	x = (w < ROW) ? (uint16_t)((ROW - w) / 2) : 0;
+
+	Dispphoto_Dispaly_flash(x, ABN_TIME_Y, FLASH_ADDR_ABNORMAL_TIME);
+	x += ABN_LABEL_W;
+	display_string_16(buf, x, ABN_TIME_Y);
+	x += string_width_16(buf) + ABN_TIME_GAP;
+	display_string_16(buf2, x, ABN_TIME_Y);
+
+	/* ---- 行3/行4: 值标签 + 值 ---- */
 	if (type == 0) {
-		uint16_t v  = value / 1000;         /* mV → V */
-		uint16_t vx;                        /* 电压值 x, 换行与之对齐 */
+		uint16_t v = value / 1000;         /* mV → V */
 		uint8_t  k;
 
-		Dispphoto_Dispaly_flash(ABN_LABEL_X, ABN_ROW3_Y, FLASH_ADDR_ABNORMAL_V);   /* 电压 */
+		/* "电压：" (31,101), 电压值 (75,101) */
+		Dispphoto_Dispaly_flash(ABN_VOLT_LBL_X, ABN_ROW3_Y, FLASH_ADDR_ABNORMAL_V);
 
 		p = 0;
 		if (v >= 100) { buf[p++] = '0' + v/100; v %= 100; }
@@ -177,46 +197,46 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 		buf[p++] = '0' + (value % 100) / 10;
 		buf[p++] = 'V';
 		buf[p]   = '\0';
-		vx = ABN_LABEL_X + ABN_V_W + ABN_GAP;
-		display_string_16(buf, vx, ABN_ROW3_Y, DIGIT_16_COLOR_BLUE);
-		x = vx + string_width_16(buf, DIGIT_16_COLOR_BLUE) + 6;   /* 电压后 6px */
+		display_string_16(buf, ABN_VOLT_VAL_X, ABN_ROW3_Y);
 
-		/* 电芯编号: 前6位显示在电压后, 第7位起换行 (与电压值 x 对齐) */
+		/* 电芯编号: 前6位 (132,101), 第7位起换行 (45,119) */
 		if (bat_num) {
-			/* 第一行: 前6位 */
 			for (k = 0; k < 6 && bat_num[k]; k++)
 				buf[k] = bat_num[k];
 			buf[k] = '\0';
-			display_string_16(buf, x, ABN_ROW3_Y, DIGIT_16_COLOR_BLUE);
+			display_string_16(buf, ABN_SN1_X, ABN_ROW3_Y);
 
-			/* 第二行: 第7位起 */
 			p = 0;
 			k = 0;
 			while (bat_num[k] && k < 6) k++;      /* 跳到第7位 (或串尾) */
 			while (bat_num[k] && p < sizeof(buf) - 1)
 				buf[p++] = bat_num[k++];
 			buf[p] = '\0';
-			display_string_16(buf, vx, ABN_ROW4_Y, DIGIT_16_COLOR_BLUE);
+			display_string_16(buf, ABN_SN2_X, ABN_SN2_Y);
 		}
 	} else {
-		/* 温度: 充电/静置/放电温度标签 + "XX^" (整度, '^' 度符号) */
-		uint16_t t  = value;
+		/* 温度: 充电/放电/静置温度标签 (78x16) + 温度值, 标签与值一起整屏居中 */
+		uint16_t t = value;
 		uint32_t lbl;
 
 		if (chg_state == CHG_STATE_CHARGING)
-			lbl = FLASH_ADDR_CHARGE_HIGH_TEMP_INF;
+			lbl = FLASH_ADDR_CHARGE_TEMP;
 		else if (chg_state == CHG_STATE_DISCHARGING)
-			lbl = FLASH_ADDR_DISCHARGE_HIGH_TEMP_INF;
+			lbl = FLASH_ADDR_DISCHARGE_TEMP;
 		else
-			lbl = FLASH_ADDR_NOAMAL_HIGH_TEMP_INF;
-		Dispphoto_Dispaly_flash(ABN_LABEL_X, ABN_ROW3_Y, lbl);
+			lbl = FLASH_ADDR_NOAMAL_TEMP;
 
 		p = 0;
 		if (t >= 100) { buf[p++] = '0' + t/100; t %= 100; }
 		if (t >= 10)  { buf[p++] = '0' + t/10;  t %= 10;  }
 		buf[p++] = '0' + t;
-		buf[p++] = '^';   /* 蓝色 Z_DEGREE 位图 */
+		buf[p++] = '^';   /* 度符号 */
 		buf[p]   = '\0';
-		display_string_16(buf, ABN_LABEL_X + ABN_TMP_W + ABN_GAP, ABN_ROW3_Y, DIGIT_16_COLOR_BLUE);
+
+		w = (uint16_t)ABN_TMP_W + string_width_16(buf);
+		x = (w < ROW) ? (uint16_t)((ROW - w) / 2) : 0;
+
+		Dispphoto_Dispaly_flash(x, ABN_ROW3_Y, lbl);
+		display_string_16(buf, x + ABN_TMP_W, ABN_ROW3_Y);
 	}
 }

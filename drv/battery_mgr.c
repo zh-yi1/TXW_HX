@@ -19,7 +19,6 @@ extern volatile ip3561q_proc_data_t ip3561q_info;
 
 /* 功能开关: 1=启用 0=关闭 */
 #define BAT_UV_PROT_EN       0   /* 欠压保护 (V<2.72V 跳警示页, 无 Flash 记录) */
-#define BAT_LOW_TEMP_EN      0   /* 低温警告 (ntc_status=0x01 跳低温页, 无 Flash 记录) */
 
 /* 温度源选择: 0=双NTC取高者 1=仅用NTC2 */
 #define TEMP_NTC2_ONLY  0
@@ -358,18 +357,12 @@ static void battery_mgr_check_temp_warning(uint32_t ts, uint32_t now)
 {
     uint8_t ntc       = ui_data.ntc_status;
     uint8_t over_temp = 0;
-#if BAT_LOW_TEMP_EN
-    uint8_t low_temp  = 0;
-#endif
     uint8_t i;
 
     /* 解析 NTC1/2 状态 */
     for (i = 0; i < 2; i++) {
         uint8_t st = (ntc >> (i * 2)) & 0x03;
         if (st == 0x02) over_temp = 1;
-#if BAT_LOW_TEMP_EN
-        if (st == 0x01) low_temp  = 1;
-#endif
     }
     // LOGI("ntc_status = %d bat_ntc1 = %d bat_ntc2 = %d\r\n",
     //      ntc, ui_data.bat_ntc1, ui_data.bat_ntc2);
@@ -405,11 +398,6 @@ static void battery_mgr_check_temp_warning(uint32_t ts, uint32_t now)
             }
         }
     }
-#if BAT_LOW_TEMP_EN
-    else if (low_temp) {
-        battery_mgr_jump_to_alert_page(PAGE_LOW_TEMP);
-    }
-#endif
 
     /* 退出过温: 清零 1h 计时, 下次再进入又是首次 */
     if (!over_temp && g_bat.temp_1h_tick != 0)

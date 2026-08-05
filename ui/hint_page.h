@@ -4,7 +4,6 @@
 #include "global_define.h"
 
 void high_temp_pro(uint8_t type);     /* 过温保护: HINT_OVER_TEMP_DSG/CHG/IDLE */
-void low_temp_hint_page(void);
 void disabled_hint_page(void);
 void short_circuit_hint_page(void);
 
