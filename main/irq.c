@@ -1,13 +1,37 @@
 #include "global_define.h"
 
 /**
- * @brief  NMI IRQ handler
- * @retval None
- */
+  * @brief  CMU IRQ handler
+  * @retval None
+  */
+void CMU_Handler(void)
+{
+    if ((md_cmu_is_enabled_hosc_stp_interrupt()) && (md_cmu_is_active_flag_hosc_stp()))
+    {
+        SYSCFG_UNLOCK();
+        md_cmu_clear_flag_hosc_stp();
+        SYSCFG_LOCK();
+        /* system rescue code in hosc fault  */
+    }
+
+    return;
+}
+
+/**
+  * @brief  NMI handler
+  * @retval None
+  */
 void NMI_Handler(void)
 {
-	/* Added Emergency operation */
-	return;
+    if ((md_cmu_is_enabled_hosc_nmi_interrupt()) && (md_cmu_is_active_flag_hosc_stp()))
+    {
+        SYSCFG_UNLOCK();
+        md_cmu_clear_flag_hosc_stp();
+        SYSCFG_LOCK();
+        /* system rescue code in hosc fault  */
+    }
+
+    return;
 }
 
 /**
@@ -142,4 +166,50 @@ void USART1_Handler(void)
 }
 #endif /* !DEBUG_EN */
 
+/**
+ * @brief  EXTI12_15 IRQ handler — PA15 按键唤醒
+ *         STOP 模式: 下降沿唤醒 MCU, 标记 WAKEUP_CAUSE_KEY
+ *         NORMAL 模式: 仅清标志, 无副作用
+ * @retval None
+ */
+void EXTI12_15_Handler(void)
+{
+    if (md_gpio_is_enabled_external_interrupt(MD_GPIO_PIN_15)
+        && md_gpio_get_flag(MD_GPIO_PIN_15))
+    {
+        md_gpio_clear_flag(MD_GPIO_PIN_15);
+        g_wakeup_cause = WAKEUP_CAUSE_KEY;
+    }
+}
+
+/**
+ * @brief  IWDT IRQ handler — 定时唤醒 (60s)
+ *         NORMAL 模式: 每60s触发, 喂狗无副作用
+ *         STOP  模式: 唤醒 MCU, 标记 WAKEUP_CAUSE_IWDG
+ * @retval None
+ */
+void IWDT_Handler(void)
+{
+    IWDT_UNLOCK();
+    md_iwdt_clear_flag_interrupt();
+    IWDT_LOCK();
+
+    g_wakeup_cause = WAKEUP_CAUSE_IWDG;
+}
+
+/**
+  * @brief  EXTI4_7 IRQ handler — PA5 I2C SCL 唤醒
+  *         STOP 模式: SCL 下降沿唤醒 MCU, 标记 WAKEUP_CAUSE_I2C_SCL
+  *         NORMAL 模式: 仅清标志, 无副作用 (PA5 复用为 I2C, EXTI 已关闭)
+  * @retval None
+  */
+void EXTI4_7_Handler(void)
+{
+    if (md_gpio_is_enabled_external_interrupt(MD_GPIO_PIN_5)
+        && md_gpio_get_flag(MD_GPIO_PIN_5))
+    {
+        md_gpio_clear_flag(MD_GPIO_PIN_5);
+        g_wakeup_cause = WAKEUP_CAUSE_I2C_SCL;
+    }
+}
 

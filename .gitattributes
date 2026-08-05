@@ -1,0 +1,12 @@
+# 跨 Windows(Keil)/Linux(WSL) 环境:文本文件在仓库中统一存 LF,
+# 工作区的 CRLF/LF 差异不再被 git 视为改动
+* text=auto
+
+# 明确的二进制类型,禁止任何行尾转换
+*.hex binary
+*.bin binary
+*.axf binary
+*.lib binary
+*.png binary
+*.jpg binary
+*.bmp binary

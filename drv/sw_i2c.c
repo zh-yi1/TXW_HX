@@ -103,10 +103,11 @@ uint8_t sw_i2c_write_byte(uint8_t data)
 	i2c_scl_set(0);
 	I2C_DELAY_HALF();
 
-	i2c_sda_set(1);
+	// i2c_sda_set(1);
 	I2C_DELAY_HALF();
 	i2c_scl_high();
 	ack = i2c_sda_get();
+	I2C_DELAY_HALF();
 	i2c_scl_set(0);
 
 	return ack;

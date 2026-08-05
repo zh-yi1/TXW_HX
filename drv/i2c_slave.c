@@ -1,11 +1,31 @@
 #include "i2c_slave.h"
 
-/* ---- 寄存器缓冲区 (协议 V1.1 最大地址 0x8F, 共 0x90=144 字节) ---- */
+/* ---- 寄存器缓冲区 (协议 V1.3 最大地址 0x8F, 共 0x90=144 字节) ----
+   编译期初始化: 上电即生效, 无需等待 i2c_slave_init(), 防止主机提前读取到零值 ---- */
 #define I2C_REG_MAP_SIZE  0x90
-volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE];
+volatile uint8_t i2c_reg_map[I2C_REG_MAP_SIZE] = {
+    [REG_SOC]             = 0xFF,  /* 0xFF=未收到, 区分电量 0% */
+    [REG_SOH]             = 0xFF,  /* 0xFF=未收到, 区分健康度数据 */
+    [REG_FW_VERSION_L]    = 0x00,  /* V1.00 BCD */
+    [REG_FW_VERSION_H]    = 0x01,
+    [REG_TFT_ONLINE_CRC]  = 0x55,  /* 从机就绪标志 */
+    [REG_UPDATE_CRC]      = 0x00,  /* 默认非升级模式 */
+    [REG_OVP_PERMANENT]   = 0x5A,  /* 默认无过压 */
+    [REG_NTC1_0]          = 0x10,  /* NTC1 阻值 10000Ω = 0x00002710 (LE) */
+    [REG_NTC1_1]          = 0x27,
+    [REG_NTC1_2]          = 0x00,
+    [REG_NTC1_3]          = 0x00,
+    [REG_NTC2_0]          = 0x10,  /* NTC2 阻值 10000Ω = 0x00002710 (LE) */
+    [REG_NTC2_1]          = 0x27,
+    [REG_NTC2_2]          = 0x00,
+    [REG_NTC2_3]          = 0x00,
+};
 
 /* ---- 按键事件影子缓冲 (协议 §4.6) ---- */
 volatile uint8_t key_event_buf;
+
+/* ---- 主机通信检测: 最后一次 I2C 地址匹配时刻 (tick), 连续 5s 无匹配→主机休眠 ---- */
+volatile uint32_t g_i2c_addr_match_tick = 0;
 
 /* ---- ISR 内部状态 ---- */
 typedef struct {
@@ -24,7 +44,7 @@ static volatile i2c_slave_state_t i2c_s;
 #define I2C_DIR_WRITE  I2C_STAT2_TRF_MSK
 #define I2C_DIR_READ   0x00000000U
 
-/* ---- 判断寄存器地址是否可写 (协议 V1.1) ---- */
+/* ---- 判断寄存器地址是否可写 (协议 V1.3) ---- */
 static uint8_t reg_is_writable(uint8_t addr)
 {
     /* 0x00~0x1F: 主机信息 + 电池数据 (W) */
@@ -112,6 +132,9 @@ void i2c_slave_init(void)
 
     md_i2c_init(I2C1, &i2c_init);
 
+    /* 复位 ISR 内部状态 (STOP 唤醒后可能有残留) */
+    memset((void*)&i2c_s, 0, sizeof(i2c_s));
+
     /* --- NVIC --- */
     NVIC_SetPriority(I2C1_IRQn, 1);
     NVIC_EnableIRQ(I2C1_IRQn);
@@ -122,12 +145,6 @@ void i2c_slave_init(void)
 
     MD_I2C_ENABLE(I2C1);
     md_i2c_enable_ack(I2C1);
-
-    /* --- 初始化寄存器默认值 --- */
-    i2c_reg_map[REG_FW_VERSION_L]    = 0x00;  /* V1.00, 由 proc 填充 */
-    i2c_reg_map[REG_FW_VERSION_H]    = 0x01;
-    i2c_reg_map[REG_TFT_ONLINE_CRC]  = 0x55;  /* 从机就绪标志 */
-    i2c_reg_map[REG_UPDATE_CRC]      = 0x00;  /* 默认非升级模式 */
 }
 
 /* ========================================================================
@@ -238,6 +255,7 @@ void I2C1_Handler(void)
     /* --- ADDR: 地址匹配 --- */
     if (md_i2c_is_active_flag_addr(I2C1) && md_i2c_is_enable_it_evt(I2C1))
     {
+        g_i2c_addr_match_tick = md_get_tick();  /* 每次地址匹配刷新, 用于主机休眠检测 */
         i2c_clear_flag_addr(I2C1);
         md_i2c_enable_it_buf(I2C1);
 
@@ -307,52 +325,113 @@ void I2C1_Handler(void)
 }
 
 /* ========================================================================
- * pull_sensor_data — 采集 CW1573 电池数据, 填入 reg_map (R 区域 §4.5) + ui_data
+ * pull_sensor_data — 采集 IP3561Q 电池数据, 填入 reg_map (R 区域 §4.5) + ui_data
  *
  * V1~V4 (0x50-0x57), VPACK (0x58-0x59), BAT_CURRENT (0x5A-0x5B),
- * NTC1 (0x5C-0x5F), OVP_PERMANENT (0x60), AFE_PROTECT1-3 (0x61-0x63)
+ * NTC2 (0x5C-0x5F), OVP_PERMANENT (0x60), AFE_PROTECT1-3 (0x61-0x63),
+ * NTC1 (0x64-0x67)
  * ======================================================================== */
 static void pull_sensor_data(void)
 {
-    /* CW1573 未就绪: 不覆盖 ui_data 已有值 (可能来自主机或初始值) */
-    if (!cw1573_is_ready())
-        return;
+    if (!ip3561q_is_ready()) {
+        for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
+            ip3561q_info.vcell_mv[i] = 4200;
+        }
+        ip3561q_info.vbat_mv     = 4200 * IP3561Q_CELL_CNT;
+        ip3561q_info.rntc1_ohm    = 10000;
+        ip3561q_info.rntc2_ohm   = 10000;
+        ip3561q_info.current_ma  = 0;
+    } else {
+        ip3561q_calc_data((ip3561q_data_t *)&ip3561q_raw, (ip3561q_proc_data_t *)&ip3561q_info);
+    }
 
-    cw1573_calc_data((cw1573_data_t *)&cw1573_raw, (cw1573_proc_data_t *)&cw1573_info);
+    ui_data.bat_ntc1 = ip3561q_info.rntc2_ohm;
+    ui_data.bat_ntc2 = ip3561q_info.rntc1_ohm;
 
+    // LOGI("ip3561q_info.rntc1_ohm = %d\r\n", ip3561q_info.rntc1_ohm);
+    // LOGI("ip3561q_info.rntc2_ohm = %d\r\n", ip3561q_info.rntc2_ohm);
     /* V1~V4: 电芯电压 (mV), 协议 §4.5 */
-    for (int i = 0; i < cw1573_cell_cnt; i++) {
-        uint16_t v = cw1573_info.vcell_mv[i];
+    for (int i = 0; i < IP3561Q_CELL_CNT; i++) {
+        uint16_t v = ip3561q_info.vcell_mv[i];
         reg_write_u16(REG_V1_L + i * 2, v);
     }
 
     /* VPACK: 电池组总电压 (mV), 协议 §4.5 (4 串)
-       直接使用 cw1573_calc_data 已计算的 pack_mv，无需重复累加 */
+       直接使用 ip3561q_calc_data 已计算的 vbat_mv，无需重复累加 */
     {
-        uint16_t vp = cw1573_info.pack_mv;
+        uint16_t vp = ip3561q_info.vbat_mv;
         reg_write_u16(REG_VPACK_L, vp);
         ui_data.bat_voltage = vp;
     }
 
     /* BAT_CURRENT: 电池电流 (mA, 正=充电), 协议 §4.5 */
-    int16_t cur = (int16_t)cw1573_info.current_ma;
+    int16_t cur = (int16_t)ip3561q_info.current_ma;
     reg_write_u16(REG_BAT_CURRENT_L, (uint16_t)cur);
-    ui_data.bat_current = cw1573_info.current_ma;
+    ui_data.bat_current = ip3561q_info.current_ma;
 
-    /* NTC1: 温度电阻值 (Ω), 协议 §4.2
-       直接使用 cw1573_calc_data 已计算的 rntc_ohm，无需重复计算 */
+    /* NTC1: 温度电阻值 (Ω), 协议 §4.5 (0x64-0x67)
+       直接使用 ip3561q_calc_data 已计算的 rntc_ohm，无需重复计算 */
     {
-        uint32_t rntc = cw1573_info.rntc_ohm;
+        uint32_t rntc = ip3561q_info.rntc1_ohm;
         reg_write_u32(REG_NTC1_0, rntc);
+        rntc = ip3561q_info.rntc2_ohm;
+        reg_write_u32(REG_NTC2_0, rntc);
     }
     //TODO :温度如何计算
-    ui_data.bat_temperature = 0; /* 温度由主机通过 NTC 阻值自行计算 */
-    ui_data.bat_cc = cw1573_info.cc_mah;
+    // ui_data.bat_temperature = 0; /* 温度由主机通过 NTC 阻值自行计算 */
 
-    /* AFE_PROTECT1-3: 映射 CW1573 原始状态寄存器, 协议 §4.5 */
-    i2c_reg_map[REG_AFE_PROTECT1] = cw1573_raw.state_flag0;
-    i2c_reg_map[REG_AFE_PROTECT2] = cw1573_raw.state_flag1;
-    i2c_reg_map[REG_AFE_PROTECT3] = cw1573_raw.state_flag2;
+    /* AFE_PROTECT1-3: 映射 IP3561Q 状态寄存器, 协议 §4.5 */
+    i2c_reg_map[REG_AFE_PROTECT1] = ip3561q_raw.status1;
+    i2c_reg_map[REG_AFE_PROTECT2] = ip3561q_raw.status2;
+    i2c_reg_map[REG_AFE_PROTECT3] = ip3561q_raw.status3;
+}
+
+/* ---- 已收到主机正常 SOH/循环数据 (开机后置位一次, 之后一直保持) ---- */
+static uint8_t s_host_bat_seen = 0;
+
+/* ---- 电池数据有效标志 (开机恢复过 或 收到过主机正常数据) ---- */
+static uint8_t s_bat_data_valid = 0;
+
+/* ========================================================================
+ * bms_backup_regs_fill — 回填 BMS 备用寄存器 0x71~0x74 + 密码位 0x84
+ *
+ * 协议 V1.3 §4.7/§4.8: 密码位 0x66 表示 0x71~0x74 的回传值有效,
+ * 主机上电先比对密码, 密码对了才提取数据恢复. 一旦填充就一直保持.
+ * ======================================================================== */
+static void bms_backup_regs_fill(void)
+{
+    i2c_reg_map[REG_BMS_SOC]     = ui_data.bat_power;
+    i2c_reg_map[REG_BMS_SOH]     = ui_data.bat_max_cap;
+    i2c_reg_map[REG_BMS_CYCLE_L] = (uint8_t)(ui_data.bat_cycle_cnt & 0xFF);
+    i2c_reg_map[REG_BMS_CYCLE_H] = (uint8_t)(ui_data.bat_cycle_cnt >> 8);
+    i2c_reg_map[REG_PASSWORD]    = 0x66;
+    s_bat_data_valid             = 1;
+}
+
+/* ========================================================================
+ * i2c_slave_restore_bat_backup — 开机从 factory_cfg 恢复 SOC/SOH/循环
+ *
+ * 收到过正常数据 (soh 1~100): 回填 ui_data + 0x71~0x74 + 密码位,
+ * 掉电/复位后主机比对密码 0x66 通过即可提取恢复.
+ * 首次开机无数据: 不填充, 密码位保持 0x00, 主机按首次处理.
+ * ======================================================================== */
+void i2c_slave_restore_bat_backup(void)
+{
+    factory_cfg_t cfg;
+
+    factory_cfg_read(&cfg);
+    if (!factory_cfg_is_valid(&cfg))
+        return;
+
+    if (cfg.soh < 1 || cfg.soh > 100)
+        return; /* 从未收到过正常 SOH, 无可恢复数据 */
+
+    if (cfg.soc <= 100)
+        ui_data.bat_power = cfg.soc;
+        
+    ui_data.bat_max_cap   = cfg.soh;
+    ui_data.bat_cycle_cnt = cfg.cycle_count;
+    bms_backup_regs_fill();
 }
 
 /* ========================================================================
@@ -360,18 +439,38 @@ static void pull_sensor_data(void)
  * ======================================================================== */
 static void apply_host_data(void)
 {
-    /* 电池数据 (协议 §4.2 W 区域) */
-    ui_data.bat_power     = i2c_reg_map[REG_SOC];
-    ui_data.bat_max_cap   = i2c_reg_map[REG_SOH];
-    ui_data.bat_cycle_cnt = reg_read_u16(REG_CYCLE_L);
-    ui_data.charge_remain_time    = reg_read_u32(REG_CHARGE_REMAIN_0);
-    ui_data.discharge_remain_time = reg_read_u32(REG_DISCHARGE_REMAIN_0);
+    /* 电池数据 (协议 §4.2 W 区域) — 非产测才从主机同步, 场测由内部管理 */
+    if (!prod_test_is_active()) {
+        uint8_t  host_soc   = i2c_reg_map[REG_SOC];
+        uint8_t  host_soh   = i2c_reg_map[REG_SOH];
+        uint16_t host_cycle = reg_read_u16(REG_CYCLE_L);
+
+        if (host_soc <= 100)
+            ui_data.bat_power = host_soc;
+
+        if (host_soh >= 1 && host_soh <= 100) {
+            if (host_soh != ui_data.bat_max_cap ||
+                host_cycle != ui_data.bat_cycle_cnt)
+                factory_cfg_write_bat(ui_data.bat_power, host_soh, host_cycle);
+            ui_data.bat_max_cap   = host_soh;
+            ui_data.bat_cycle_cnt = host_cycle;
+            s_host_bat_seen = 1;
+        }
+
+        /* 收到过正常数据或开机已恢复:
+           保持 0x71~0x74 回传值 + 密码位 0x66 (协议 V1.3) */
+        if (s_host_bat_seen || s_bat_data_valid)
+            bms_backup_regs_fill();
+    }
+
+    ui_data.charge_remain_time    = reg_read_u32(REG_CHARGE_REMAIN_0);    /* V1.3 未使用 */
+    ui_data.discharge_remain_time = reg_read_u32(REG_DISCHARGE_REMAIN_0); /* V1.3 未使用 */
     ui_data.res_vbat       = reg_read_u16(REG_RES_VBAT_L);
 
     /* ---- NTC 数据 (协议 §4.3) ---- */
     ui_data.ntc_status = i2c_reg_map[REG_NTC_STATUS];
-    ui_data.bat_ntc1   = reg_read_u32(REG_BAT_NTC1_0);
-    ui_data.bat_ntc2   = reg_read_u32(REG_BAT_NTC2_0);
+    // ui_data.bat_ntc1   = reg_read_u32(REG_BAT_NTC1_0);//不使用020传的数据了，使用本地的
+    // ui_data.bat_ntc2   = reg_read_u32(REG_BAT_NTC2_0);
     ui_data.pcb_ntc1   = reg_read_u32(REG_PCB_NTC1_0);
     ui_data.pcb_ntc2   = reg_read_u32(REG_PCB_NTC2_0);
 
@@ -401,8 +500,8 @@ static void apply_host_data(void)
         uint16_t v = reg_read_u16(REG_C1_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_C1_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint8_t  w  = (uint8_t)(mw / 1000UL);
-        ui_data.usb_c1_power = (w > 99) ? 99 : w;
+        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
+        ui_data.usb_c1_power = (w > 255) ? 255 : (uint8_t)w;
     } else {
         ui_data.usb_c1_power = 0;
     }
@@ -413,8 +512,8 @@ static void apply_host_data(void)
         uint16_t v = reg_read_u16(REG_C2_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_C2_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint8_t  w  = (uint8_t)(mw / 1000UL);
-        ui_data.usb_c2_power = (w > 99) ? 99 : w;
+        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
+        ui_data.usb_c2_power = (w > 255) ? 255 : (uint8_t)w;
     } else {
         ui_data.usb_c2_power = 0;
     }
@@ -425,8 +524,8 @@ static void apply_host_data(void)
         uint16_t v = reg_read_u16(REG_USBA_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_USBA_CURRENT_L);
         uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint8_t  w  = (uint8_t)(mw / 1000UL);
-        ui_data.usb_a_power = (w > 99) ? 99 : w;
+        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
+        ui_data.usb_a_power = (w > 255) ? 255 : (uint8_t)w;
     } else {
         ui_data.usb_a_power = 0;
     }
@@ -443,6 +542,22 @@ static void apply_host_data(void)
     /* 充电时自动关闭小电流模式 */
     if (ui_data.is_charge)
         ui_data.low_current_flag = false;
+
+    /* 充电完成检测: is_charge 下降沿 (1→0) 时复位运行时间 */
+    {
+        static bool s_charge_last = false;
+        if (s_charge_last && !ui_data.is_charge)
+            rtc_reset_running_time_on_event();
+        s_charge_last = ui_data.is_charge;
+    }
+}
+
+/* ========================================================================
+ * i2c_is_host_sleeping — 连续 5s 无 I2C 地址匹配 → 主机休眠
+ * ======================================================================== */
+uint8_t i2c_is_host_sleeping(void)
+{
+    return (md_get_tick() - g_i2c_addr_match_tick >= 5000) ? 1 : 0;
 }
 
 /* ========================================================================
@@ -450,19 +565,24 @@ static void apply_host_data(void)
  * ======================================================================== */
 void i2c_slave_proc(void)
 {
-    /* 固件版本和在线标志 (协议 §4.8: 0x80-0x83) */
-    i2c_reg_map[REG_FW_VERSION_L]   = 0x00;  /* V1.00 */
-    i2c_reg_map[REG_FW_VERSION_H]   = 0x01;
-    i2c_reg_map[REG_TFT_ONLINE_CRC] = 0x55;
-
-    /* OVP_PERMANENT: 协议 §4.5 密匙 0x5A, CW1573 离线时也可信 */
-    i2c_reg_map[REG_OVP_PERMANENT] = 0x5A;
+    /* 恢复出厂设置: 场测解锁后 prod_test 置标志, 此处消费并通知主机 */
+    if (prod_test_get_unlock_flag()) {
+        i2c_reg_map[0x70] = 0xC0;                  /* 通知主机: 已进入场测模式 */
+        i2c_reg_map[REG_BMS_SOC]     = ui_data.bat_power;
+        i2c_reg_map[REG_BMS_SOH]     = 100;   /* SOH 还原 */
+        i2c_reg_map[REG_BMS_CYCLE_L] = 0;     /* CYCLE 清零 */
+        i2c_reg_map[REG_BMS_CYCLE_H] = 0;
+        prod_test_clear_unlock_flag();
+    }
 
     /* 按键事件原子累积: 影子缓冲 OR → reg_map, 主机读后清零对应 bit (§4.6) */
     i2c_reg_map[REG_KEY_EVENT] |= key_event_buf;
     key_event_buf = 0;
 
-    /* CW1573 采集 → reg_map (R) + ui_data */
+    /* 保护标志同步 → I2C 寄存器 (过压禁用/欠压禁用/过压保护, 任一有效写 0x5B) */
+    i2c_reg_map[REG_OVP_PERMANENT] = battery_mgr_is_any_protection() ? 0x5B : 0x5A;
+
+    /* IP3561Q 采集 → reg_map (R) + ui_data */
     pull_sensor_data();
 
     /* G020 下发数据 (W) → ui_data */

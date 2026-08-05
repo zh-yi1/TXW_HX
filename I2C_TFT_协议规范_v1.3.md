@@ -1,9 +1,10 @@
-# I2C 通信协议规范 — 主机(G020) ↔ 从机(TFT MCU)
+# I2C 通信协议规范 V1.3 — 主机(G020) ↔ 从机(TFT MCU)
 
 | 文档版本 | 日期 | 修改人 | 修改内容 |
 |---------|------|--------|---------|
 | V1.0 | 2026-05-25 | | 初始版本 |
-| V1.1 | 2026-06-05 | | 重新整理第4章寄存器映射结构：修正地址范围总表与各子表不匹配的问题，合并分类子表，清理格式，同步更新§6引用 |
+| V1.1 | 2026-06-05 | | 重新整理第4章寄存器映射结构 |
+| V1.3 | 2026-06-11 | | **增加 CRC 校验**: 写/读操作均加入长度头和 CRC 校验尾 (§3)；新增 §7 CRC 算法说明；更新 §6 开发指引 |
 
 ---
 
@@ -30,51 +31,74 @@
 
 ---
 
-## 3. 通信时序
+## 3. 通信时序 (V1.3 — 带长度头 + CRC)
+
+> **V1.3 变更**: 写/读操作均在数据后附加 1 字节 CRC 校验。
+> 从机通过长度头(LEN)预先知道本次传输的字节数，发/收完数据后自动切换到 CRC 阶段。
 
 ### 3.1 写操作 (主机 → 从机)
 
-主机向从机指定寄存器写入数据:
-
 ```
-主机:  START + SLAVE_W + REG_ADDR + DATA[0] + DATA[1] + ... + DATA[N-1] + STOP
-从机:              ACK        ACK       ACK               ACK
+主机:  START + SLAVE_W + REG_ADDR + LEN + DATA[0..LEN-1] + CRC + STOP
+从机:              ACK        ACK    ACK      ACK...        ACK
 ```
 
-**写单字节示例:**
+- **REG_ADDR**: 起始寄存器地址 (1 Byte)
+- **LEN**: 数据长度 (1 Byte)，告诉从机后续 DATA 的字节数
+- **DATA[0..LEN-1]**: 待写入数据
+- **CRC**: 1 Byte，对 DATA[0..LEN-1] 的校验和 (见 §7)
+
+**写单字节示例 (写 SOC=0x64 到 0x10):**
 ```
-START + [0x5A] + [0x15] + [0x01] + STOP
-       └─W──┘   └─reg──┘ └─data─┘
+START + [0x5A] + [0x10] + [0x01] + [0x64] + [0x9B] + STOP
+       └─W──┘   └─reg──┘ └─len=1┘ └─data─┘ └─crc──┘
 ```
 
-**写多字节示例:**
+**写多字节示例 (写 SOC+SOH 到 0x10):**
 ```
-START + [0x5A] + [0x20] + [0x12] + [0x34] + STOP
-       └─W──┘   └─reg──┘ └─data0┘ └─data1┘
+START + [0x5A] + [0x10] + [0x02] + [0x64] + [0x5A] + [0xD1] + STOP
+       └─W──┘   └─reg──┘ └─len=2┘ └─SOC──┘ └─SOH──┘ └─crc──┘
 ```
 
 ### 3.2 读操作 (主机 ← 从机)
 
-主机先发送寄存器地址(伪写)，然后重复起始信号后读取数据:
-
 ```
-主机:  START + SLAVE_W + REG_ADDR + Repeated-START + SLAVE_R +         + ACK + ... + NACK + STOP
-从机:              ACK        ACK                   ACK        DATA[0]  └─送数─┘     DATA[N-1]
+Phase 1(写): START + SLAVE_W + REG_ADDR + LEN + Repeated-START
+Phase 2(读):                  SLAVE_R + DATA[0..LEN-1] + CRC + NACK + STOP
 ```
 
-**读单字节示例:**
+- **REG_ADDR**: 起始寄存器地址 (1 Byte)
+- **LEN**: 主机期望读取的数据长度 (1 Byte)
+- **DATA[0..LEN-1]**: 从机发出的数据
+- **CRC**: 1 Byte，从机对 DATA[0..LEN-1] 的校验和；主机收到后本地重算验证
+
+**读单字节示例 (读 0x50 V1):**
 ```
-START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据] + NACK + STOP
-       └─W──┘   └─reg──┘                    └─R──┘
+START + [0x5A] + [0x50] + [0x01] + Repeated-START + [0x5B] + [data] + [CRC] + NACK + STOP
+       └─W──┘   └─reg──┘ └─len=1┘                    └─R──┘
 ```
 
-**读多字节示例:**
+**读多字节示例 (读 0x50 V1~V4, 8B):**
 ```
-START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] + NACK + STOP
-       └─W──┘   └─reg──┘                    └─R──┘
+START + [0x5A] + [0x50] + [0x08] + Repeated-START + [0x5B] + [d0] + ... + [d7] + [CRC] + NACK + STOP
+       └─W──┘   └─reg──┘ └─len=8┘                    └─R──┘
 ```
 
-> 从机必须支持 Repeated-START 条件，收到寄存器地址后内部切换到对应的寄存器指针，然后通过 Repeated-START 切换到读方向开始送数。
+> 从机必须:
+> 1. 在写方向 Phase 中提取 LEN，内部记录预期数据长度
+> 2. 在读方向 Phase 中发送 LEN 个数据字节后，自动发送 CRC
+> 3. 支持 Repeated-START 条件
+
+/*====================================================================*/
+/*  CRC 校验 (累加和取反)                                              */
+/*====================================================================*/
+static uint8_t tft_calc_crc(const uint8_t *data, uint8_t len)
+{
+    uint16_t sum = 0;
+    if(data) { for(uint8_t i = 0; i < len; i++) sum += data[i]; }
+    return (uint8_t)(~(sum & 0xFF));
+}
+/*====================================================================*/
 
 ---
 
@@ -110,8 +134,8 @@ START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] 
 | 0x10      | SOC                  | 1 Byte   | uint8, % (0~100) | 电池电量百分比            | W    |
 | 0x11      | SOH                  | 1 Byte   | uint8, % (0~100) | 电池健康度                | W    |
 | 0x12      | CYCLE_COUNT          | 2 Byte   | uint16           | 循环次数                  | W    |
-| 0x14      | charge_remain_time   | 4 Byte   | uint32           | 剩余充满时间(秒)          | W    |
-| 0x18      | discharge_remain_time| 4 Byte   | uint32           | 剩余放空时间(秒)          | W    |
+| 0x14      | charge_remain_time   | 4 Byte   | uint32           | 剩余充满时间(秒)          | W    | ----------//V1.3未使用  V1.3改动
+| 0x18      | discharge_remain_time| 4 Byte   | uint32           | 剩余放空时间(秒)          | W    | ---------- //V1.3未使用V1.3改动
 | 0x1c      | Res_vbat             | 2 Byte   | uint16           | 采样电阻Vbat（mV）        | W    |
 |  ~0x1F | 预留                 | -        | -                | -                        | -    |
 
@@ -177,7 +201,8 @@ START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] 
 | 0x61      | AFE_PROTECT1  | 1 Byte   | Bit 标志         | AFE 状态 STATUS0 (参照规格书 0x00)     | R    |
 | 0x62      | AFE_PROTECT2  | 1 Byte   | Bit 标志         | AFE 状态 STATUS1 (参照规格书 0x01)     | R    |
 | 0x63      | AFE_PROTECT3  | 1 Byte   | Bit 标志         | AFE 状态 STATUS2 (参照规格书 0x02)     | R    |
-| 0x64~0x6F | 预留          | -        | -                | -                                      | -    |
+| 0x64~0x67 | NTC1          | 4 Byte   | uint32 LE, Ω     | 温度 NTC2 阻值                         | R    |
+| 0x68~0x6F | 预留          | -        | -                | -                                      | -    |
 
 > **OVP_PERMANENT (0x60):** 0x5A 为密钥，bit0 为 1 表示系统过压永久失效，需要写入 Flash。
 
@@ -199,6 +224,7 @@ START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] 
 | 0x08  | 按键1 连击2   bit3                |
 | 0x10  | 按键1 长按3S  bit4                |
 | 0x20  | 按键1 长按xxS bit5                |
+| 0xc0  | 恢复出厂设置                      |    -----主机收到后还原SOH 清零CYCLE。从机一样，同时需要清总运行时间。V1.3改动
 | 0xFF  | 其他无效                          |
 
 注：
@@ -212,12 +238,12 @@ START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] 
 
 | 地址      | 名称                 | 数据长度 | 类型/单位        | 描述                  | 读写 |
 |-----------|----------------------|----------|------------------|-----------------------|------|
-| 0x71      | SOC                  | 1 Byte   | uint8, % (0~100) | 电池电量百分比         | R    |
+| 0x71      | SOC                  | 1 Byte   | uint8, % (0~100) | 电池电量百分比         | R    |       //恢复数据
 | 0x72      | SOH                  | 1 Byte   | uint8, % (0~100) | 电池健康度             | R    |
 | 0x73      | CYCLE_COUNT          | 2 Byte   | uint16           | 循环次数               | R    |
-| 0x75      | charge_remain_time   | 2 Byte   | uint16           | 剩余充满时间(秒)       | R    |
-| 0x77      | discharge_remain_time| 2 Byte   | uint16           | 剩余放空时间(秒)       | R    |
-| 0x79~0x7F | 预留                 | -        | -                | -                     | -    |
+| 0x75      | charge_remain_time   | 4 Byte   | uint32           | 剩余充满时间(秒)       | R    |       V1.3改动
+| 0x79      | discharge_remain_time| 4 Byte   | uint32           | 剩余放空时间(秒)       | R    |       V1.3改动
+| 0x7d~0x7F | 预留                 | -        | -                | -                     | -    |
 
 
 ### 4.8 系统信息 (0x80~0x8F) — 主机 ← 从机
@@ -227,6 +253,7 @@ START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] 
 | 0x80      | FW_VERSION | 2 Byte   | uint16 LE (BCD)  | 固件版本号 (V1.2 → 0x0102)                           | R    |
 | 0x82      | ONLINE_CRC | 1 Byte   | 0x55 固定值      | 用于主机判断从机是否ready                              | R    |
 | 0x83      | UPDATE_CRC | 1 Byte   | 0xAA 固定值      | 用于主机判断从机进入升级模式(默认00, 写0xAA后200ms进boot)| R    |
+| 0x84      | password   | 1 Byte   | 默认0X00         | 从机收到电量数据后，此写0X66                            | R    |     V1.3改动
 | 0x84~0x8F | 预留       | -        | -                | -                                                     | -    |
 
 > **ONLINE_CRC (0x82):** 主机建机后读取此寄存器，值为 0x55 表示从机就绪。
@@ -248,11 +275,12 @@ START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] 
 
 ### 从机(TFT MCU)开发者:
 1. 实现 I2C Slave 模式，7-bit 地址 = **0x2D**
-2. 收到主机 **写请求**: 解析 REG_ADDR，将后续数据存入对应的寄存器缓冲区供显示使用
-3. 收到主机 **读请求**: 从当前 REG_ADDR 指向的寄存器取出数据发送给主机
-4. 按键事件产生后，写入 KEY_EVENT (0x70) 寄存器，等待主机读取
-5. 每读完一个字节寄存器地址自动递增 (**推荐实现**，支持连续读取)
-
+2. 收到主机 **写请求**: 解析 REG_ADDR → LEN → 收 DATA[0..LEN-1] → 收 CRC → 验证
+3. 收到主机 **读请求**: 从 REG_ADDR 发出 LEN 个数据字节 → 发 CRC → 等待主机 NACK+STOP
+4. 从机内部需维护 3 个状态: `i2c_expect_len`、`i2c_byte_cnt`、CRC 累加器
+5. 按键事件产生后，写入 KEY_EVENT (0x70) 寄存器，等待主机读取
+6. 每读完一个字节寄存器地址自动递增 (**推荐实现**，支持连续读取)
+7. CRC 验证失败时，从机应丢弃整包数据、不回写 reg_map
 
 ### 主机(G020)开发者:
 1. 确认 I2C 从机地址和 GPIO 引脚后填入代码
@@ -260,6 +288,52 @@ START + [0x5A] + [0x10] + Repeated-START + [0x5B] + [数据0] + ACK + [数据1] 
 3. 定时读取按键事件 (§4.6)
 4. 建机后先读 ONLINE_CRC (0x82) 确认从机就绪
 5. 定时读取电芯/AFE数据 (§4.5)
-6. 异常状态位定义需根据 UI 要求再明确一下。
+6. 主机读写 API 自动计算和验证 CRC，调用方无需额外处理
+7. 异常状态位定义需根据 UI 要求再明确一下。
+
+---
+
+## 7. CRC 校验算法
+
+### 算法定义
+
+采用 **累加和取反** (Sum + Invert):
+
+```
+CRC = ~(SUM(data[0..LEN-1]) & 0xFF)
+```
+
+即: 对所有数据字节求和 → 取低 8 位 → 按位取反
+
+### C 代码实现
+
+```c
+static uint8_t tft_calc_crc(const uint8_t *data, uint8_t len)
+{
+    uint16_t sum = 0;
+    if(data) { for(uint8_t i = 0; i < len; i++) sum += data[i]; }
+    return (uint8_t)(~(sum & 0xFF));
+}
+```
+
+### 验证示例
+
+| 数据 | 求和 | 低8位 | ~取反 | CRC值 |
+|------|------|-------|-------|-------|
+| {0x64} | 0x0064 | 0x64 | 0x9B | 0x9B |
+| {0x64, 0x5A} | 0x00BE | 0xBE | 0x41 | 0x41 |
+| {0x01, 0x02, 0x03, 0x04} | 0x000A | 0x0A | 0xF5 | 0xF5 |
+
+### 校验过程
+
+**写操作 (主机发, 从机验):**
+1. 主机计算 `crc = tft_calc_crc(data, len)`，附加在数据尾发送
+2. 从机收到 DATA 同时内部累加，收到 CRC 后与本地计算结果对比
+3. 不一致 → 丢弃整包数据，reg_map 不更新
+
+**读操作 (从机发, 主机验):**
+1. 从机发完 DATA 后，再发 `crc = tft_calc_crc(data, len)`
+2. 主机收到数据后本地重算 CRC，与从机回传值比对
+3. 不一致 → 主机认为本次读取无效，可重试
 
 ---

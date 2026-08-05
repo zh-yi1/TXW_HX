@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 驱动层 (`drv/`)
 
 - **[lcd.c](drv/lcd.c)** — TFT LCD 底层驱动：ST7789 指令序列、SPI 像素写入（支持轮询和 DMA 辅助）、8 位色彩模式。
-- **[flash.c](drv/flash.c)** — 外部 SPI NOR Flash 读写擦除驱动。位图资源通过 `flash_read_words()` 读取，地址定义在 [flash_addr.h](ui/flash_addr.h)。
+- **[flash.c](drv/flash.c)** — 外部 SPI NOR Flash 读写擦除驱动。位图资源通过 `flash_read_buf()` / `flash_read_dma()` 读取，擦除使用 `flash_page_erase()` (256B 页擦除)，地址定义在 [flash_addr.h](ui/flash_addr.h)。
 - **[iic.c](drv/iic.c)** — I2C 从机驱动。寄存器映射表（`iic_reg_map_t`）定义约 48 个寄存器槽位：电池 SOC、端口功率、温度、循环次数、健康度、语言、计时器等。主机数据缓存于 `ui_ctrl.iic_data`。
 - **[dma.c](drv/dma.c)** — SPI TX（Ch0）和 RX（Ch1）的 DMA 配置，用于加速 Flash→LCD 像素传输。
 - **[timer.c](drv/timer.c)** — AD16C4T 定时器 Ch2 PWM 输出（PA4），用于 LCD 背光亮度控制（0-100% 占空比，平滑过渡）。

@@ -11,6 +11,9 @@
  */
 
 #include "uart_upgrade.h"
+
+#ifdef UPGRADE_EN
+
 #include "iap_rom.h"
 
 typedef  void (*FunVoidType)(void);
@@ -70,7 +73,7 @@ void fsm_go(uint32_t para)
     {
         addr = APP_ADDR;
     }
-    else if(para == GO_BOOT) 
+    else if(para == GO_BOOT)
     {
         addr = BOOT_ADDR;
         WRITE_REG(MSC->FLASHKEY, 0x8ACE0246);
@@ -88,7 +91,7 @@ void fsm_go(uint32_t para)
     SYSCFG_LOCK();
 
     /* disable all peripherals which may cause an interrupt,
-    and clear all possible undisposed interrupt flag */ 
+    and clear all possible undisposed interrupt flag */
     NVIC->ICER[0] = 0xFFFFFFFF;
     NVIC->ICPR[0] = 0xFFFFFFFF;
 
@@ -112,10 +115,12 @@ void fsm_go(uint32_t para)
 
     m_JumpAddress = *(volatile uint32_t *)((addr & 0xFFFFFF00) + 4);
     JumpToApplication = (FunVoidType) m_JumpAddress;
-    
+
     /* init stack top */
     __set_MSP(*(volatile uint32_t *)(addr & 0xFFFFFF00));
     /* jump to app/boot flash */
     JumpToApplication();
 }
+
+#endif /* UPGRADE_EN */
 

@@ -9,21 +9,29 @@ int main()
 
 	while (1)
 	{
+	#ifdef UPGRADE_EN
 		/* 升级模式: 按键组合触发后直接跳转 Bootloader */
 		if (g_enter_upgrade)
 		{
 			g_enter_upgrade = 0;
 			uart_upgrade_enter();
 		}
+	#endif
 
 		/* ---- 产测协议处理 (USART1) ---- */
 #ifndef DEBUG_EN
 		prod_test_proc();
 #endif /* !DEBUG_EN */
 
-		cw1573_proc();
-		i2c_slave_proc();
+		ip3561q_proc();
+		rtc_timer_proc();
+		i2c_slave_proc();          /* 主机数据 → ui_data (先于 battery_mgr) */
+		battery_mgr_proc();        /* OV/UV + NTC 温度换算 */
+		battery_mgr_sync_to_ui();  /* 同步结果 → ui_data */
+
+		key_wake_host();           /* 主机休眠+高温 → KEY_PIN 拉低唤醒 */
 		key_proc();
+		power_mgr_proc();          /* 检查 SLEEP+host_sleeping → 进 STOP */
 		ui_proc();
 	}
 }
@@ -31,7 +39,7 @@ int main()
 static void sys_init(void)
 {
 	/* Configure system clock */
-	md_cmu_clock_config(MD_CMU_CLOCK_HRC, 48000000);
+	md_cmu_clock_config(MD_CMU_CLOCK_HRC, 52000000);
 
 	/* Initialize SysTick Interrupt */
 	md_init_1ms_tick();
@@ -40,6 +48,9 @@ static void sys_init(void)
 	SYSCFG_UNLOCK();
 	md_cmu_enable_perh_all();
 	SYSCFG_LOCK();
+
+	//USART1初始化 (测试回环)
+	usart_init(115200);
 
 	//DMA初始化
 	dma_init();
@@ -50,24 +61,30 @@ static void sys_init(void)
 	//按键初始化
 	key_init();
 
+	//低功耗模块初始化 (PA15 EXTI + WWDT)
+	power_mgr_init();
+
 	//I2C从机初始化
 	i2c_slave_init();
 
-	//CW1573初始化
-	cw1573_init(4);
+	//IP3561Q初始化
+	ip3561q_init();
 
-	//USART1初始化 (测试回环)
-	usart_init(115200);
+	//TODO : 测试用，临时写入场测需要的数据
+	// static_cfg_erasure();
+	// static_cfg_save_test();
 
-	//定时器初始化-PWM
-	// timer_init();
+	//3C 新国标模块初始化
+	rtc_timer_init();
+	abnormal_log_init();
+	battery_mgr_init();
 
 	//产测模块初始化
 #ifndef DEBUG_EN
 	prod_test_init();
 #endif /* !DEBUG_EN */
 
-	LOGI("Hello World!\n");
+	LOGI("System Init Version: [%s]!\n", VERSION);
 }
 
 void SystemInit(void){}
