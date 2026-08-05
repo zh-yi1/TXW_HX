@@ -10,6 +10,19 @@ volatile wakeup_cause_t g_wakeup_cause = WAKEUP_CAUSE_NONE;
 /* ---- 唤醒标记: 防止唤醒后秒进SLEEP ---- */
 static volatile uint8_t s_just_woke_up = 0;
 
+/* ---- 息屏时长, 由息屏时长设置页改写 ---- */
+static uint32_t s_sleep_idle_ms = POWER_MGR_SLEEP_IDLE_MS;
+
+uint32_t power_mgr_get_sleep_ms(void)
+{
+    return s_sleep_idle_ms;
+}
+
+void power_mgr_set_sleep_ms(uint32_t ms)
+{
+    s_sleep_idle_ms = ms;
+}
+
 /* ---- 前向声明 ---- */
 static void power_mgr_io_low_power_config(void);
 static void power_mgr_exit_stop_lite(void);
@@ -406,7 +419,7 @@ void power_mgr_proc(void)
 #endif
             LOGI("[PWR] -> SLEEP_ACTIVE\r\n");
         }
-        else if (now - last_activity_ms >= POWER_MGR_SLEEP_IDLE_MS)
+        else if (now - last_activity_ms >= s_sleep_idle_ms)
         {
             screen_off();
             ui_data.dev_state = DEV_STATE_SLEEP_PASSIVE;

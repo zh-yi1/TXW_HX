@@ -185,7 +185,8 @@ static void battery_mgr_jump_to_alert_page(page_t target_page)
         ui_data.cur_page == PAGE_POWER ||
         ui_data.cur_page == PAGE_INFO_1 ||
         ui_data.cur_page == PAGE_INFO_2 ||
-        ui_data.cur_page == PAGE_INFO_3) {
+        ui_data.cur_page == PAGE_INFO_3 ||
+        ui_data.cur_page == PAGE_OFF_TIME) {
         ui_data.last_page = ui_data.cur_page;
         ui_data.cur_page  = target_page;
     }

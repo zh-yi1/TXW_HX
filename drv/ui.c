@@ -114,6 +114,9 @@ void ui_proc(void)
 		case PAGE_INFO_3:
 			information_page_3_init();
 			break;
+		case PAGE_OFF_TIME:
+			off_time_page_init();
+			break;
 		case PAGE_OVER_TEMP:
 			high_temp_pro(battery_mgr_get_warning_chg_state());
 			hint_enter_tick = md_get_tick();
@@ -177,6 +180,10 @@ void ui_proc(void)
 		home_page_sample();
 		home_page_anim_proc();
 	}
+
+	/* 息屏时长页: 双击换选项要立刻看到反馈, 等 500ms 太迟钝。没变化时它直接返回 */
+	if (ui_data.cur_page == PAGE_OFF_TIME)
+		off_time_page_updata();
 
 	/* 各界面周期性更新, 统一 500ms 限流 */
 	static uint32_t last_updata_ms = 0;
@@ -261,8 +268,13 @@ void key_single_click_ui_proc(void)
 		ui_data.cur_page = PAGE_HOME;
 		break;
 	case PAGE_INFO_3:
-		/* 电压界面单击 -> 温度异常界面 */
+		/* 电压界面单击 -> 息屏时长设置界面 */
 		ui_data.last_page = PAGE_INFO_3;
+		ui_data.cur_page = PAGE_OFF_TIME;
+		break;
+	case PAGE_OFF_TIME:
+		/* 息屏时长界面单击 -> 温度异常界面 (原来电压界面的下一站) */
+		ui_data.last_page = PAGE_OFF_TIME;
 		ui_data.cur_page = PAGE_TEMP_ABNORMAL;
 		break;
 	case PAGE_DISABLED:
@@ -285,12 +297,17 @@ void key_single_click_ui_proc(void)
 }
 
 /* 双击处理.
+ * 息屏时长页: 切到下一个时长选项 (轮回), 返回 0 保持亮屏;
  * 异常记录页: 切换到下一条记录 (轮回, 播放完最后一条回到第一条), 返回 0 保持亮屏;
  * 其余界面: 返回 true 表示需主动灭屏 */
 bool key_double_click_ui_proc(void)
 {
 	switch (ui_data.cur_page)
 	{
+	case PAGE_OFF_TIME:
+		/* 设置页双击是换选项, 不灭屏 */
+		off_time_page_next();
+		return false;
 	case PAGE_TEMP_ABNORMAL:
 		{
 			uint8_t cnt = abnormal_log_temperature_count();
@@ -333,6 +350,11 @@ bool key_long_press_ui_proc(void)
 		case PAGE_INFO_3:
 			/* 电压界面长按 -> 温度界面 */
 			ui_data.last_page = PAGE_INFO_3;
+			ui_data.cur_page = PAGE_INFO_2;
+			break;
+		case PAGE_OFF_TIME:
+			/* 息屏时长界面长按 -> 温度界面 */
+			ui_data.last_page = PAGE_OFF_TIME;
 			ui_data.cur_page = PAGE_INFO_2;
 			break;
 		case PAGE_TEMP_ABNORMAL:

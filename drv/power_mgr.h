@@ -5,7 +5,7 @@
 // #define DEBUG_STOP
 // #define UART_DEBUG   /* 调试: STOP 唤醒后立即恢复串口, 唤醒路径打印可见; 发布前注释掉 */
 
-#define POWER_MGR_SLEEP_IDLE_MS     30000U    /* 30s 无操作进 SLEEP */
+#define POWER_MGR_SLEEP_IDLE_MS     30000U    /* 无操作进 SLEEP 的默认值, 可在息屏时长设置页改 */
 
 #ifdef DEBUG_STOP
   #define POWER_MGR_IWDG_WAKEUP_SEC   20U    /* 20s 定时唤醒 */
@@ -37,5 +37,9 @@ void power_mgr_init(void);                  /* 配置 PA15 EXTI + WWDT(看门狗
 void power_mgr_proc(void);                  /* 主循环调用: 灭屏/唤醒状态机 + 条件检查进STOP */
 void power_mgr_enter_stop(void);            /* 进入 STOP (do-while循环) */
 void power_mgr_notify_host_wakeup(void);    /* 预留空 API */
+
+/* ---- 息屏时长 (息屏时长设置页读写, 上电默认 POWER_MGR_SLEEP_IDLE_MS) ---- */
+uint32_t power_mgr_get_sleep_ms(void);
+void     power_mgr_set_sleep_ms(uint32_t ms);
 
 #endif /* __POWER_MGR_H */
