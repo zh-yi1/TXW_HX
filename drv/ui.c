@@ -4,7 +4,7 @@
 #define DISABLE_PAGE_RETURN_MS	(30000U)	/* 禁用状态下离开禁用界面 30s 后自动返回 */
 
 static void ui_gpio_init(void);
-static void check_charge_plug_in(void);
+static void check_port_plug_in(void);
 
 static uint32_t hint_enter_tick = 0;  /* 提示页进入时刻, 用于 5s 自动跳转 */
 static uint32_t disabled_leave_tick = 0;  /* 离开禁用界面的时刻, 用于 30s 自动返回 */
@@ -72,23 +72,21 @@ void ui_init(void)
 
 
 /* ========================================================================
- * check_charge_plug_in — 任意端口插入充电时跳回主界面
+ * check_port_plug_in — 任意端口插入(充电或放电)时跳回主界面
  *
- * 只认 未充电 -> 充电中(status==1) 的上升沿, 一直插着不会反复跳, 也不会把
- * 用户翻页的操作顶掉。放电插入(status==2)不跳。
+ * 只认 未连接(0) -> 已连接(1充电/2放电) 的上升沿, 一直插着不会反复跳, 也不会
+ * 把用户翻页的操作顶掉。充放电之间互相切换(1<->2)不算插入, 不跳。
  *
  * 灭屏期间 ui_proc 直接 return, 这里的影子状态跟着冻结; 但唤醒走
  * wake_screen() 本来就回主界面, 所以醒来后哪怕补报一次上升沿也是同一结果。
  * ======================================================================== */
-#define PORT_ST_CHARGING	(1)	/* 同 usb_*_status: 1=充电(电流流入) */
-
-static void check_charge_plug_in(void)
+static void check_port_plug_in(void)
 {
 	static uint8_t last_c1 = 0, last_c2 = 0, last_a = 0;
 
-	uint8_t plug_in = (ui_data.usb_c1_status == PORT_ST_CHARGING && last_c1 != PORT_ST_CHARGING)
-	               || (ui_data.usb_c2_status == PORT_ST_CHARGING && last_c2 != PORT_ST_CHARGING)
-	               || (ui_data.usb_a_status  == PORT_ST_CHARGING && last_a  != PORT_ST_CHARGING);
+	uint8_t plug_in = (ui_data.usb_c1_status != 0 && last_c1 == 0)
+	               || (ui_data.usb_c2_status != 0 && last_c2 == 0)
+	               || (ui_data.usb_a_status  != 0 && last_a  == 0);
 
 	last_c1 = ui_data.usb_c1_status;
 	last_c2 = ui_data.usb_c2_status;
@@ -96,7 +94,7 @@ static void check_charge_plug_in(void)
 
 	if (plug_in && ui_data.cur_page != PAGE_HOME)
 	{
-		LOGI("[UI] charge plug in -> PAGE_HOME\r\n");
+		LOGI("[UI] port plug in -> PAGE_HOME\r\n");
 		ui_data.last_page = ui_data.cur_page;
 		ui_data.cur_page  = PAGE_HOME;
 	}
@@ -112,7 +110,7 @@ void ui_proc(void)
 
 	calc_charge_remain_min();  /* V1.3: 剩余充满时间估算 */
 
-	check_charge_plug_in();
+	check_port_plug_in();
 
 	/* 禁用状态下, 若当前不在禁用界面, 30s 后自动返回禁用界面 */
 	if (ui_data.disable_flag && ui_data.cur_page != PAGE_DISABLED)
