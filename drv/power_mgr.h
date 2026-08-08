@@ -37,6 +37,7 @@ void power_mgr_init(void);                  /* 配置 PA15 EXTI + WWDT(看门狗
 void power_mgr_proc(void);                  /* 主循环调用: 灭屏/唤醒状态机 + 条件检查进STOP */
 void power_mgr_enter_stop(void);            /* 进入 STOP (do-while循环) */
 void power_mgr_notify_host_wakeup(void);    /* 预留空 API */
+void power_mgr_notify_frame_drawn(void);    /* ui_proc 画完一整页后调用: 亮屏挂起时才点背光 */
 
 /* ---- 息屏时长 (息屏时长设置页读写, 上电默认 POWER_MGR_SLEEP_IDLE_MS) ---- */
 uint32_t power_mgr_get_sleep_ms(void);

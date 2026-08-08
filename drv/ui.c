@@ -199,6 +199,9 @@ void ui_proc(void)
 			break;
 		}
 		ui_data.last_page = ui_data.cur_page;
+
+		/* 整页已画完: 唤醒时挂起的背光在这里才点亮, 避免看到逐块绘制过程 */
+		power_mgr_notify_frame_drawn();
 	}
 
 	/* 端口功率采样: 必须放在 500ms 限流之外, 否则滤波窗口跟着绘制节奏走,

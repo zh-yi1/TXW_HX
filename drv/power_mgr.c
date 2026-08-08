@@ -10,6 +10,10 @@ volatile wakeup_cause_t g_wakeup_cause = WAKEUP_CAUSE_NONE;
 /* ---- 唤醒标记: 防止唤醒后秒进SLEEP ---- */
 static volatile uint8_t s_just_woke_up = 0;
 
+/* ---- 亮屏挂起: 唤醒时不马上点背光, 等 ui_proc 把整页画完再点 ----
+   直接点亮会先看到黑屏, 再看着内容一块块画出来 (全屏首绘几十~上百 ms) */
+static volatile uint8_t s_blk_pending = 0;
+
 /* ---- 息屏时长, 由息屏时长设置页改写 ---- */
 static uint32_t s_sleep_idle_ms = POWER_MGR_SLEEP_IDLE_MS;
 
@@ -38,19 +42,35 @@ static void power_mgr_disarm_scl_wakeup(void);
 static void screen_off(void)
 {
     LCD_BLK_HIGH();
+    s_blk_pending = 0;   /* 还没来得及点亮就又灭屏了 */
     DispColor(BLACK);
 }
 
 /* ========================================================================
  * wake_screen — 亮屏恢复
+ *
+ * 只切状态和页面, 背光留给 power_mgr_notify_frame_drawn(): ui_proc 画完
+ * 首帧才点亮, 用户看到的直接是完整画面, 不是黑屏加逐块爬出来的内容。
  * ======================================================================== */
 static void wake_screen(void)
 {
     s_just_woke_up = 1; /* 通知 power_mgr_proc 刷新活动时间 */
-    LCD_BLK_LOW();
+    s_blk_pending = 1;
     ui_data.dev_state = DEV_STATE_NORMAL;
     ui_data.cur_page = PAGE_HOME;
     ui_data.last_page = PAGE_MAX; /* 强制刷新 */
+}
+
+/* ========================================================================
+ * power_mgr_notify_frame_drawn — ui_proc 画完一整页后调用
+ * ======================================================================== */
+void power_mgr_notify_frame_drawn(void)
+{
+    if (s_blk_pending)
+    {
+        s_blk_pending = 0;
+        LCD_BLK_LOW();
+    }
 }
 
 /* ========================================================================
@@ -208,7 +228,8 @@ static void power_mgr_exit_stop_full(void)
     usart_init(115200); // 非调试在此处初始化串口
 #endif                  /* !UART_DEBUG */
 
-    LCD_BLK_LOW();
+    /* 背光同样等首帧画完再点, 见 wake_screen() */
+    s_blk_pending = 1;
     LOGI("[PWR] exit_stop_full: done\r\n");
 
     /* 恢复 UI 状态 */
@@ -394,6 +415,12 @@ void power_mgr_proc(void)
         s_just_woke_up = 0;
         last_activity_ms = now;
     }
+
+    /* 兜底: 亮屏挂起后 1s 还没等到首帧画完 (页面初始化被跳过之类), 强行点亮,
+       否则屏会一直黑着 —— 宁可看到绘制过程, 也不能整块屏不亮 */
+    if (s_blk_pending && ui_data.dev_state == DEV_STATE_NORMAL
+        && now - last_activity_ms >= 1000)
+        power_mgr_notify_frame_drawn();
 
     /* 按键 或 USB 拔插 -> 刷新活动时间戳
      * (充放电持续插着不再刷新, 无论充放电状态 30s 无按键即自动熄屏) */
