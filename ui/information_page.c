@@ -24,13 +24,19 @@
 
 #define NUM_40_ADDR(d)  (FLASH_ADDR_NUM_40_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_40)
 
-/* ============================ 温度滤波 ============================ */
+/* ============================ 温度滤波 ============================
+ * 与主页电量、端口功率同一套路: 采样与绘制解耦。绘制被 ui_proc 限流到 500ms,
+ * 若跟着绘制节奏入窗, 5 点窗口要跨 2.5s, 升温时屏上温度明显滞后。
+ * 这里按 TEMP_SAMPLE_MS 独立入窗, 窗口只跨 5×100ms = 0.5s。
+ * ================================================================ */
 
 #define TEMP_FILTER_WIN 5
+#define TEMP_SAMPLE_MS  100
 
-static int16_t temp_filter_buf[TEMP_FILTER_WIN];
-static uint8_t temp_filter_idx;
-static bool    temp_filter_full;
+static int16_t  temp_filter_buf[TEMP_FILTER_WIN];
+static uint8_t  temp_filter_idx;
+static bool     temp_filter_full;
+static uint32_t temp_samp_tick;
 
 static void temp_filter_push(int16_t value)
 {
@@ -196,7 +202,8 @@ void information_page_2_init(void)
     uint8_t fi;
     for (fi = 0; fi < TEMP_FILTER_WIN; fi++)
         temp_filter_push(ui_data.bat_temperature);
-    
+    temp_samp_tick = md_get_tick();
+
 
     // 电池温度 (0,20, 240x32)
     Dispphoto_Dispaly_flash(0, INFO2_LABEL_Y, FLASH_ADDR_BAT_TMP);
@@ -279,12 +286,21 @@ void information_page_1_updata(void)
     }
 }
 
+/* 温度采样 — 由 ui_proc 每轮调用(不受 500ms 绘制限流), 内部按 TEMP_SAMPLE_MS 节流 */
+void information_page_2_sample(void)
+{
+    if (md_get_tick() - temp_samp_tick < TEMP_SAMPLE_MS)
+        return;
+    temp_samp_tick = md_get_tick();
+
+    temp_filter_push(ui_data.bat_temperature);
+}
+
 void information_page_2_updata(void)
 {
     static int16_t last_temp_c = 0x7FFF;
 
     /* 电池温度 — 滤波后个位(℃)变化才刷新 */
-    temp_filter_push(ui_data.bat_temperature);
     {
         int16_t filtered = temp_filter_get();
         int16_t temp_c   = filtered / 10;

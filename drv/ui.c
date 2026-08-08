@@ -213,6 +213,10 @@ void ui_proc(void)
 		home_page_anim_proc();
 	}
 
+	/* 温度页: 同理, 采样不能受 500ms 限流, 否则 5 点窗口要跨 2.5s */
+	if (ui_data.cur_page == PAGE_INFO_2)
+		information_page_2_sample();
+
 	/* 息屏时长页: 双击换选项要立刻看到反馈, 等 500ms 太迟钝。没变化时它直接返回 */
 	if (ui_data.cur_page == PAGE_OFF_TIME)
 		off_time_page_updata();
