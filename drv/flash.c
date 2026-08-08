@@ -49,6 +49,15 @@ static md_status_t spi_xfer_byte(uint8_t tx_data, uint8_t *rx_data)
     return MD_OK;
 }
 
+/* 排空 SPI 接收寄存器 —— DMA 中途放弃后残留的字节会被重试的 DMA 当成第一个
+   数据收走, 整块数据因此错位一个字节, 画到屏上就是一条竖条 */
+static void spi_rx_drain(void)
+{
+    uint8_t k = 16;
+    while (md_spi_is_active_flag_rxbne(FLASH_SPI) && k--)
+        (void)md_spi_get_data_reg_value(FLASH_SPI);
+}
+
 /**
  * @brief  读取 Flash 状态寄存器
  * @retval 状态寄存器值 (低 8 位), 或 0xFF 表示超时
@@ -330,8 +339,12 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
     md_dma_enable_channel(MD_DMA_CH_1);   /* RX */
     md_dma_enable_channel(MD_DMA_CH_0);   /* TX */
 
-    md_spi_enable_tx_dma(SPI0);
+    /* RX 请求必须先于 TX 请求打开: 打开 TX 的瞬间 SPI 就开始移出 dummy 字节,
+       12MHz 下一个字节只要 0.67us(约 32 个 CPU 周期), 两条语句之间一旦被中断
+       打断, 首字节就在 RX DMA 还没接管时到达而丢失。RX 因此少收一个字节, 永远
+       等不到完成标志 —— 这就是 "[FLASH] RX DMA timeout" 的来源 */
     md_spi_enable_rx_dma(SPI0);
+    md_spi_enable_tx_dma(SPI0);
 
     /* 等待 TX DMA 完成 */
     timeout = FLASH_DMA_TIMEOUT;
@@ -361,6 +374,8 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
         md_spi_disable_tx_dma(SPI0);
         md_spi_disable_rx_dma(SPI0);
         FLASH_CS_SET();
+        /* 关键: 丢掉 SPI 里没被 DMA 取走的残留字节, 否则重试的数据整块错位 */
+        spi_rx_drain();
         /* 从头重试: 命令 + DMA */
         FLASH_CS_CLR();
         for (i = 0; i < sizeof(cmd_buf); i++) {
@@ -374,8 +389,8 @@ md_status_t flash_read_dma(uint32_t addr, unsigned char *buf, uint16_t size)
         md_dma_config_base(DMA0, MD_DMA_CYCLE_CTRL_BASIC, &spi_dma_rx_config);
         md_dma_enable_channel(MD_DMA_CH_1);
         md_dma_enable_channel(MD_DMA_CH_0);
+        md_spi_enable_rx_dma(SPI0);   /* 同上: RX 先于 TX, 否则首字节可能丢 */
         md_spi_enable_tx_dma(SPI0);
-        md_spi_enable_rx_dma(SPI0);
         timeout = FLASH_DMA_TIMEOUT;
         while (!md_dma_is_active_flag_done(MD_DMA_CH_0) && --timeout);
         md_dma_clear_flag_done(MD_DMA_CH_0);
