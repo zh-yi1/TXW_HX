@@ -75,9 +75,9 @@ static const uint8_t info3_row_y[4] = { 42, 56, 70, 84 };
 #define MODEL_LABEL_Y  119
 #define MODEL_TEXT_X   109
 
-/* 清尾宽度: "XX.XXV" 共 4 位数字, 每位由 14 宽变 "1"(8 宽) 少 6px,
- * 全变 "1" 最多左移 24px。不判断实际有几个 "1", 一律按最坏情况擦 24px */
-#define VOLT_ERASE_W   (4 * 6)
+/* 清尾宽度: "XX.XXV" 共 4 位数字, 每位由 11 宽变 "1"(7 宽) 少 4px,
+ * 全变 "1" 最多左移 16px。不判断实际有几个 "1", 一律按最坏情况擦 24px */
+#define VOLT_ERASE_W   24
 
 /* 40 号数字比例宽度: 数字"1" 较窄 */
 static uint8_t num40_prop_w(int d)
