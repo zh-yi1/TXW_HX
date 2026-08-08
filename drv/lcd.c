@@ -308,10 +308,19 @@ void Dispphoto_Dispaly_flash(int x, int y, int add)
 	uint16_t bpp;
 	uint32_t timeout;
 
-	flash_read_dma(add, spi_dma_buf, 66);
+	if (flash_read_dma(add, spi_dma_buf, 66) != MD_OK)
+	{
+		/* 读失败时 buf 里还是上一张图的内容, 继续画就是花屏 */
+		LOGI("[LCD] hdr read fail addr=0x%lX\r\n", (unsigned long)add);
+		return;
+	}
 
 	if (spi_dma_buf[0] != 'B' || spi_dma_buf[1] != 'M')
+	{
+		LOGI("[LCD] not BMP addr=0x%lX %02X%02X\r\n",
+		     (unsigned long)add, spi_dma_buf[0], spi_dma_buf[1]);
 		return;
+	}
 
 	pixel_offset = (uint32_t)spi_dma_buf[10]
 		| ((uint32_t)spi_dma_buf[11] << 8)
@@ -350,7 +359,11 @@ void Dispphoto_Dispaly_flash(int x, int y, int add)
 		if (chunk_rows > rows_per_chunk)
 			chunk_rows = rows_per_chunk;
 
-		flash_read_dma(addr, spi_dma_buf, chunk_rows * row_size);
+		if (flash_read_dma(addr, spi_dma_buf, chunk_rows * row_size) != MD_OK)
+		{
+			/* 缓冲区里是上一块的像素, 照发就是错行/重影 */
+			LOGI("[LCD] pixel read fail addr=0x%lX row=%d\r\n", (unsigned long)addr, row);
+		}
 		buf_swap_bytes(chunk_rows * row_size);
 
 		if (row_size == w * 2)
@@ -361,6 +374,8 @@ void Dispphoto_Dispaly_flash(int x, int y, int add)
 
 			timeout = 100000;
 			while (spi_dma_send_ok == 0 && --timeout);
+			if (timeout == 0)
+				LOGI("[LCD] blk send timeout addr=0x%lX row=%d\r\n", (unsigned long)addr, row);
 		}
 		else
 		{
@@ -372,12 +387,20 @@ void Dispphoto_Dispaly_flash(int x, int y, int add)
 
 				timeout = 100000;
 				while (spi_dma_send_ok == 0 && --timeout);
+				if (timeout == 0)
+					LOGI("[LCD] row send timeout addr=0x%lX row=%d\r\n",
+					     (unsigned long)addr, row + r);
 			}
 		}
 
 		addr += chunk_rows * row_size;
 	}
 
+	/* 同 DispBlock: 等移位器发完再拉 CS, 否则每张图最后一个像素会被截掉,
+	   留下上一次的内容 */
+	while (md_spi_is_active_flag_busy(SPI0))
+	{
+	};
 	LCD_CS_HIGH();
 }
 
@@ -406,10 +429,17 @@ void DispBlock(int x1, int y1, int x2, int y2)
 
 		timeout = 100000;
 		while (spi_dma_send_ok == 0 && --timeout);
+		if (timeout == 0)
+			LOGI("[LCD] erase timeout %d,%d-%d,%d chunk=%d\r\n", x1, y1, x2, y2, chunk);
 
 		remaining -= chunk;
 	}
 
+	/* DMA 完成只代表最后一个字节写进了 SPI 数据寄存器, 移位器还在发。
+	   不等 BUSY 清零就拉高 CS 会把最后一个像素截掉, 擦除区右下角留旧像素 */
+	while (md_spi_is_active_flag_busy(SPI0))
+	{
+	};
 	LCD_CS_HIGH();
 }
 
