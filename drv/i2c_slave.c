@@ -434,6 +434,17 @@ void i2c_slave_restore_bat_backup(void)
     bms_backup_regs_fill();
 }
 
+/* 端口显示功率: V(mV)×I(mA) → W
+ * <0.2W 判 0, 0.2W~1W 判 1, 1W 以上截断取整 */
+static uint8_t port_power_w(uint16_t mv, uint16_t ma)
+{
+    uint32_t mw = (uint32_t)mv * (uint32_t)ma / 1000UL;
+    uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
+    if (w == 0)
+        return (mw >= 200) ? 1 : 0;
+    return (w > 255) ? 255 : (uint8_t)w;
+}
+
 /* ========================================================================
  * apply_host_data — 解析 G020 写入的 W 寄存器 → ui_data
  * ======================================================================== */
@@ -499,9 +510,7 @@ static void apply_host_data(void)
     if (ui_data.usb_c1_status) {
         uint16_t v = reg_read_u16(REG_C1_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_C1_CURRENT_L);
-        uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
-        ui_data.usb_c1_power = (w > 255) ? 255 : (uint8_t)w;
+        ui_data.usb_c1_power = port_power_w(v, a);
     } else {
         ui_data.usb_c1_power = 0;
     }
@@ -511,9 +520,7 @@ static void apply_host_data(void)
     if (ui_data.usb_c2_status) {
         uint16_t v = reg_read_u16(REG_C2_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_C2_CURRENT_L);
-        uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
-        ui_data.usb_c2_power = (w > 255) ? 255 : (uint8_t)w;
+        ui_data.usb_c2_power = port_power_w(v, a);
     } else {
         ui_data.usb_c2_power = 0;
     }
@@ -523,9 +530,7 @@ static void apply_host_data(void)
     if (ui_data.usb_a_status) {
         uint16_t v = reg_read_u16(REG_USBA_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_USBA_CURRENT_L);
-        uint32_t mw = (uint32_t)v * (uint32_t)(a > 0 ? a : -a) / 1000UL;
-        uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
-        ui_data.usb_a_power = (w > 255) ? 255 : (uint8_t)w;
+        ui_data.usb_a_power = port_power_w(v, a);
     } else {
         ui_data.usb_a_power = 0;
     }

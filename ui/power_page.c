@@ -186,8 +186,7 @@ static void pwr_disp_port(uint8_t row, uint8_t *status, uint8_t *power)
 
 	if (*status == PWR_ST_IDLE)
 		*power = 0; /* 未使用固定显示 0w */
-	else if (*power == 0)
-		*power = 1; /* 输入/输出中不足 1W 也按 1w 显示 */
+	/* 0/1 门限已在源头处理 (i2c_slave.c port_power_w): <0.2W 判 0, 0.2W~1W 判 1 */
 }
 
 /* ③ 段: 未使用时是那张空白胶囊(只有白色一版) */
