@@ -3,9 +3,9 @@
 
 #include "global_define.h"
 
-#define VERSION        "v1.1"
+#define VERSION        "v1.2"
 #define VERSION_MAJOR  1
-#define VERSION_MINOR  1
+#define VERSION_MINOR  2
 
 
 #endif /*__MAIN_H__*/
