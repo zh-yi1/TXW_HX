@@ -435,6 +435,9 @@ void power_mgr_proc(void)
 
     /* ---- NORMAL: 正常亮屏 ---- */
     case DEV_STATE_NORMAL:
+#ifdef DEBUG_NO_SLEEP
+        break; /* 测试版: 永不灭屏, 停留 NORMAL */
+#endif
         if (prod_test_is_sleep_blocked())
             break; /* 场测模式 3min 内不灭屏 */
         if (key_ev == KEY_EVENT_DOUBLE)
