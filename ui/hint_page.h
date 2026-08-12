@@ -18,8 +18,8 @@ void short_circuit_hint_page(void);
  *   bat_num:   电池编号 (type=1 时忽略)
  */
 void abnormal_hint_page(uint8_t  type,
-                                uint8_t  index,
-                                uint8_t  total,
+                                uint16_t index,
+                                uint16_t total,
                                 uint32_t timestamp,
                                 uint16_t value,
                                 const char *bat_num,

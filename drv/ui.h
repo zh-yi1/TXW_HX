@@ -142,9 +142,9 @@ typedef struct
 	/* ---- 3C 新国标新增字段 ---- */
 	uint16_t cell_voltage_mv[4];	/* 每节电芯电压 (mV) */
 	uint8_t  disable_flag;		/* 异常禁用标志 bit0=过压 bit1=欠压 */
-	uint8_t  abnormal_volt_count;	/* 电压异常记录条数 */
-	uint8_t  abnormal_temp_count;	/* 温度异常记录条数 */
-	uint8_t  abnormal_idx;		/* 异常页面当前查看索引 (0-based) */
+	uint16_t abnormal_volt_count;	/* 电压异常记录条数 */
+	uint16_t abnormal_temp_count;	/* 温度异常记录条数 */
+	uint16_t abnormal_idx;		/* 异常页面当前查看索引 (0-based) */
 
 } ui_data_t;
 

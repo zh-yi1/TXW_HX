@@ -94,8 +94,8 @@ void short_circuit_hint_page(void)
 #define ABN_NONE_Y      77
 
 void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度                */
-                                uint8_t  index,       /* 第几条 (1-based)            */
-                                uint8_t  total,       /* 总条数                      */
+                                uint16_t index,       /* 第几条 (1-based)            */
+                                uint16_t total,       /* 总条数                      */
                                 uint32_t timestamp,   /* Unix 时间戳                 */
                                 uint16_t value,       /* 电压 mV / 温度 ℃ (整度)     */
                                 const char *bat_num,  /* 电池编号 (type=1 时忽略)     */
@@ -126,15 +126,17 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 	/* ---- 行1 (y=53): "第n条，共m条" 整屏居中 ----
 	   固定图 第/条/共 各 18, "，" 12, 共 5 张 = 84; 数字宽按字体表算 */
 	p = 0;
-	if (index >= 100) { buf[p++] = '0' + index/100; index %= 100; }
-	if (index >= 10)  { buf[p++] = '0' + index/10;  index %= 10;  }
-	buf[p++] = '0' + index;
+	if (index >= 1000) { buf[p++] = '0' + index/1000; index %= 1000; }
+	if (index >= 100 || p) { buf[p++] = '0' + index/100; index %= 100; }
+	if (index >= 10 || p)  { buf[p++] = '0' + index/10;  index %= 10;  }
+	buf[p++] = '0' + (uint8_t)index;
 	buf[p] = '\0';
 
 	p = 0;
-	if (total >= 100) { buf2[p++] = '0' + total/100; total %= 100; }
-	if (total >= 10)  { buf2[p++] = '0' + total/10;  total %= 10;  }
-	buf2[p++] = '0' + total;
+	if (total >= 1000) { buf2[p++] = '0' + total/1000; total %= 1000; }
+	if (total >= 100 || p) { buf2[p++] = '0' + total/100; total %= 100; }
+	if (total >= 10 || p)  { buf2[p++] = '0' + total/10;  total %= 10;  }
+	buf2[p++] = '0' + (uint8_t)total;
 	buf2[p] = '\0';
 
 	w = (uint16_t)(ABN_W_DI + ABN_W_TIAO + ABN_W_DOUHAO + ABN_W_GONG + ABN_W_TIAO)

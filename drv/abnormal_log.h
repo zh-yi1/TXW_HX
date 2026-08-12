@@ -48,14 +48,14 @@ void abnormal_log_voltage_update(uint32_t hour_start, uint16_t value_mv, uint8_t
 /* 电压异常: 强制更新当前小时最差值 (仅 RAM) */
 void abnormal_log_voltage_update_force(uint32_t hour_start, uint16_t value_mv, uint8_t cell, uint8_t chg_state);
 
-/* 电压异常: 提交到 Flash, 满 100 条返回 0 */
+/* 电压异常: 提交到 Flash, 满 1008 条返回 0 */
 uint8_t abnormal_log_voltage_commit(uint32_t timestamp);
 
 /* 电压异常: 读第 index 条 (0=最新), 越界返回 1 */
-uint8_t abnormal_log_voltage_read(uint8_t index, abnormal_record_t *out);
+uint8_t abnormal_log_voltage_read(uint16_t index, abnormal_record_t *out);
 
 /* 电压异常: 总条数 */
-uint8_t abnormal_log_voltage_count(void);
+uint16_t abnormal_log_voltage_count(void);
 
 /* 温度异常: 更新当前小时最差值 (仅 RAM) */
 void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c, uint8_t type, uint8_t chg_state);
@@ -63,13 +63,13 @@ void abnormal_log_temperature_update(uint32_t hour_start, uint16_t value_01c, ui
 /* 温度异常: 强制更新当前小时最差值 (仅 RAM) */
 void abnormal_log_temperature_update_force(uint32_t hour_start, uint16_t value_01c, uint8_t type, uint8_t chg_state);
 
-/* 温度异常: 提交到 Flash, 满 100 条返回 0 */
+/* 温度异常: 提交到 Flash, 满 1008 条返回 0 */
 uint8_t abnormal_log_temperature_commit(uint32_t timestamp);
 
 /* 温度异常: 读第 index 条 (0=最新), 越界返回 1 */
-uint8_t abnormal_log_temperature_read(uint8_t index, abnormal_record_t *out);
+uint8_t abnormal_log_temperature_read(uint16_t index, abnormal_record_t *out);
 
 /* 温度异常: 总条数 */
-uint8_t abnormal_log_temperature_count(void);
+uint16_t abnormal_log_temperature_count(void);
 
 #endif /* __ABNORMAL_LOG_H__ */

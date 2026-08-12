@@ -163,7 +163,7 @@ void ui_proc(void)
 		case PAGE_VOLTAGE_ABNORMAL:
 		{
 			abnormal_record_t rec;
-			uint8_t total = abnormal_log_voltage_count();
+			uint16_t total = abnormal_log_voltage_count();
 			/* 仅在真正切页时复位索引, 强制重绘 (last_page=PAGE_ABNORMAL_UPDATA) 时不复位 */
 			if (ui_data.last_page != PAGE_ABNORMAL_UPDATA)
 				ui_data.abnormal_idx = 0;
@@ -183,7 +183,7 @@ void ui_proc(void)
 		case PAGE_TEMP_ABNORMAL:
 		{
 			abnormal_record_t rec;
-			uint8_t total = abnormal_log_temperature_count();
+			uint16_t total = abnormal_log_temperature_count();
 			/* 仅在真正切页时复位索引, 强制重绘 (last_page=PAGE_ABNORMAL_UPDATA) 时不复位 */
 			if (ui_data.last_page != PAGE_ABNORMAL_UPDATA)
 				ui_data.abnormal_idx = 0;
@@ -349,7 +349,7 @@ bool key_double_click_ui_proc(void)
 		return false;
 	case PAGE_TEMP_ABNORMAL:
 		{
-			uint8_t cnt = abnormal_log_temperature_count();
+			uint16_t cnt = abnormal_log_temperature_count();
 			ui_data.abnormal_idx++;
 			if (ui_data.abnormal_idx >= cnt)
 				ui_data.abnormal_idx = 0;
@@ -358,7 +358,7 @@ bool key_double_click_ui_proc(void)
 		return false;
 	case PAGE_VOLTAGE_ABNORMAL:
 		{
-			uint8_t cnt = abnormal_log_voltage_count();
+			uint16_t cnt = abnormal_log_voltage_count();
 			ui_data.abnormal_idx++;
 			if (ui_data.abnormal_idx >= cnt)
 				ui_data.abnormal_idx = 0;

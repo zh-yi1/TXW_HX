@@ -451,18 +451,18 @@ void static_cfg_erasure(void)
     flash_wait_unbusy();
 }
 
-/* 擦除全部异常记录区 (电压 + 温度, 各 7 块 × 256B) */
+/* 擦除全部异常记录区 (电压 + 温度, 各 63 块 × 256B) */
 void abnormal_log_erasure(void)
 {
     uint8_t i;
 
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < 63; i++) {
         flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_VOLTAGE
                            + (uint32_t)i * 256);
         flash_wait_unbusy();
     }
 
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < 63; i++) {
         flash_page_erase(FLASH_DATA_BASE + FLASH_OFFS_ABNORMAL_TEMPERATURE
                            + (uint32_t)i * 256);
         flash_wait_unbusy();

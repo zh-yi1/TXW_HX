@@ -4,10 +4,9 @@
 #define BLOCK_SIZE          256U
 #define RECORD_SIZE         sizeof(abnormal_record_t)     /* 16B */
 #define RECORDS_PER_BLOCK   (BLOCK_SIZE / RECORD_SIZE)    /* 16 */
-#define MAX_RECORDS         100U
-
-/* 每类使用 7 个块 (112 条容量, 限 100 条) */
-#define AREA_BLOCKS         7U
+/* 每类使用 63 个块, 物理容量即上限 (63 × 16 = 1008 条) */
+#define AREA_BLOCKS         63U
+#define MAX_RECORDS         (AREA_BLOCKS * RECORDS_PER_BLOCK)   /* 1008 */
 #define AREA_SIZE           (AREA_BLOCKS * BLOCK_SIZE)    /* 1792B */
 
 /* ---- 基地址 ---- */
@@ -24,18 +23,18 @@ typedef struct {
     uint8_t  dirty;           /* 1=本小时有异常, 0=无 */
     /* Flash 写指针 */
     uint32_t write_addr;      /* 下一条记录写入地址 */
-    uint8_t  count;           /* 已存总条数 */
+    uint16_t count;           /* 已存总条数 */
 } abnormal_ctx_t;
 
 static abnormal_ctx_t g_volt_ctx;   /* 电压异常 */
 static abnormal_ctx_t g_temp_ctx;   /* 温度异常 */
 
 /* ---- 内部: 扫描固定区, 恢复写指针和计数 ---- */
-static void scan_area(uint32_t base, uint32_t *write_addr, uint8_t *count)
+static void scan_area(uint32_t base, uint32_t *write_addr, uint16_t *count)
 {
     uint32_t newest_addr = base;
     uint32_t newest_ts   = 0;
-    uint8_t  n           = 0;
+    uint16_t n           = 0;
     uint8_t  buf[RECORD_SIZE];
 
     for (uint16_t offs = 0; offs < AREA_SIZE; offs += RECORD_SIZE) {
@@ -102,7 +101,7 @@ static void advance_write_ptr(uint32_t base, uint32_t *write_addr)
 }
 
 /* ---- 内部: 写一条记录到 Flash ---- */
-static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint8_t *count,
+static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint16_t *count,
                                  uint32_t timestamp, uint16_t value,
                                  uint8_t type, uint8_t cell, uint8_t chg_state)
 {
@@ -153,16 +152,16 @@ static uint8_t read_record_at(uint32_t base, uint32_t addr, abnormal_record_t *o
 }
 
 /* ---- 内部: 按索引读记录 ---- */
-static uint8_t read_by_index(uint32_t base, uint32_t write_addr, uint8_t count,
-                              uint8_t index, abnormal_record_t *out)
+static uint8_t read_by_index(uint32_t base, uint32_t write_addr, uint16_t count,
+                              uint16_t index, abnormal_record_t *out)
 {
     if (index >= count)
         return 1;
 
-    uint8_t found = 0;
+    uint16_t found = 0;
     int32_t start_offs = (int32_t)(write_addr - base) - RECORD_SIZE;
 
-    int16_t i;
+    int32_t i;
     for (i = start_offs; i >= 0 && found <= index; i -= RECORD_SIZE) {
         if (read_record_at(base, base + i, out) == 0) {
             if (found == index)
@@ -290,14 +289,14 @@ uint8_t abnormal_log_voltage_commit(uint32_t timestamp)
     return 1;
 }
 
-uint8_t abnormal_log_voltage_read(uint8_t index, abnormal_record_t *out)
+uint8_t abnormal_log_voltage_read(uint16_t index, abnormal_record_t *out)
 {
     if (out == NULL)
         return 1;
     return read_by_index(VOLT_BASE, g_volt_ctx.write_addr, g_volt_ctx.count, index, out);
 }
 
-uint8_t abnormal_log_voltage_count(void)
+uint16_t abnormal_log_voltage_count(void)
 {
     return g_volt_ctx.count;
 }
@@ -347,14 +346,14 @@ uint8_t abnormal_log_temperature_commit(uint32_t timestamp)
     return 1;
 }
 
-uint8_t abnormal_log_temperature_read(uint8_t index, abnormal_record_t *out)
+uint8_t abnormal_log_temperature_read(uint16_t index, abnormal_record_t *out)
 {
     if (out == NULL)
         return 1;
     return read_by_index(TEMP_BASE, g_temp_ctx.write_addr, g_temp_ctx.count, index, out);
 }
 
-uint8_t abnormal_log_temperature_count(void)
+uint16_t abnormal_log_temperature_count(void)
 {
     return g_temp_ctx.count;
 }
