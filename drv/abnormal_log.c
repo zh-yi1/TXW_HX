@@ -4,9 +4,9 @@
 #define BLOCK_SIZE          256U
 #define RECORD_SIZE         sizeof(abnormal_record_t)     /* 16B */
 #define RECORDS_PER_BLOCK   (BLOCK_SIZE / RECORD_SIZE)    /* 16 */
-/* 每类使用 63 个块, 物理容量即上限 (63 × 16 = 1008 条) */
+/* 每类使用 63 个块 (63 × 16 = 1008 条), 满后擦最旧块环形覆盖 */
 #define AREA_BLOCKS         63U
-#define MAX_RECORDS         (AREA_BLOCKS * RECORDS_PER_BLOCK)   /* 1008 */
+#define MAX_RECORDS         (AREA_BLOCKS * RECORDS_PER_BLOCK)   /* 1008, 仅 scan 计数钳位 */
 #define AREA_SIZE           (AREA_BLOCKS * BLOCK_SIZE)    /* 1792B */
 
 /* ---- 基地址 ---- */
@@ -100,14 +100,26 @@ static void advance_write_ptr(uint32_t base, uint32_t *write_addr)
     *write_addr = next;
 }
 
-/* ---- 内部: 写一条记录到 Flash ---- */
+/* ---- 内部: 统计块内有效记录数 (擦除前扣减 count 用) ---- */
+static uint16_t count_block_valid(uint32_t blk_addr)
+{
+    uint16_t n = 0;
+    uint16_t i;
+    uint8_t  magic;
+
+    for (i = 0; i < RECORDS_PER_BLOCK; i++) {
+        if (flash_read(blk_addr + (uint32_t)i * RECORD_SIZE, &magic, 1) == MD_OK
+            && magic == 0x5A)
+            n++;
+    }
+    return n;
+}
+
+/* ---- 内部: 写一条记录到 Flash (环形, 满后擦最旧块覆盖) ---- */
 static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint16_t *count,
                                  uint32_t timestamp, uint16_t value,
                                  uint8_t type, uint8_t cell, uint8_t chg_state)
 {
-    if (*count >= MAX_RECORDS)
-        return 0;
-
     abnormal_record_t rec;
     memset(&rec, 0, sizeof(rec));
     rec.magic     = 0x5A;
@@ -117,11 +129,14 @@ static uint8_t write_one_record(uint32_t base, uint32_t *write_addr, uint16_t *c
     rec.cell      = cell;
     rec.chg_state = chg_state;
 
-    /* 目标位置非空则擦除所在块 */
+    /* 目标位置非空则擦除所在块 (环形覆盖最旧块, count 扣除被擦记录数) */
     {
         uint8_t test;
         if (flash_read(*write_addr, &test, 1) == MD_OK && test != 0xFF) {
-            flash_page_erase(*write_addr & ~(BLOCK_SIZE - 1));
+            uint32_t blk = *write_addr & ~(BLOCK_SIZE - 1);
+            uint16_t victims = count_block_valid(blk);
+            *count = (*count > victims) ? (uint16_t)(*count - victims) : 0;
+            flash_page_erase(blk);
         }
     }
 
