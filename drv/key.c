@@ -94,7 +94,9 @@ void key_proc(void)
 				key_state    = KEY_STATE_IDLE;
 			}
 		}
-		else if (held >= KEY_LONG_MIN_MS && !long_fired)
+		else if (held >= ((ui_data.cur_page == PAGE_HOME) ?
+		                  KEY_LONG_MIN_MS : KEY_LONG_PAGE_MS)
+		         && !long_fired)
 		{
 			/* ----- 长按阈值到达, 立即触发 (不等松手) ----- */
 			key_long_press_cb();
