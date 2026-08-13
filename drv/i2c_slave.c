@@ -544,10 +544,6 @@ static void apply_host_data(void)
                      || (ui_data.usb_c2_status == 0x01)
                      || (ui_data.usb_a_status  == 0x01);
 
-    /* 充电时自动关闭小电流模式 */
-    if (ui_data.is_charge)
-        ui_data.low_current_flag = false;
-
     /* 充电完成检测: is_charge 下降沿 (1→0) 时复位运行时间 */
     {
         static bool s_charge_last = false;

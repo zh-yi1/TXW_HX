@@ -143,6 +143,7 @@ static const uint32_t hm_anim[HM_ANIM_FRAMES][2] = {
 static uint8_t  hm_last_power  = 0xFF;
 static uint8_t  hm_last_color  = 0xFF;
 static uint8_t  hm_last_mode   = 0xFF;
+static bool     hm_last_dis;      /* 上次 OUT 图标是否在显示 */
 static bool     hm_last_mini;
 static int16_t  hm_last_min    = -1;
 static uint8_t  hm_time_w;        /* 上次时间区(含图标)总宽, 用于擦右侧残留 */
@@ -289,11 +290,18 @@ static void hm_draw_capsule_digits(uint8_t power, uint8_t old_power, uint8_t c)
 	}
 }
 
+/* 是否有放电口在放电 */
+static bool hm_is_dis(void)
+{
+	return (ui_data.usb_c1_status == 2 || ui_data.usb_c2_status == 2 || ui_data.usb_a_status == 2);
+}
+
+/* 充放同时存在时按充电处理 (动画用充电正放) */
 static uint8_t hm_mode(void)
 {
 	if (ui_data.is_charge)
 		return HM_MODE_CHG;
-	if (ui_data.usb_c1_status == 2 || ui_data.usb_c2_status == 2 || ui_data.usb_a_status == 2)
+	if (hm_is_dis())
 		return HM_MODE_DIS;
 	return HM_MODE_IDLE;
 }
@@ -337,13 +345,15 @@ static void hm_erase_time(void)
 static void hm_update_top(uint8_t mode)
 {
 	int16_t cur_min;
+	bool    dis = hm_is_dis();
 
-	/* 右上角 OUT: 放电时显示 */
-	if (mode != hm_last_mode)
+	/* 右上角 OUT: 有放电口就显示, 与充电状态无关 (充放同时存在也显示) */
+	if (dis != hm_last_dis)
 	{
-		if (mode == HM_MODE_DIS)
+		hm_last_dis = dis;
+		if (dis)
 			Dispphoto_Dispaly_flash(HM_OUT_X, 0, FLASH_ADDR_OUT);
-		else if (hm_last_mode == HM_MODE_DIS)
+		else
 			DispBlock(HM_OUT_X, 0, HM_OUT_X + HM_OUT_W - 1, HM_TOP_H - 1);
 	}
 
@@ -431,6 +441,7 @@ void home_page_init(void)
 	hm_last_power = 0xFF;
 	hm_last_color = 0xFF;
 	hm_last_mode  = 0xFF;
+	hm_last_dis   = false;
 	hm_last_mini  = false;
 	hm_last_min   = -1;
 	hm_time_w     = 0;
