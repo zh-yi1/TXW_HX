@@ -142,13 +142,15 @@ static const uint32_t hm_anim[HM_ANIM_FRAMES][2] = {
 
 static uint8_t  hm_last_power  = 0xFF;
 static uint8_t  hm_last_color  = 0xFF;
-static uint8_t  hm_last_mode   = 0xFF;
 static bool     hm_last_dis;      /* 上次 OUT 图标是否在显示 */
 static bool     hm_last_mini;
 static int16_t  hm_last_min    = -1;
 static uint8_t  hm_time_w;        /* 上次时间区(含图标)总宽, 用于擦右侧残留 */
 
 static uint8_t  hm_anim_step;     /* 0..39, 播放进度 */
+static uint8_t  hm_anim_mode;     /* anim_proc 上次看到的模式 (含 IDLE) */
+static uint8_t  hm_anim_idx;      /* 最后画出的那帧 (视觉帧号) */
+static bool     hm_anim_first;    /* init 置位: 首次播放从第一帧/最后一帧起 */
 static uint32_t hm_anim_tick;
 
 /* ============================ 电量滤波 ====================================
@@ -407,6 +409,23 @@ void home_page_anim_proc(void)
 	uint8_t c = hm_color(hm_bat_out);   /* 跟屏上数字同色, 不用未滤波的实时值 */
 	uint8_t idx;
 
+	/* 模式变化在这里处理 (每轮主循环都跑, 不受 updata 500ms 限流):
+	   - 变空闲: 立即擦画面但记住最后一帧
+	   - 进页面后首次播放: 充电第一帧 / 放电倒数第一帧
+	   - 之后无论变充电还是放电 (含经过空闲): 都从最后画出的那帧接着播 */
+	if (mode != hm_anim_mode)
+	{
+		if (mode == HM_MODE_IDLE)
+			hm_erase_anim();
+		else if (hm_anim_first)
+			hm_anim_step = 0;
+		else
+			hm_anim_step = (mode == HM_MODE_CHG)
+			             ? hm_anim_idx
+			             : (uint8_t)(HM_ANIM_FRAMES - 1 - hm_anim_idx);
+		hm_anim_mode = mode;
+	}
+
 	if (mode == HM_MODE_IDLE)
 		return;
 
@@ -418,6 +437,8 @@ void home_page_anim_proc(void)
 	                            : (uint8_t)(HM_ANIM_FRAMES - 1 - hm_anim_step);
 	Dispphoto_Dispaly_flash(HM_ANIM_X, HM_ANIM_Y, hm_anim[idx][c]);
 
+	hm_anim_first = false;   /* 首播基准已消费, 之后都接续播放 */
+	hm_anim_idx   = idx;
 	hm_anim_step++;
 	if (hm_anim_step >= HM_ANIM_FRAMES)
 		hm_anim_step = 0;
@@ -440,12 +461,14 @@ void home_page_init(void)
 	/* 清屏后所有变化检测基准归零, 否则 updata 里"无变化"会让内容画不出来 */
 	hm_last_power = 0xFF;
 	hm_last_color = 0xFF;
-	hm_last_mode  = 0xFF;
 	hm_last_dis   = false;
 	hm_last_mini  = false;
 	hm_last_min   = -1;
 	hm_time_w     = 0;
 	hm_anim_step  = 0;
+	hm_anim_mode  = mode;
+	hm_anim_idx   = 0;
+	hm_anim_first = true;   /* 进页面首次播放: 充电从第一帧 / 放电从倒数第一帧 */
 	hm_anim_tick  = md_get_tick();
 
 	LOGI("[HOME] init power=%d color=%d mode=%d\r\n", power, c, mode);
@@ -455,7 +478,6 @@ void home_page_init(void)
 
 	hm_last_power = power;
 	hm_last_color = c;
-	hm_last_mode  = mode;
 }
 
 void home_page_updata(void)
@@ -476,15 +498,6 @@ void home_page_updata(void)
 		hm_last_color = c;
 	}
 
-	/* 顶部图标 */
+	/* 顶部图标 (动画的模式切换/擦除在 anim_proc 里处理, 那边不受 500ms 限流) */
 	hm_update_top(mode);
-
-	/* 进入空闲时清掉动画残留 (anim_proc 空闲直接返回, 不会自己擦) */
-	if (mode != hm_last_mode)
-	{
-		if (mode == HM_MODE_IDLE)
-			hm_erase_anim();
-		hm_anim_step = 0;   /* 换向时从头播, 避免倒放接在正放中间 */
-		hm_last_mode = mode;
-	}
 }
