@@ -527,6 +527,22 @@ static void apply_host_data(void)
 
     /* USB-A (协议 §4.4: 0=未连接 1=充电 2=放电) */
     ui_data.usb_a_status = i2c_reg_map[REG_USBA_STATUS];
+    {
+        /* A 口轻载判拔: 放电电流 <50mA 持续 1s 视为已拔出。主机轻载检测
+           要 30s 才上报拔出, 提前在这里判掉; 真实拔出上报到来时状态已是
+           0, 无变化沿, 下游 (息屏/图标/功率页) 自然不处理 */
+        static uint32_t a_lowcur_tick = 0;   /* 轻载起始时刻, 0=未在计时 */
+
+        if (ui_data.usb_a_status == 2
+            && reg_read_u16(REG_USBA_CURRENT_L) < 50) {
+            if (a_lowcur_tick == 0)
+                a_lowcur_tick = md_get_tick() | 1;   /* 保证非 0, 误差 ≤1ms */
+            if (md_get_tick() - a_lowcur_tick >= 1000)
+                ui_data.usb_a_status = 0;
+        } else {
+            a_lowcur_tick = 0;
+        }
+    }
     if (ui_data.usb_a_status) {
         uint16_t v = reg_read_u16(REG_USBA_VOLTAGE_L);
         uint16_t  a = reg_read_u16(REG_USBA_CURRENT_L);
