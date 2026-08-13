@@ -5,7 +5,7 @@
  *
  *   y=0..23    顶部信息条 (24 高)
  *              (0,0)   TIMER 图标 + 剩余充满时间, 紧邻无间隔   [充电时]
- *              (87,0)  MINI 图标                                [小电流模式]
+ *              (87,0)  MINI 图标, 纯放电时移到 (0,0)           [小电流模式]
  *              (196,0) OUT 图标, 右边缘正好到 240               [放电时]
  *   y=24..95   电量胶囊 240x72
  *   y=96..134  充放电动画 108x39 @ (66,96), 水平居中, 下边贴屏底
@@ -144,6 +144,7 @@ static uint8_t  hm_last_power  = 0xFF;
 static uint8_t  hm_last_color  = 0xFF;
 static bool     hm_last_dis;      /* 上次 OUT 图标是否在显示 */
 static bool     hm_last_mini;
+static uint8_t  hm_last_mini_x;   /* MINI 上次绘制的 x, 位置变动需擦旧 */
 static int16_t  hm_last_min    = -1;
 static uint8_t  hm_time_w;        /* 上次时间区(含图标)总宽, 用于擦右侧残留 */
 
@@ -359,28 +360,34 @@ static void hm_update_top(uint8_t mode)
 			DispBlock(HM_OUT_X, 0, HM_OUT_X + HM_OUT_W - 1, HM_TOP_H - 1);
 	}
 
-	/* 左上角剩余充满时间: 仅充电且估算有效时显示 */
+	/* 左上角剩余充满时间 (仅充电且估算有效时显示) 与 MINI 小电流标志共用
+	   顶部空间: 充电时倒计时占 (0,0), MINI 让位到 87; 纯放电时 MINI 画在
+	   (0,0)。顺序固定为 [擦倒计时]->[MINI 搬家]->[画倒计时], 保证两个方向
+	   的位置交换都先擦旧内容再画新内容, 不互相覆盖 */
 	cur_min = (mode == HM_MODE_CHG) ? calc_charge_remain_min() : -1;
-	if (cur_min >= 0)
-	{
-		if (cur_min != hm_last_min)
-			hm_draw_time(cur_min);
-	}
-	else if (hm_last_min >= 0)
-	{
+	if (cur_min < 0 && hm_last_min >= 0)
 		hm_erase_time();
-	}
-	hm_last_min = cur_min;
 
-	/* 中间 MINI: 小电流模式标志 (与旧主界面一致, 由主机下发的 low_current_flag 驱动) */
-	if (ui_data.low_current_flag != hm_last_mini)
+	/* MINI: 由主机下发的 low_current_flag 驱动; 消失或搬家先擦旧位置 */
 	{
-		hm_last_mini = ui_data.low_current_flag;
-		if (hm_last_mini)
-			Dispphoto_Dispaly_flash(HM_MINI_X, 0, FLASH_ADDR_MINI);
-		else
-			DispBlock(HM_MINI_X, 0, HM_MINI_X + HM_MINI_W - 1, HM_TOP_H - 1);
+		bool    mini   = ui_data.low_current_flag;
+		uint8_t mini_x = ui_data.is_charge ? HM_MINI_X : 0;
+
+		if (mini != hm_last_mini || (mini && mini_x != hm_last_mini_x))
+		{
+			if (hm_last_mini)
+				DispBlock(hm_last_mini_x, 0,
+				          hm_last_mini_x + HM_MINI_W - 1, HM_TOP_H - 1);
+			if (mini)
+				Dispphoto_Dispaly_flash(mini_x, 0, FLASH_ADDR_MINI);
+			hm_last_mini   = mini;
+			hm_last_mini_x = mini_x;
+		}
 	}
+
+	if (cur_min >= 0 && cur_min != hm_last_min)
+		hm_draw_time(cur_min);
+	hm_last_min = cur_min;
 }
 
 static void hm_erase_anim(void)
@@ -463,6 +470,7 @@ void home_page_init(void)
 	hm_last_color = 0xFF;
 	hm_last_dis   = false;
 	hm_last_mini  = false;
+	hm_last_mini_x = 0;
 	hm_last_min   = -1;
 	hm_time_w     = 0;
 	hm_anim_step  = 0;
