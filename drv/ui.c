@@ -381,8 +381,6 @@ bool key_long_press_ui_proc(void)
 	switch (ui_data.cur_page)
 	{
 		case PAGE_HOME:
-		case PAGE_POWER:
-		case PAGE_INFO_1:
 			ret = true;
 			break;
 		case PAGE_INFO_2:
