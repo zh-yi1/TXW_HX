@@ -650,7 +650,7 @@ void battery_mgr_sync_to_ui(void)
 /* ========================================================================
  * V1.3 剩余充满时间估算 (1s 更新一次, 返回分钟)
  * ======================================================================== */
-#define IBAT_BUF_SIZE  2U
+#define IBAT_BUF_SIZE  10U
 
 static int32_t ibat_buf[IBAT_BUF_SIZE];   /* 电流环形缓冲 */
 
@@ -697,30 +697,37 @@ int16_t calc_charge_remain_min(void)
 		last_ms   = 0;
 	}
 
-    /* ---- 1 秒采样 ---- */
+    /* ---- 1 秒采样: 开充首个样本填满整窗, 收到值立即可显示 ---- */
     now = md_get_tick();
     if (now - last_ms >= 1000U) {
         last_ms = now;
         ibat = (int32_t)ip3561q_info.current_ma;
-        ibat_buf[ibat_idx] = (ibat < 0) ? -ibat : ibat;
-        ibat_idx++;
-        if (ibat_idx >= IBAT_BUF_SIZE) {
-            ibat_idx  = 0;
+        if (ibat < 0)
+            ibat = -ibat;
+        if (!ibat_full) {
+            uint8_t i;
+            for (i = 0; i < IBAT_BUF_SIZE; i++)
+                ibat_buf[i] = ibat;
             ibat_full = 1;
+            ibat_idx  = 0;
+        } else {
+            ibat_buf[ibat_idx] = ibat;
+            ibat_idx++;
+            if (ibat_idx >= IBAT_BUF_SIZE)
+                ibat_idx = 0;
         }
     }
 
-    if (!ibat_full && ibat_idx == 0)
+    if (!ibat_full)
         return -1;                  /* 一个样本都没有 (刚开充不到一次采样) */
 
-    /* 平滑电流（环形缓冲平均, 未满时用已有样本, 插上即可显示） */
+    /* 平滑电流（10 点环形缓冲平均） */
     {
         int32_t sum = 0;
-        uint8_t n = ibat_full ? IBAT_BUF_SIZE : ibat_idx;
         uint8_t i;
-        for (i = 0; i < n; i++)
+        for (i = 0; i < IBAT_BUF_SIZE; i++)
             sum += ibat_buf[i];
-        ibat_avg = (uint32_t)(sum / n);
+        ibat_avg = (uint32_t)(sum / IBAT_BUF_SIZE);
     }
     if (ibat_avg < 50) ibat_avg = 50;   /* 最小电流下限，防除零及极端值 */
 
