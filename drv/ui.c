@@ -338,6 +338,7 @@ void key_single_click_ui_proc(void)
 /* 双击处理.
  * 息屏时长页: 切到下一个时长选项 (轮回), 返回 0 保持亮屏;
  * 异常记录页: 切换到下一条记录 (轮回, 播放完最后一条回到第一条), 返回 0 保持亮屏;
+ * 电压页: 双击不处理, 返回 0 保持亮屏;
  * 其余界面: 返回 true 表示需主动灭屏 */
 bool key_double_click_ui_proc(void)
 {
@@ -346,6 +347,9 @@ bool key_double_click_ui_proc(void)
 	case PAGE_OFF_TIME:
 		/* 设置页双击是换选项, 不灭屏 */
 		off_time_page_next();
+		return false;
+	case PAGE_INFO_3:
+		/* 电压界面双击不处理, 也不灭屏 */
 		return false;
 	case PAGE_TEMP_ABNORMAL:
 		{
