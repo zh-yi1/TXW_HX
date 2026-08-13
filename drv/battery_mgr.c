@@ -650,7 +650,7 @@ void battery_mgr_sync_to_ui(void)
 /* ========================================================================
  * V1.3 剩余充满时间估算 (1s 更新一次, 返回分钟)
  * ======================================================================== */
-#define IBAT_BUF_SIZE  10U
+#define IBAT_BUF_SIZE  2U
 
 static int32_t ibat_buf[IBAT_BUF_SIZE];   /* 电流环形缓冲 */
 
@@ -677,11 +677,24 @@ int16_t calc_charge_remain_min(void)
     int32_t  ibat;
     uint8_t  derate;
 
+	static uint8_t chg_prev = 0;
+
 	if (!ui_data.is_charge || ui_data.bat_power > 100)
 	{
+		chg_prev  = 0;
 		ibat_idx  = 0;              /* 停充清缓冲，避免下次用旧电流 */
 		ibat_full = 0;
+		last_ms   = 0;              /* 下次开充首采不等 1s */
 		return -1;
+	}
+
+	/* 开充沿: 丢弃上次残留样本 (息屏期间拔插时上面的清理跑不到) */
+	if (!chg_prev)
+	{
+		chg_prev  = 1;
+		ibat_idx  = 0;
+		ibat_full = 0;
+		last_ms   = 0;
 	}
 
     /* ---- 1 秒采样 ---- */
@@ -697,16 +710,17 @@ int16_t calc_charge_remain_min(void)
         }
     }
 
-    if (!ibat_full)
-        return -1;
+    if (!ibat_full && ibat_idx == 0)
+        return -1;                  /* 一个样本都没有 (刚开充不到一次采样) */
 
-    /* 平滑电流（10 点环形缓冲平均） */
+    /* 平滑电流（环形缓冲平均, 未满时用已有样本, 插上即可显示） */
     {
         int32_t sum = 0;
+        uint8_t n = ibat_full ? IBAT_BUF_SIZE : ibat_idx;
         uint8_t i;
-        for (i = 0; i < IBAT_BUF_SIZE; i++)
+        for (i = 0; i < n; i++)
             sum += ibat_buf[i];
-        ibat_avg = (uint32_t)(sum / IBAT_BUF_SIZE);
+        ibat_avg = (uint32_t)(sum / n);
     }
     if (ibat_avg < 50) ibat_avg = 50;   /* 最小电流下限，防除零及极端值 */
 
