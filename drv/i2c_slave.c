@@ -528,18 +528,31 @@ static void apply_host_data(void)
     /* USB-A (协议 §4.4: 0=未连接 1=充电 2=放电) */
     ui_data.usb_a_status = i2c_reg_map[REG_USBA_STATUS];
     {
-        /* A 口轻载判拔: 放电电流 <50mA 持续 1s 视为已拔出。主机轻载检测
-           要 30s 才上报拔出, 提前在这里判掉; 真实拔出上报到来时状态已是
-           0, 无变化沿, 下游 (息屏/图标/功率页) 自然不处理 */
+        /* A 口轻载判拔: 放电电流 <50mA 视为已拔出。主机轻载检测要 30s 才
+           上报拔出, 提前在这里判掉; 真实拔出上报到来时状态已是 0, 无变化
+           沿, 下游 (息屏/图标/功率页) 自然不处理。
+           方向性防抖:
+           - 显示中 -> 轻载: 持续 1s 才判拔 (拔线抖动防误判)
+           - 未显示 -> 插入即轻载: 直接不显示, 避免 OUT/放电动画闪 1s */
         static uint32_t a_lowcur_tick = 0;   /* 轻载起始时刻, 0=未在计时 */
+        static uint8_t  a_on = 0;            /* A 口放电对外呈现状态 */
 
-        if (ui_data.usb_a_status == 2
-            && reg_read_u16(REG_USBA_CURRENT_L) < 50) {
-            if (a_lowcur_tick == 0)
-                a_lowcur_tick = md_get_tick() | 1;   /* 保证非 0, 误差 ≤1ms */
-            if (md_get_tick() - a_lowcur_tick >= 1000)
+        if (ui_data.usb_a_status == 2) {
+            if (reg_read_u16(REG_USBA_CURRENT_L) >= 50) {
+                a_on = 1;
+                a_lowcur_tick = 0;
+            } else if (a_on) {
+                if (a_lowcur_tick == 0)
+                    a_lowcur_tick = md_get_tick() | 1;   /* 保证非 0, 误差 ≤1ms */
+                if (md_get_tick() - a_lowcur_tick >= 1000) {
+                    a_on = 0;
+                    a_lowcur_tick = 0;
+                }
+            }
+            if (!a_on)
                 ui_data.usb_a_status = 0;
         } else {
+            a_on = 0;
             a_lowcur_tick = 0;
         }
     }

@@ -15,7 +15,7 @@
 #define KEY_SHORT_MAX_MS    1500    /* maximum press for a click (beyond → long-press) */
 #define KEY_DOUBLE_GAP_MS   50     /* minimum gap after release for 2nd click (filters bounce) */
 #define KEY_DOUBLE_WAIT_MS  500     /* maximum wait for 2nd click (then confirms single click) */
-#define KEY_LONG_MIN_MS     3000    /* 主界面长按阈值 (小电流上报, 立即触发不等松手) */
+#define KEY_LONG_MIN_MS     2500    /* 主界面长按阈值 (小电流上报, 立即触发不等松手) */
 #define KEY_LONG_PAGE_MS    5000    /* 其余页面长按阈值 (切页等) */
 #define KEY_COMBO_CLICKS    5       /* clicks needed before combo long-press */
 
