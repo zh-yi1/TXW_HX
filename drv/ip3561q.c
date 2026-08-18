@@ -126,8 +126,8 @@ static int8_t ip3561q_parse_comp_5bit(uint8_t reg_val)
     return result;
 }
 
-static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
-                                        uint8_t *sc_val, uint8_t *coc_val)
+static uint8_t ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
+                                          uint8_t *sc_val, uint8_t *coc_val)
 {
     uint8_t  buf;
     uint8_t  reg_init;
@@ -143,9 +143,9 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     const int16_t Vcoc_target  = 14;   /* 5.5A × 2.5mΩ = 13.75mV, 取整14mV ≈ 5.6A */
 
     /* ---- DOC1 (0x04) ---- */
-    ip3561q_read_reg(IP3561Q_REG_DOC1, doc1_val, 1);          /* V_DOC1_SEL_INIT */
-    reg_init  = *doc1_val;
-    ip3561q_read_reg(IP3561Q_REG_DOC1_COMP, &buf, 1);
+    reg_init = 0;   /* V_DOC1_SEL_INIT 按出厂默认 0, 不读当前寄存器值 (避免污染/越算越大) */
+    if (ip3561q_read_reg(IP3561Q_REG_DOC1_COMP, &buf, 1))
+        return 1;
     comp1     = ip3561q_parse_comp_5bit(buf);
     /* DOC1_STEP = 2 + comp1/64 (mV) */
     step_64th = (int16_t)(2 * 64 + comp1);                    /* (2 + comp1/64) × 64 */
@@ -159,9 +159,9 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     //      reg_init, buf, comp1, step_64th, delta_64th, result);
 
     /* ---- DOC2 (0x05) ---- */
-    ip3561q_read_reg(IP3561Q_REG_DOC2, doc2_val, 1);          /* V_DOC2_SEL_INIT */
-    reg_init  = *doc2_val;
-    ip3561q_read_reg(IP3561Q_REG_DOC2_COMP, &buf, 1);
+    reg_init = 0;   /* V_DOC2_SEL_INIT 按出厂默认 0, 不读当前寄存器值 (避免污染/越算越大) */
+    if (ip3561q_read_reg(IP3561Q_REG_DOC2_COMP, &buf, 1))
+        return 1;
     comp1     = ip3561q_parse_comp_5bit(buf);
     /* DOC2_STEP = 4 + comp1*2/64 (mV) */
     step_64th = (int16_t)(4 * 64 + comp1 * 2);                /* (4 + comp1*2/64) × 64 */
@@ -175,9 +175,9 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     //      reg_init, buf, comp1, step_64th, delta_64th, result);
 
     /* ---- SC (0x06) ---- */
-    ip3561q_read_reg(IP3561Q_REG_SC, sc_val, 1);              /* V_SC_SEL_INIT */
-    reg_init  = *sc_val;
-    ip3561q_read_reg(IP3561Q_REG_SC_COMP, &buf, 1);
+    reg_init = 0;   /* V_SC_SEL_INIT 按出厂默认 0, 不读当前寄存器值 (避免污染/越算越大) */
+    if (ip3561q_read_reg(IP3561Q_REG_SC_COMP, &buf, 1))
+        return 1;
     comp1     = ip3561q_parse_comp_5bit(buf);
     /* SC_STEP = 8 + comp1*4/64 (mV) */
     step_64th = (int16_t)(8 * 64 + comp1 * 4);                /* (8 + comp1*4/64) × 64 */
@@ -191,11 +191,11 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     //      reg_init, buf, comp1, step_64th, delta_64th, result);
 
     /* ---- COC (0x07) ---- */
-    ip3561q_read_reg(IP3561Q_REG_COC, coc_val, 1);            /* V_COC_SEL_INIT */
-    reg_init  = *coc_val;
-    ip3561q_read_reg(IP3561Q_REG_COC_COMP, &buf, 1);
+    reg_init = 0;   /* V_COC_SEL_INIT 按出厂默认 0, 不读当前寄存器值 (避免污染/越算越大) */
+    if (ip3561q_read_reg(IP3561Q_REG_COC_COMP, &buf, 1))
+        return 1;
     comp1     = ip3561q_parse_comp_5bit(buf);
-    /* 
+    /*
      * COC_STEP = -2 - comp1/64 (mV)
      * 注意: 步长为负数，因为 COC 阈值是负电压
      * Vcoc 为目标绝对值 (如 14mV 表示 -14mV)
@@ -209,6 +209,8 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
     *coc_val = (uint8_t)result;
     // LOGI("COC:  reg_init=%d reg_comp=0x%02X comp1=%d step_64th=%d delta_64th=%d final=%d\r\n",
     //      reg_init, buf, comp1, step_64th, delta_64th, result);
+
+    return 0;
 }
 
 /* ==========================================================================
@@ -216,6 +218,7 @@ static void ip3561q_calc_oc_thresholds(uint8_t *doc1_val, uint8_t *doc2_val,
  * ========================================================================== */
 #define IP3561Q_OC_MAGIC    0xA5U
 #define IP3561Q_CRC8_POLY   0x07U
+#define IP3561Q_OC_MAX_VAL  0x0AU   /* 阈值合理上限: 正常值 ≤8 (DOC1≈7), 130/255 为读失败垃圾 */
 
 static uint8_t ip3561q_crc8(const uint8_t *data, uint8_t len)
 {
@@ -236,6 +239,16 @@ static uint8_t ip3561q_crc8(const uint8_t *data, uint8_t len)
     return crc;
 }
 
+/* 阈值合理性校验: DOC1/DOC2/SC/COC 正常值 ≤8 (目标 ≈0x07/0x04/0x00/0x02),
+   超过上限说明是读失败/算错的垃圾值 (如 130), 拒绝采用以免固化到 Flash */
+static uint8_t ip3561q_oc_val_range_ok(const ip3561q_oc_cfg_t *cfg)
+{
+    return (cfg->doc1 <= IP3561Q_OC_MAX_VAL &&
+            cfg->doc2 <= IP3561Q_OC_MAX_VAL &&
+            cfg->sc   <= IP3561Q_OC_MAX_VAL &&
+            cfg->coc  <= IP3561Q_OC_MAX_VAL);
+}
+
 uint8_t ip3561q_oc_cfg_read(ip3561q_oc_cfg_t *cfg)
 {
     uint8_t expected_crc;
@@ -253,6 +266,10 @@ uint8_t ip3561q_oc_cfg_read(ip3561q_oc_cfg_t *cfg)
     /* CRC8 覆盖 magic ~ coc (前 5 字节) */
     expected_crc = ip3561q_crc8((const uint8_t *)cfg, sizeof(ip3561q_oc_cfg_t) - 1);
     if (cfg->crc8 != expected_crc)
+        return 0;
+
+    /* 数值合理性: 已固化垃圾值 (如 130) 即使 magic/CRC 正确也判无效, 触发重算自愈 */
+    if (!ip3561q_oc_val_range_ok(cfg))
         return 0;
 
     return 1;
@@ -328,15 +345,20 @@ static uint8_t ip3561q_config_regs(void)
     }
     else
     {
-        /* 首次上电或备份无效: 读取工厂校准值, 计算并保存 */
-        ip3561q_calc_oc_thresholds(&doc1_val, &doc2_val, &sc_val, &coc_val);
+        /* 首次上电或备份无效: 芯片未就绪则本轮不配置, 交给 ip3561q_proc 重试 */
+        if (sw_i2c_ping((uint8_t)(IP3561Q_SLAVE_ADDR << 1)))
+            return 0;
+
+        /* 读取工厂校准值计算; 任一 I2C 读失败则不保存, 交给重试 */
+        if (ip3561q_calc_oc_thresholds(&doc1_val, &doc2_val, &sc_val, &coc_val) != 0)
+            return 0;
 
         oc_cfg.doc1 = doc1_val;
         oc_cfg.doc2 = doc2_val;
         oc_cfg.sc   = sc_val;
         oc_cfg.coc  = coc_val;
         ip3561q_oc_cfg_save(&oc_cfg);
-    }   
+    }
 
     /* Step 2: 写入固定配置寄存器 (0x00-0x03, 0x0A-0x17, 0x42 等) */
     for (i = 0; i < IP3561Q_CFG_STATIC_COUNT; i++)
