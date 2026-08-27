@@ -289,12 +289,13 @@ void Dispphoto_Dispaly(int x, int y, unsigned char *buf)
 			{
 			};
 			SPI0->DATA = ((picH << 8) | picL);
-			while (md_spi_is_active_flag_busy(SPI0))
-			{
-			};
 			p = p + 2;
 		}
 	}
+	/* 最后一个数据仍在移位, 等 BUSY 清零后才能切模式/拉 CS */
+	while (md_spi_is_active_flag_busy(SPI0))
+	{
+	};
 	SPI_send_data8;
 	LCD_CS_HIGH();
 }
@@ -302,6 +303,7 @@ void Dispphoto_Dispaly(int x, int y, unsigned char *buf)
 void Dispphoto_Dispaly_flash(int x, int y, int add)
 {
 	int w, h, row_size, row;
+	int rows_per_chunk, chunk_rows, r;
 	uint32_t pixel_offset, addr;
 	uint16_t bpp;
 	uint32_t timeout;
@@ -339,18 +341,41 @@ void Dispphoto_Dispaly_flash(int x, int y, int add)
 
 	addr = add + pixel_offset;
 
-	for (row = 0; row < h; row++)
+	/* 一次 flash 读装入尽量多的整行, 摊薄读命令和 DMA 重配的固定开销 */
+	rows_per_chunk = FLASH_READ_BUF_SIZE / row_size;
+
+	for (row = 0; row < h; row += chunk_rows)
 	{
-		flash_read_dma(addr, spi_dma_buf, row_size);
-		buf_swap_bytes(w * 2);
+		chunk_rows = h - row;
+		if (chunk_rows > rows_per_chunk)
+			chunk_rows = rows_per_chunk;
 
-		spi_dma_send_ok = 0;
-		dma_send_enable(w * 2);
+		flash_read_dma(addr, spi_dma_buf, chunk_rows * row_size);
+		buf_swap_bytes(chunk_rows * row_size);
 
-		timeout = 100000;
-		while (spi_dma_send_ok == 0 && --timeout);
+		if (row_size == w * 2)
+		{
+			/* 行宽 4 字节对齐, 无填充, 整块一次 DMA 发完 */
+			spi_dma_send_ok = 0;
+			dma_send_enable(chunk_rows * row_size);
 
-		addr += row_size;
+			timeout = 100000;
+			while (spi_dma_send_ok == 0 && --timeout);
+		}
+		else
+		{
+			/* 行尾有对齐填充, 逐行发送有效像素 */
+			for (r = 0; r < chunk_rows; r++)
+			{
+				spi_dma_send_ok = 0;
+				dma_send_buf(spi_dma_buf + r * row_size, w * 2);
+
+				timeout = 100000;
+				while (spi_dma_send_ok == 0 && --timeout);
+			}
+		}
+
+		addr += chunk_rows * row_size;
 	}
 
 	LCD_CS_HIGH();
@@ -408,9 +433,10 @@ void spi_buf_send(uint8_t send_size)
 	{
 		while (0 == md_spi_is_active_flag_txbe(SPI0));
 		SPI0->DATA = *send_data;
-//		while (md_spi_is_active_flag_busy(SPI0));
 		send_data = send_data + 1;
 	}
+	/* 等最后一个数据移位完成, 否则切模式/拉 CS 会截断它 */
+	while (md_spi_is_active_flag_busy(SPI0));
 	SPI_send_data8;
 	LCD_CS_HIGH();
 }

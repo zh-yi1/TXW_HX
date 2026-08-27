@@ -2,6 +2,7 @@
 #define __UI_H
 
 #include "global_define.h"
+#include <stdbool.h>
 
 #define SPI_CLK 				GPIOA
 #define SPI_CLK_PIN 			MD_GPIO_PIN_10
@@ -13,24 +14,24 @@
 #define SPI_MISO_PIN 			MD_GPIO_PIN_12
 
 #define LCD_RS					GPIOA
-#define LCD_RS_PIN				MD_GPIO_PIN_8
+#define LCD_RS_PIN				MD_GPIO_PIN_1	/* QFN20: TFT-SPI-DC @ Pin3 */
 
 #define LCD_RST					GPIOA
-#define LCD_RST_PIN				MD_GPIO_PIN_7
+#define LCD_RST_PIN				MD_GPIO_PIN_0	/* QFN20: TFT-SPI-RST @ Pin2 */
 
 #define LCD_CS					GPIOA
 #define LCD_CS_PIN				MD_GPIO_PIN_3
 
-#define LCD_BLK					GPIOA
-#define LCD_BLK_PIN				MD_GPIO_PIN_1
+#define LCD_BLK					GPIOB
+#define LCD_BLK_PIN				MD_GPIO_PIN_6	/* QFN20: LCD-BLK @ Pin20 (PB6) */
 
-#define FLASH_CS				GPIOA
-#define FLASH_CS_PIN			MD_GPIO_PIN_9
+#define FLASH_CS				GPIOB
+#define FLASH_CS_PIN			MD_GPIO_PIN_3	/* QFN20: SPI-NSS @ Pin17 (PB3) */
 
 #define TFT_EN					GPIOA
 #define TFT_EN_PIN				MD_GPIO_PIN_4
 
-#define LCD_CS_LOW() 			md_gpio_set_pin_low(LCD_CS, LCD_CS_PIN)
+#define LCD_CS_LOW() 			do { FLASH_CS_SET(); md_gpio_set_pin_low(LCD_CS, LCD_CS_PIN); } while(0)
 #define LCD_CS_HIGH() 			md_gpio_set_pin_high(LCD_CS, LCD_CS_PIN)
 
 #define LCD_RS_LOW() 			md_gpio_set_pin_low(LCD_RS, LCD_RS_PIN)
@@ -42,7 +43,7 @@
 #define LCD_BLK_LOW() 			md_gpio_set_pin_low(LCD_BLK, LCD_BLK_PIN)
 #define LCD_BLK_HIGH()			md_gpio_set_pin_high(LCD_BLK, LCD_BLK_PIN)
 
-#define FLASH_CS_CLR()			md_gpio_set_pin_low(FLASH_CS, FLASH_CS_PIN)
+#define FLASH_CS_CLR()			do { LCD_CS_HIGH(); md_gpio_set_pin_low(FLASH_CS, FLASH_CS_PIN); } while(0)
 #define FLASH_CS_SET()			md_gpio_set_pin_high(FLASH_CS, FLASH_CS_PIN)
 
 #define TFT_EN_CLR()			md_gpio_set_pin_low(TFT_EN, TFT_EN_PIN)
@@ -52,10 +53,110 @@
 #define LCD_POWER_ON_DELAY		(4)
 
 
+typedef struct
+{
+	uint8_t x;
+	uint8_t y;
+	uint32_t img_addr;
+} pos_and_addr_t;
+
+typedef struct
+{
+	uint8_t x1;
+	uint8_t y1;
+	uint8_t x2;
+	uint8_t y2;
+} range_t;
+
+/* 界面名称 */
+typedef enum
+{
+	PAGE_HOME               = 0,  /* 主页 (电量胶囊 + 充放电动画) */
+	PAGE_POWER              ,  /* 端口功率页 (3 个端口的状态和功率) */
+	PAGE_INFO_1             ,  /* 电池信息页1 (最大容量/循环次数/电池编号) */
+	PAGE_INFO_2             ,  /* 电池信息页2 (温度/运行时间) */
+	PAGE_INFO_3             ,  /* 电池信息页3 (电压/电流) */
+	PAGE_OFF_TIME           ,  /* 息屏时长设置页 */
+	PAGE_OVER_TEMP          ,  /* 过温提示页 */
+	PAGE_SHORT_CIRCUIT      ,  /* 短路提示页 */
+	PAGE_DISABLED           ,  /* 禁用提示页 (全红) */
+	PAGE_VOLTAGE_ABNORMAL   ,  /* 电压异常提示页 */
+	PAGE_TEMP_ABNORMAL      ,  /* 温度异常提示页 */
+	PAGE_ABNORMAL_UPDATA    ,  /* 不是真的界面，异常界面切换的过度态 */
+
+	PAGE_MAX,
+} page_t;
+
+/* 警告类型 */
+typedef enum
+{
+	WARNING_NONE           = 0,
+	WARNING_OVER_TEMP      = 1,
+	WARNING_LOW_TEMP       = 2,
+	WARNING_SHORT_CIRCUIT  = 3,
+} warning_t;
+
+/* ================================================================
+ * ui_data_t — 全 UI 通用数据体
+ *
+ * 由 I2C 从机接收主控下发的电池/端口状态数据，各页面共用此结构体
+ * ================================================================ */
+typedef struct
+{
+	uint8_t  bat_power;		/* 电池电量 0-100% */
+	bool     is_charge;		/* 是否充电中 */
+	uint8_t  usb_c1_status;		/* USB-C1 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
+	uint8_t  usb_c1_power;		/* USB-C1 实时功率 0-255W */
+	uint8_t  usb_c2_status;		/* USB-C2 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
+	uint8_t  usb_c2_power;		/* USB-C2 实时功率 0-255W */
+	uint8_t  usb_a_status;		/* USB-A  端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
+	uint8_t  usb_a_power;		/* USB-A  实时功率 0-255W */
+	uint8_t  bat_max_cap;		/* 电池最大容量 0-100% */
+	uint16_t bat_cycle_cnt;	/* 循环次数 0-9999 */
+	int16_t  bat_temperature;	/* 电池温度 -20~80℃, 单位为0.1℃ */
+	uint16_t bat_voltage;		/* 电池包电压 0.1V (来自IP3561Q) */
+	int16_t  bat_current;		/* 电池电流 mA (来自IP3561Q,充电为正) */
+
+	warning_t warning;		/* 警告状态 */
+	page_t   cur_page;		/* 当前界面 */
+	page_t   last_page;		/* 上一界面，用于检测切换 */
+	char     bat_model_1[19];	/* 电池型号 1 (18字符+\0) */
+	char     bat_model_2[19];	/* 电池型号 2 (18字符+\0) */
+	char     bat_model_3[19];	/* 电池型号 3 (18字符+\0) */
+	char     bat_model_4[19];	/* 电池型号 4 (18字符+\0) */
+	dev_state_t dev_state;		/* 设备运行状态 */
+	bool       low_current_flag;	/* USB-A 小电流模式标志 */
+
+	/* ---- NTC 数据 (协议 §4.3, 主机 W → ui_data) ---- */
+	uint8_t  ntc_status;		/* NTC 保护状态 (协议 0x20) */
+	uint32_t bat_ntc1;		/* 电池NTC1阻值 Ω (协议 0x21-0x24) */
+	uint32_t bat_ntc2;		/* 电池NTC2阻值 Ω (协议 0x25-0x28) */
+	uint32_t pcb_ntc1;		/* PCB NTC1阻值 Ω (协议 0x29-0x2C) */
+	uint32_t pcb_ntc2;		/* PCB NTC2阻值 Ω (协议 0x2D-0x30) */
+
+	/* ---- 主机电池数据 (协议 §4.2, 主机 W → ui_data) ---- */
+	uint32_t charge_remain_time;	/* 剩余充满时间(秒) (协议 0x14-0x17) */
+	uint32_t discharge_remain_time;	/* 剩余放空时间(秒) (协议 0x18-0x1B) */
+	uint16_t res_vbat;		/* 采样电阻 Vbat (mV) (协议 0x1C-0x1D) */
+
+	/* ---- 3C 新国标新增字段 ---- */
+	uint16_t cell_voltage_mv[4];	/* 每节电芯电压 (mV) */
+	uint8_t  disable_flag;		/* 异常禁用标志 bit0=过压 bit1=欠压 */
+	uint8_t  abnormal_volt_count;	/* 电压异常记录条数 */
+	uint8_t  abnormal_temp_count;	/* 温度异常记录条数 */
+	uint8_t  abnormal_idx;		/* 异常页面当前查看索引 (0-based) */
+
+} ui_data_t;
+
+extern ui_data_t ui_data;
 
 void ui_init(void);
 void ui_proc(void);
-void ui_task(void);
+void key_single_click_ui_proc(void);
+bool key_double_click_ui_proc(void);
+bool key_long_press_ui_proc(void);
+
+
 
 
 

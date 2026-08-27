@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pdftotext -layout \"E:/project/TKW_HX/ES32F0100_PWR_844_20260508/src/蓝禾移动电源智能管理产测软件方案.pdf\" -)"
+    ]
+  }
+}
