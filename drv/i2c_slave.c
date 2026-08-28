@@ -434,15 +434,89 @@ void i2c_slave_restore_bat_backup(void)
     bms_backup_regs_fill();
 }
 
-/* 端口显示功率: V(mV)×I(mA) → W
- * <0.2W 判 0, 0.2W~1W 判 1, 1W 以上截断取整 */
-static uint8_t port_power_w(uint16_t mv, uint16_t ma)
+/* 端口显示功率: V(mV)×I(mA) → W */
+/* 端口上下文: 三端口共享同一处理函数 */
+typedef struct {
+    uint16_t status_reg, voltage_reg, current_reg;   /* 寄存器 */
+    uint8_t *status;                                /* 端口状态(输出) */
+    uint8_t *power;                                 /* 功率显示(输出) */
+    uint8_t loaded;                                /* 放电有载状态 */
+    uint32_t light_tick;                            /* 轻载计时 */
+    uint32_t raw_power_mw;                          /* 原始功率(mW), 供双C互斥功率兜底 */
+} port_ctx_t;
+
+static port_ctx_t port_c1 = {REG_C1_STATUS,  REG_C1_VOLTAGE_L,  REG_C1_CURRENT_L,
+                             &ui_data.usb_c1_status, &ui_data.usb_c1_power};
+static port_ctx_t port_c2 = {REG_C2_STATUS,  REG_C2_VOLTAGE_L,  REG_C2_CURRENT_L,
+                             &ui_data.usb_c2_status, &ui_data.usb_c2_power};
+static port_ctx_t port_a  = {REG_USBA_STATUS, REG_USBA_VOLTAGE_L, REG_USBA_CURRENT_L,
+                             &ui_data.usb_a_status, &ui_data.usb_a_power};
+
+/* 端口数据处理: 取状态 -> 算功率显示 -> 轻载判拔(仅放电)
+   放电时功率<0.1W 判轻载(1s 防抖), 0.1~0.2W 滞回; 轻载则清状态 */
+static void port_data_update(port_ctx_t *ctx)
 {
-    uint32_t mw = (uint32_t)mv * (uint32_t)ma / 1000UL;
-    uint32_t w  = mw / 1000UL;   /* 先在 32 位里封顶, 否则超 255 会被截断绕回 */
-    if (w == 0)
-        return (mw >= 200) ? 1 : 0;
-    return (w > 255) ? 255 : (uint8_t)w;
+    *ctx->status = i2c_reg_map[ctx->status_reg];          /* 状态取自主机 */
+
+    if (!*ctx->status) {                                  /* 未连接: 功率 0, 复位 */
+        *ctx->power = 0;
+        ctx->loaded = 0;
+        ctx->light_tick = 0;
+        return;
+    }
+    uint16_t voltage_mv = reg_read_u16(ctx->voltage_reg);
+    uint16_t current_ma = reg_read_u16(ctx->current_reg);
+    uint32_t power_mw = (uint32_t)voltage_mv * current_ma / 1000;
+    uint32_t power_w  = power_mw / 1000;                  /* 提取复用 */
+    ctx->raw_power_mw = power_mw;                   /* 存原始功率, 供双C互斥判断 */
+
+    if (power_w == 0)
+        *ctx->power = (power_mw >= 200) ? 1 : 0;          /* <0.2W 显示 0, 否则 1 */
+    else
+        *ctx->power = (power_w > 255) ? 255 : (uint8_t)power_w;
+
+    if (*ctx->status != 2) {                              /* 非放电(充电): 只显示, 不判拔 */
+        ctx->loaded = 0;
+        ctx->light_tick = 0;
+        return;
+    }
+    if (power_mw >= 200) { ctx->loaded = 1; ctx->light_tick = 0; }
+    else if (power_mw < 100) {
+        if (ctx->loaded) {
+            if (!ctx->light_tick) ctx->light_tick = md_get_tick() | 1;
+            else if (md_get_tick() - ctx->light_tick >= 1000) { ctx->loaded = 0; ctx->light_tick = 0; }
+        }
+    }
+    if (!ctx->loaded) *ctx->status = 0;                   /* 轻载: 清状态(功率此时已是 0) */
+}
+
+/* 双C同向互斥: 先变 IN 的锁住; 同时报 IN 靠功率区分, 均无功率则都先不显示 */
+static void usb_c_charging_lock(void)
+{
+    static uint8_t lock;                 /* 0=无锁 1=C1持有 2=C2持有 */
+    uint8_t c1_in = (ui_data.usb_c1_status == 1);
+    uint8_t c2_in = (ui_data.usb_c2_status == 1);
+
+    if (!c1_in && !c2_in) { lock = 0; return; }   /* 都无IN: 释放锁 */
+    if (lock == 1 && !c1_in) lock = 0;            /* 持有者失效 */
+    if (lock == 2 && !c2_in) lock = 0;
+
+    if (lock == 0) {
+        if (c1_in && c2_in) {                      /* 同时报IN: 靠功率区分 */
+            uint32_t power_c1_mw = port_c1.raw_power_mw;
+            uint32_t power_c2_mw = port_c2.raw_power_mw;
+            if (power_c1_mw >= 200 && power_c2_mw < 200)      lock = 1;
+            else if (power_c2_mw >= 200 && power_c1_mw < 200) lock = 2;
+            else {                                  /* 均无/均有功率: 都先不显示 */
+                ui_data.usb_c1_status = 0; ui_data.usb_c1_power = 0;
+                ui_data.usb_c2_status = 0; ui_data.usb_c2_power = 0;
+                return;
+            }
+        } else if (c1_in) lock = 1;                /* 单IN: 锁住它 */
+          else if (c2_in) lock = 2;
+    }
+    if (lock == 1 && c2_in) { ui_data.usb_c2_status = 0; ui_data.usb_c2_power = 0; }
+    if (lock == 2 && c1_in) { ui_data.usb_c1_status = 0; ui_data.usb_c1_power = 0; }
 }
 
 /* ========================================================================
@@ -503,66 +577,11 @@ static void apply_host_data(void)
     else
         ui_data.warning = WARNING_NONE;
 
-    /* ---- 端口数据 (协议 §4.4) ---- */
-
-    /* USB-C1 (协议 §4.4: 0=未连接 1=充电 2=放电) */
-    ui_data.usb_c1_status = i2c_reg_map[REG_C1_STATUS];
-    if (ui_data.usb_c1_status) {
-        uint16_t v = reg_read_u16(REG_C1_VOLTAGE_L);
-        uint16_t  a = reg_read_u16(REG_C1_CURRENT_L);
-        ui_data.usb_c1_power = port_power_w(v, a);
-    } else {
-        ui_data.usb_c1_power = 0;
-    }
-
-    /* USB-C2 (协议 §4.4: 0=未连接 1=充电 2=放电) */
-    ui_data.usb_c2_status = i2c_reg_map[REG_C2_STATUS];
-    if (ui_data.usb_c2_status) {
-        uint16_t v = reg_read_u16(REG_C2_VOLTAGE_L);
-        uint16_t  a = reg_read_u16(REG_C2_CURRENT_L);
-        ui_data.usb_c2_power = port_power_w(v, a);
-    } else {
-        ui_data.usb_c2_power = 0;
-    }
-
-    /* USB-A (协议 §4.4: 0=未连接 1=充电 2=放电) */
-    ui_data.usb_a_status = i2c_reg_map[REG_USBA_STATUS];
-    {
-        /* A 口轻载判拔: 放电电流 <50mA 视为已拔出。主机轻载检测要 30s 才
-           上报拔出, 提前在这里判掉; 真实拔出上报到来时状态已是 0, 无变化
-           沿, 下游 (息屏/图标/功率页) 自然不处理。
-           方向性防抖:
-           - 显示中 -> 轻载: 持续 1s 才判拔 (拔线抖动防误判)
-           - 未显示 -> 插入即轻载: 直接不显示, 避免 OUT/放电动画闪 1s */
-        static uint32_t a_lowcur_tick = 0;   /* 轻载起始时刻, 0=未在计时 */
-        static uint8_t  a_on = 0;            /* A 口放电对外呈现状态 */
-
-        if (ui_data.usb_a_status == 2) {
-            if (reg_read_u16(REG_USBA_CURRENT_L) >= 50) {
-                a_on = 1;
-                a_lowcur_tick = 0;
-            } else if (a_on) {
-                if (a_lowcur_tick == 0)
-                    a_lowcur_tick = md_get_tick() | 1;   /* 保证非 0, 误差 ≤1ms */
-                if (md_get_tick() - a_lowcur_tick >= 1000) {
-                    a_on = 0;
-                    a_lowcur_tick = 0;
-                }
-            }
-            if (!a_on)
-                ui_data.usb_a_status = 0;
-        } else {
-            a_on = 0;
-            a_lowcur_tick = 0;
-        }
-    }
-    if (ui_data.usb_a_status) {
-        uint16_t v = reg_read_u16(REG_USBA_VOLTAGE_L);
-        uint16_t  a = reg_read_u16(REG_USBA_CURRENT_L);
-        ui_data.usb_a_power = port_power_w(v, a);
-    } else {
-        ui_data.usb_a_power = 0;
-    }
+    /* ---- 端口数据 (协议 §4.4): 三端口统一处理 ---- */
+    port_data_update(&port_c1);
+    port_data_update(&port_c2);
+    port_data_update(&port_a);
+    usb_c_charging_lock();                          /* 双C 假性IN 互斥 */
 
     /* 小电流模式 (协议 §4.4 0x4F) */
     ui_data.low_current_flag = i2c_reg_map[REG_SMALL_CURRENT_MODE] ? true : false;

@@ -72,29 +72,32 @@ void ui_init(void)
 
 
 /* ========================================================================
- * check_port_plug_in — 任意端口插入(充电或放电)时跳回主界面
+ * check_port_plug_in — 任意端口插入/拔出(连接状态 0↔非0 跳变)时跳回主界面
  *
- * 只认 未连接(0) -> 已连接(1充电/2放电) 的上升沿, 一直插着不会反复跳, 也不会
- * 把用户翻页的操作顶掉。充放电之间互相切换(1<->2)不算插入, 不跳。
+ * 只认 断开(0) <-> 连接(1充电/2放电) 的跳变(插入或拔出), 一直保持不动不会
+ * 反复跳, 也不会把用户翻页的操作顶掉。充放电之间互相切换(1<->2)不算插拔, 不跳。
  *
  * 灭屏期间 ui_proc 直接 return, 这里的影子状态跟着冻结; 但唤醒走
- * wake_screen() 本来就回主界面, 所以醒来后哪怕补报一次上升沿也是同一结果。
+ * wake_screen() 本来就回主界面, 所以醒来后哪怕补报一次跳变也是同一结果。
  * ======================================================================== */
 static void check_port_plug_in(void)
 {
 	static uint8_t last_c1 = 0, last_c2 = 0, last_a = 0;
 
-	uint8_t plug_in = (ui_data.usb_c1_status != 0 && last_c1 == 0)
+	uint8_t plug_in  = (ui_data.usb_c1_status != 0 && last_c1 == 0)   /* 插入 */
 	               || (ui_data.usb_c2_status != 0 && last_c2 == 0)
 	               || (ui_data.usb_a_status  != 0 && last_a  == 0);
+	uint8_t plug_out = (ui_data.usb_c1_status == 0 && last_c1 != 0)   /* 拔出 */
+	               || (ui_data.usb_c2_status == 0 && last_c2 != 0)
+	               || (ui_data.usb_a_status  == 0 && last_a  != 0);
 
 	last_c1 = ui_data.usb_c1_status;
 	last_c2 = ui_data.usb_c2_status;
 	last_a  = ui_data.usb_a_status;
 
-	if (plug_in && ui_data.cur_page != PAGE_HOME)
+	if ((plug_in || plug_out) && ui_data.cur_page != PAGE_HOME)
 	{
-		LOGI("[UI] port plug in -> PAGE_HOME\r\n");
+		LOGI("[UI] port plug in/out -> PAGE_HOME\r\n");
 		ui_data.last_page = ui_data.cur_page;
 		ui_data.cur_page  = PAGE_HOME;
 	}

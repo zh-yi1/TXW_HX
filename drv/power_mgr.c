@@ -504,7 +504,7 @@ void power_mgr_proc(void)
             LOGI("[PWR] -> STOP\r\n");
         }
 #else
-        else if (i2c_is_host_sleeping())
+        else if (i2c_is_host_sleeping() && !usb_active)
         {
             ui_data.dev_state = DEV_STATE_STOP;
             LOGI("[PWR] host sleeping -> STOP\r\n");

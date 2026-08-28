@@ -368,9 +368,12 @@ static void hm_update_top(uint8_t mode)
 	if (cur_min < 0 && hm_last_min >= 0)
 		hm_erase_time();
 
-	/* MINI: 由主机下发的 low_current_flag 驱动; 消失或搬家先擦旧位置 */
+	/* MINI: 由主机下发的 low_current_flag 驱动; 双C互反充放(C1充C2放/C2充C1放)时不显示,
+	   消失或搬家先擦旧位置 */
 	{
-		bool    mini   = ui_data.low_current_flag;
+		bool dual_c_swap = (ui_data.usb_c1_status == 1 && ui_data.usb_c2_status == 2) ||
+		                   (ui_data.usb_c2_status == 1 && ui_data.usb_c1_status == 2);
+		bool    mini   = ui_data.low_current_flag && !dual_c_swap;
 		uint8_t mini_x = ui_data.is_charge ? HM_MINI_X : 0;
 
 		if (mini != hm_last_mini || (mini && mini_x != hm_last_mini_x))
