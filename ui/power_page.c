@@ -292,6 +292,12 @@ void power_page_init(void)
 
 void power_page_updata(void)
 {
+	static uint32_t last_pwr_draw_ms = 0;
+	uint32_t _now = md_get_tick();
+	if (_now - last_pwr_draw_ms < 2000U)   /* 功率屏上刷新 2s (临时验证, 回退删此段) */
+		return;
+	last_pwr_draw_ms = _now;
+
 	uint8_t row;
 
 	for (row = 0; row < PWR_PORT_CNT; row++)

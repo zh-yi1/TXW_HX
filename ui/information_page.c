@@ -194,6 +194,66 @@ void information_page_1_init(void)
     draw_value_prop(R_CYCLE_VAL, ui_data.bat_cycle_cnt, FLASH_ADDR_CI, UNIT_40_W, 0, NULL, NULL);
 }
 
+/* 版本信息 (温度页底部单行, 12px) — MCU 来自编译宏, G020(主机)版本来自主机下发 uint16 LE 整数(版本×10) */
+#define INFO2_SHOW_VERSION  1   /* 1=信息页显示版本行, 0=不显示 (出两版固件用) */
+#define INFO2_VER_Y    122
+
+/* 0~99 整数 → 1~2 位十进制 ASCII, 返回写入长度(不含\0) */
+#if INFO2_SHOW_VERSION
+static uint8_t u8_to_ver(uint8_t v, char *out)
+{
+    uint8_t n = 0;
+    if (v >= 10) out[n++] = (char)('0' + v / 10);
+    out[n++] = (char)('0' + v % 10);
+    out[n] = '\0';
+    return n;
+}
+#endif
+
+/* 温度页底部版本行: "MCU Vx.y   G020 Vx.y" (主机未收到显示 ----) */
+static void info2_draw_version(void)
+{
+#if INFO2_SHOW_VERSION
+    char seg[8];
+    uint8_t k;
+    uint16_t x, total_w;
+
+    /* MCU 版本串 (由编译宏生成) */
+    k = 0; seg[k++] = 'V';
+    k += u8_to_ver(VERSION_MAJOR, &seg[k]); seg[k++] = '.';
+    k += u8_to_ver(VERSION_MINOR, &seg[k]);
+
+    /* 先按代表串估总宽, 整行居中 */
+    total_w  = (uint16_t)digit_string_width("MCU",  DIGIT_HEIGHT_12) + 2;
+    total_w += (uint16_t)digit_string_width(seg,   DIGIT_HEIGHT_12) + 12;
+    total_w += (uint16_t)digit_string_width("G020", DIGIT_HEIGHT_12) + 2;
+    total_w += (uint16_t)digit_string_width("V3.0", DIGIT_HEIGHT_12);
+
+    x = (ROW > total_w) ? (uint16_t)((ROW - total_w) / 2) : 0;
+
+    digit_display_string("MCU", x, INFO2_VER_Y, DIGIT_HEIGHT_12);
+    x += (uint16_t)digit_string_width("MCU", DIGIT_HEIGHT_12) + 2;
+
+    digit_display_string(seg, x, INFO2_VER_Y, DIGIT_HEIGHT_12);
+    x += (uint16_t)digit_string_width(seg, DIGIT_HEIGHT_12) + 12;
+
+    digit_display_string("G020", x, INFO2_VER_Y, DIGIT_HEIGHT_12);
+    x += (uint16_t)digit_string_width("G020", DIGIT_HEIGHT_12) + 2;
+
+    if (ui_data.host_fw_ver != 0) {
+        uint16_t v   = ui_data.host_fw_ver;     /* uint16 LE 整数(版本×10): 1.9→19→0x0013 */
+        uint8_t  maj = (uint8_t)(v / 10);
+        uint8_t  min = (uint8_t)(v % 10);
+        k = 0; seg[k++] = 'V';
+        k += u8_to_ver(maj, &seg[k]); seg[k++] = '.';
+        k += u8_to_ver(min, &seg[k]);
+    } else {
+        seg[0] = '-'; seg[1] = '-'; seg[2] = '-'; seg[3] = '-'; seg[4] = '\0';
+    }
+    digit_display_string(seg, x, INFO2_VER_Y, DIGIT_HEIGHT_12);
+#endif /* INFO2_SHOW_VERSION */
+}
+
 void information_page_2_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
@@ -211,6 +271,9 @@ void information_page_2_init(void)
     draw_value_prop(R_BAT_TEMP, temp_filter_get() / 10,
                     FLASH_ADDR_NUM_40_DEGREE, UNIT_40_W, FLASH_ADDR_NUM_40,
                     &temp_val_x, &temp_val_w);
+
+    /* 底部版本行 (MCU + HOST) */
+    info2_draw_version();
 }
 
 void information_page_3_init(void)
@@ -324,6 +387,17 @@ void information_page_2_updata(void)
             temp_val_x = nx;
             temp_val_w = nw;
             last_temp_c = temp_c;
+        }
+    }
+
+    /* 主机版本变化时刷新底部版本行 (MCU 部分恒定) */
+    {
+        static uint16_t last_host_ver = 0xFFFF;
+        if (ui_data.host_fw_ver != last_host_ver)
+        {
+            DispBlock(0, INFO2_VER_Y, ROW - 1, INFO2_VER_Y + 9);
+            info2_draw_version();
+            last_host_ver = ui_data.host_fw_ver;
         }
     }
 }

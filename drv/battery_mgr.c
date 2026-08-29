@@ -648,11 +648,34 @@ void battery_mgr_sync_to_ui(void)
     ui_data.abnormal_temp_count = abnormal_log_temperature_count();
 }
 /* ========================================================================
- * V1.3 剩余充满时间估算 (1s 更新一次, 返回分钟)
+ * V1.3 剩余充满时间估算 (500ms 采样, EWMA 指数平滑, 返回分钟)
  * ======================================================================== */
-#define IBAT_BUF_SIZE  10U
+/* EWMA 指数平滑电流 (无整窗滞后, 收敛快) */
+#define IBAT_EMA_SHIFT  2   /* α = 1/2^SHIFT: 越大收敛越快, 对噪声越敏感
+                               SHIFT=1 α=1/2: 抖动 1.8x, 90% 收敛 ~1.7s (偏跳)
+                               SHIFT=2 α=1/4: 抖动 1.2x, 90% 收敛 ~4.6s (当前)
+                               SHIFT=3 α=1/8: 抖动 0.8x, 90% 收敛 ~9.2s (更稳更慢) */
+#define REMAIN_DISP_MS    2000U  /* 屏幕刷新节拍: 底层 500ms 重算(跟随功率), 每 2s 才刷 */
 
-static int32_t ibat_buf[IBAT_BUF_SIZE];   /* 电流环形缓冲 */
+/* ----- CV 尾巴物理模型参数 (★ 占位默认值, 待实充标定) -----
+   物理: CV 段电流按指数衰减 I(t) = I_cut + (I0 - I_cut) * exp(-t/tau)
+   模型: CC 段 T = (rem - rem_cv)/I + (rem_cv - (I - I_cut)*tau)/I_cut
+          CV 段 T = (rem         - (I - I_cut)*tau)/I_cut
+   性质: dT/dt = -1 -> 严格 1:1 倒数, 全程单调连续, 进 CV 无跳变, 无需单调不增锁
+   (对比: 旧的 rem/I 在 CV 段因电流衰减快于容量下降而必然先升后降, 表现为"越充时间越长")  */
+
+#define CV_ENTRY_PCT    80U   /* CV 入口电量% (典型 75~85)                    */
+#define CV_I_CUT_MA     300U  /* 充电截止电流 mA (典型 0.05C~0.1C)            */
+#define CV_TAU_CENTIH   20U   /* CV 衰减时间常数 tau: 单位 1/100 小时, 20 = 12 分钟 */
+#define TSEC_EMA_SHIFT  3     /* 剩余时间再平滑 α=1/8: 模型对电流抖动敏感(约 0.04 分/mA),
+                                 而真实值仅以 1 分/分 变化, 故可重平滑且不损失跟随性 */
+
+static uint32_t ibat_ema  = 0;   /* 平滑电流 EMA (mA) */
+static uint8_t  ema_ready = 0;   /* 是否已拿到首个样本 */
+static uint32_t last_disp_ms = 0;   /* 显示节流节拍 */
+static int16_t  disp_min     = -1;  /* 上次显示的分钟数 (-1=不显示) */
+static int32_t  tsec_ema     = 0;   /* 剩余时间平滑值 (秒) */
+static uint8_t  tsec_ready   = 0;   /* 剩余时间是否已初始化 */
 
 /* 电池循环降额系数 (%) */
 static uint8_t bat_cycle_derate(uint16_t cycle_times)
@@ -666,8 +689,6 @@ static uint8_t bat_cycle_derate(uint16_t cycle_times)
 int16_t calc_charge_remain_min(void)
 {
     static uint32_t last_ms   = 0;
-    static uint8_t  ibat_idx  = 0;
-    static uint8_t  ibat_full = 0;
 
     uint32_t total_cap_mah;         /* 折算后总容量 (mAh)    */
     uint32_t remain_cap;            /* 剩余容量 (mAh)        */
@@ -681,54 +702,46 @@ int16_t calc_charge_remain_min(void)
 
 	if (!ui_data.is_charge || ui_data.bat_power > 100)
 	{
-		chg_prev  = 0;
-		ibat_idx  = 0;              /* 停充清缓冲，避免下次用旧电流 */
-		ibat_full = 0;
-		last_ms   = 0;              /* 下次开充首采不等 1s */
+		chg_prev     = 0;
+		ema_ready    = 0;           /* 停充清状态，避免下次用旧电流 */
+		tsec_ready   = 0;           /* 同上: 清剩余时间平滑值 */
+		last_ms      = 0;           /* 下次开充首采不等间隔 */
+		disp_min     = -1;          /* 停充立即清显示状态 */
+		last_disp_ms = 0;
 		return -1;
 	}
 
 	/* 开充沿: 丢弃上次残留样本 (息屏期间拔插时上面的清理跑不到) */
 	if (!chg_prev)
 	{
-		chg_prev  = 1;
-		ibat_idx  = 0;
-		ibat_full = 0;
-		last_ms   = 0;
+		chg_prev    = 1;
+		ema_ready   = 0;
+		tsec_ready  = 0;
+		last_ms     = 0;
 	}
 
-    /* ---- 1 秒采样: 开充首个样本填满整窗, 收到值立即可显示 ---- */
+    /* ---- 500ms 采样(与 AFE 轮询同频): EWMA 指数平滑, 无整窗滞后 ---- */
     now = md_get_tick();
-    if (now - last_ms >= 1000U) {
+    if (now - last_ms >= 500U) {
         last_ms = now;
         ibat = (int32_t)ip3561q_info.current_ma;
         if (ibat < 0)
             ibat = -ibat;
-        if (!ibat_full) {
-            uint8_t i;
-            for (i = 0; i < IBAT_BUF_SIZE; i++)
-                ibat_buf[i] = ibat;
-            ibat_full = 1;
-            ibat_idx  = 0;
+        if (!ema_ready) {
+            ibat_ema  = (uint32_t)ibat;   /* 首样本直接采用, 立即可显示 */
+            ema_ready = 1;
         } else {
-            ibat_buf[ibat_idx] = ibat;
-            ibat_idx++;
-            if (ibat_idx >= IBAT_BUF_SIZE)
-                ibat_idx = 0;
+            /* ibat_ema += (ibat - ibat_ema) * α, α = 1/2^IBAT_EMA_SHIFT
+               必须走有符号: 无符号差值下溢后 >> 是逻辑右移, 结果会差 2^SHIFT */
+            ibat_ema = (uint32_t)((int32_t)ibat_ema +
+                       (((int32_t)ibat - (int32_t)ibat_ema) >> IBAT_EMA_SHIFT));
         }
     }
 
-    if (!ibat_full)
+    if (!ema_ready)
         return -1;                  /* 一个样本都没有 (刚开充不到一次采样) */
 
-    /* 平滑电流（10 点环形缓冲平均） */
-    {
-        int32_t sum = 0;
-        uint8_t i;
-        for (i = 0; i < IBAT_BUF_SIZE; i++)
-            sum += ibat_buf[i];
-        ibat_avg = (uint32_t)(sum / IBAT_BUF_SIZE);
-    }
+    ibat_avg = ibat_ema;
     if (ibat_avg < 50) ibat_avg = 50;   /* 最小电流下限，防除零及极端值 */
 
     /* 总容量 = 标称容量(5000mAh) * 循环降额系数 */
@@ -737,15 +750,66 @@ int16_t calc_charge_remain_min(void)
 
     /* ----- 充电剩余时间（秒）----- */
     if (ip3561q_info.current_ma <= 0)
+    {
+        disp_min = -1;              /* 电流为 0 则不显示, 恢复后立即刷新 */
         return -1;
+    }
 
     remain_cap = (uint32_t)(100U - ui_data.bat_power) * total_cap_mah / 100U;
-    seconds    = remain_cap * 3600UL / ibat_avg;
+
+    /* ----- 充电剩余时间: CV 尾巴物理模型 (见 CV_* 宏处说明) -----
+       单位: 容量 mAh / 电流 mA / tau 小时, 先算分钟再转秒
+       tail = 100*rem - (I - I_cut)*tau_centih   (放大 100 倍保定点精度)
+       T_min = tail * 60 / (100 * I_cut)                                    */
+    {
+        uint32_t rem_cv = total_cap_mah * (100U - CV_ENTRY_PCT) / 100U;
+        int32_t  di     = (int32_t)ibat_avg - (int32_t)CV_I_CUT_MA;
+        uint32_t sub, tail, rem_h, t_min;
+
+        if (di < 0) di = 0;                     /* 电流已低于截止电流 */
+        sub = (uint32_t)di * CV_TAU_CENTIH;
+
+        if (remain_cap > rem_cv)
+        {
+            /* CC 段: 到 CV 还要多久 + CV 尾巴时长
+               (后半项就是"在 CC 阶段提前把 CV 会多花的时间摊进来") */
+            uint32_t to_cv_min = (remain_cap - rem_cv) * 60U / ibat_avg;
+
+            rem_h = rem_cv * 100U;
+            tail  = (rem_h > sub) ? (rem_h - sub) : 0U;
+            t_min = to_cv_min + tail * 60U / (100U * CV_I_CUT_MA);
+        }
+        else
+        {
+            /* CV 段: 电流已在衰减, 直接按衰减模型算 */
+            rem_h = remain_cap * 100U;
+            tail  = (rem_h > sub) ? (rem_h - sub) : 0U;
+            t_min = tail * 60U / (100U * CV_I_CUT_MA);
+        }
+        seconds = t_min * 60U;
+    }
+
+    /* 剩余时间再平滑: 抑制电流抖动被模型放大
+       (真实值 1 分/分 缓慢变化, 重平滑不损失跟随性) */
+    if (!tsec_ready) {
+        tsec_ema   = (int32_t)seconds;
+        tsec_ready = 1;
+    } else {
+        tsec_ema += ((int32_t)seconds - tsec_ema) >> TSEC_EMA_SHIFT;
+    }
+    if (tsec_ema < 0) tsec_ema = 0;
+    seconds = (uint32_t)tsec_ema;
 
     if (seconds > 5999UL * 60U)         /* HH:MM 两位小时, 上限 99:59 */
         seconds = 5999UL * 60U;
 
-    return (int16_t)(seconds / 60U);
+    /* 显示节流: 底层每隔采样都重算(跟随功率趋势), 但屏幕每 2s 才刷新一次,
+       避免高频刷新让人眼晕。停充/无效(-1)已在前面立即响应。 */
+    if (disp_min < 0 || now - last_disp_ms >= REMAIN_DISP_MS) {
+        disp_min     = (int16_t)(seconds / 60U);
+        last_disp_ms = now;
+    }
+    return disp_min;
 }
 
 

@@ -552,6 +552,9 @@ static void apply_host_data(void)
     ui_data.discharge_remain_time = reg_read_u32(REG_DISCHARGE_REMAIN_0); /* V1.3 未使用 */
     ui_data.res_vbat       = reg_read_u16(REG_RES_VBAT_L);
 
+    /* 主机固件版本 (协议 0x00/0x01, 2字节LE BCD, V3.0→0x0300) */
+    ui_data.host_fw_ver = reg_read_u16(REG_HOST_FW_VER_L);
+
     /* ---- NTC 数据 (协议 §4.3) ---- */
     ui_data.ntc_status = i2c_reg_map[REG_NTC_STATUS];
     // ui_data.bat_ntc1   = reg_read_u32(REG_BAT_NTC1_0);//不使用020传的数据了，使用本地的

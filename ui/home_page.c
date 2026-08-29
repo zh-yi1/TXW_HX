@@ -57,6 +57,17 @@
 /* 充放电模式 */
 #define HM_MODE_IDLE     0
 #define HM_MODE_CHG      1
+
+/* 剩余时间屏幕刷新间隔 (ms): 内部仍按 500ms 持续跟踪(保证跟随功率),
+   但屏幕每这么久才更新一次, 避免数字每半秒就跳。
+   调大=更稳更省重绘, 调小=更贴合瞬时值。
+   时间的出现/消失(值在 -1 与非负之间跳变) 不受此限制, 立即生效 */
+#define HM_TIME_REFRESH_MS  5000U
+
+/* 大变化门限(分钟): 与上次的差达到这么多就立即刷新屏幕, 不受 HM_TIME_REFRESH_MS 限制。
+   保证爬升期/切档这类真实大变化能马上跟上; 小抖动则走上面的节流慢慢更新。
+   该值须大于稳态抖动幅度, 否则节流会失效 (2A 下电流抖 ±5% ≈ ±3~4 分钟) */
+#define HM_TIME_FAST_DIFF   2
 #define HM_MODE_DIS      2
 
 /* 边框宽度, 下标 = 数字位数 */
@@ -348,6 +359,7 @@ static void hm_erase_time(void)
 static void hm_update_top(uint8_t mode)
 {
 	int16_t cur_min;
+	static uint32_t hm_time_tick = 0;	/* 上次屏幕刷新剩余时间的时刻 */
 	bool    dis = hm_is_dis();
 
 	/* 右上角 OUT: 有放电口就显示, 与充电状态无关 (充放同时存在也显示) */
@@ -365,6 +377,20 @@ static void hm_update_top(uint8_t mode)
 	   (0,0)。顺序固定为 [擦倒计时]->[MINI 搬家]->[画倒计时], 保证两个方向
 	   的位置交换都先擦旧内容再画新内容, 不互相覆盖 */
 	cur_min = (mode == HM_MODE_CHG) ? calc_charge_remain_min() : -1;
+
+	/* 显示节流: 计算与跟踪保持 500ms 不变(保证跟随功率), 但屏幕按
+	   HM_TIME_REFRESH_MS 才刷新一次, 避免数字每半秒就跳一次。
+	   时间的出现/消失(值在 -1 与非负之间跳变) 立即生效, 不节流 */
+	if (cur_min < 0 || hm_last_min < 0)
+		hm_time_tick = md_get_tick();		/* 出现/消失: 立即 */
+	else if (cur_min < hm_last_min - HM_TIME_FAST_DIFF ||
+	         cur_min > hm_last_min + HM_TIME_FAST_DIFF)
+		hm_time_tick = md_get_tick();		/* 大变化(爬升/切档): 立即跟随 */
+	else if (md_get_tick() - hm_time_tick < HM_TIME_REFRESH_MS)
+		cur_min = hm_last_min;			/* 小变化: 节流期内保持旧值不重画 */
+	else
+		hm_time_tick = md_get_tick();		/* 到点: 放行新值 */
+
 	if (cur_min < 0 && hm_last_min >= 0)
 		hm_erase_time();
 
