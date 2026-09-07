@@ -72,11 +72,11 @@ typedef struct
 typedef enum
 {
 	PAGE_HOME               = 0,  /* 主页 (电量胶囊 + 充放电动画) */
-	PAGE_POWER              ,  /* 端口功率页 (3 个端口的状态和功率) */
-	PAGE_INFO_1             ,  /* 电池信息页1 (最大容量/循环次数/电池编号) */
-	PAGE_INFO_2             ,  /* 电池信息页2 (温度/运行时间) */
+	PAGE_INFO_1             ,  /* 信息页1 (三端口电压/电流) */
+	PAGE_INFO_2             ,  /* 信息页2 (健康度/温度/循环次数) */
 	PAGE_INFO_3             ,  /* 电池信息页3 (电压/电流) */
 	PAGE_OFF_TIME           ,  /* 息屏时长设置页 */
+	PAGE_SOFTWARE_VERSION   ,  /* 软件版本页 */
 	PAGE_OVER_TEMP          ,  /* 过温提示页 */
 	PAGE_SHORT_CIRCUIT      ,  /* 短路提示页 */
 	PAGE_DISABLED           ,  /* 禁用提示页 (全红) */
@@ -107,10 +107,16 @@ typedef struct
 	bool     is_charge;		/* 是否充电中 */
 	uint8_t  usb_c1_status;		/* USB-C1 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_c1_power;		/* USB-C1 实时功率 0-255W */
+	uint16_t usb_c1_voltage_mv;	/* USB-C1 电压, mV */
+	uint16_t usb_c1_current_ma;	/* USB-C1 电流, mA */
 	uint8_t  usb_c2_status;		/* USB-C2 端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_c2_power;		/* USB-C2 实时功率 0-255W */
+	uint16_t usb_c2_voltage_mv;	/* USB-C2 电压, mV */
+	uint16_t usb_c2_current_ma;	/* USB-C2 电流, mA */
 	uint8_t  usb_a_status;		/* USB-A  端口状态: 0=未连接 1=充电 2=放电 (协议 §4.3) */
 	uint8_t  usb_a_power;		/* USB-A  实时功率 0-255W */
+	uint16_t usb_a_voltage_mv;	/* USB-A 电压, mV */
+	uint16_t usb_a_current_ma;	/* USB-A 电流, mA */
 	uint8_t  bat_max_cap;		/* 电池最大容量 0-100% */
 	uint16_t bat_cycle_cnt;	/* 循环次数 0-9999 */
 	int16_t  bat_temperature;	/* 电池温度 -20~80℃, 单位为0.1℃ */

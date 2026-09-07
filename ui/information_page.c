@@ -1,28 +1,150 @@
 #include "information_page.h"
 
-/* 40 号比例数字 — 0 和 2~9 宽 23, 数字"1"/负号/单位(%/次/℃) 宽 16, 高均 40 */
-#define NUM_40_PROP_W 23
-#define NUM_40_ONE_W  16
-#define NUM_40_NEG_W  16
-#define UNIT_40_W     16
+/* Information page 1: per-port voltage/current. */
+#define INFO_PORT_COUNT       3
+#define INFO_PORT_VALUE_X     103
+#define INFO_PORT_VOLT_X      145
+#define INFO_PORT_SLASH_X     159
+#define INFO_PORT_CURRENT_X   175
+#define INFO_PORT_AMPERE_X    205
 
-/* ---- 信息页1 布局 ----
- * 标签 120x32: 电池健康 (0,20), 循环次数 (120,20), 左右各占半屏
- * 值 40 高, y=75, 各自在标签正下方居中 —— 即左半区 [0,119] / 右半区 [120,239] 居中 */
-#define INFO1_LABEL_Y  20
-#define INFO1_VAL_Y    75
+static const uint8_t info_port_icon_y[INFO_PORT_COUNT] = {8, 48, 88};
+static const uint8_t info_port_value_y[INFO_PORT_COUNT] = {17, 57, 97};
+static const uint32_t info_port_icon[INFO_PORT_COUNT][3] = {
+    {FLASH_ADDR_ICON_NORMAL_1_BIG, FLASH_ADDR_ICON_IN_1_BIG, FLASH_ADDR_ICON_OUT_1_BIG},
+    {FLASH_ADDR_ICON_NORMAL_2_BIG, FLASH_ADDR_ICON_IN_2_BIG, FLASH_ADDR_ICON_OUT_2_BIG},
+    {FLASH_ADDR_ICON_NORMAL_3_BIG, FLASH_ADDR_ICON_IN_3_BIG, FLASH_ADDR_ICON_OUT_3_BIG},
+};
 
-#define R_HEALTH_VAL  ((range_t){0,   INFO1_VAL_Y, 119, INFO1_VAL_Y + 39})
-#define R_CYCLE_VAL   ((range_t){120, INFO1_VAL_Y, 239, INFO1_VAL_Y + 39})
+static uint8_t info_port_last_status[INFO_PORT_COUNT];
+static uint16_t info_port_last_voltage[INFO_PORT_COUNT];
+static uint16_t info_port_last_current[INFO_PORT_COUNT];
 
-/* ---- 信息页2 布局 ----
- * 标签 电池温度 240x32 @ (0,20), 温度值 40 高 @ y=75, 整屏居中 */
-#define INFO2_LABEL_Y  20
-#define INFO2_VAL_Y    75
+static uint32_t info_port_digit_addr(uint8_t digit)
+{
+    if (digit == 1)
+        return FLASH_ADDR_NUM_20_1_S;
+    return FLASH_ADDR_NUM_20_BASE + (uint32_t)digit * FLASH_STRIDE_NUM_20;
+}
 
-#define R_BAT_TEMP    ((range_t){0, INFO2_VAL_Y, 239, INFO2_VAL_Y + 39})
+static void info_port_get(uint8_t row, uint8_t *status,
+                          uint16_t *voltage_mv, uint16_t *current_ma)
+{
+    if (row == 0) {
+        *status = ui_data.usb_c1_status;
+        *voltage_mv = ui_data.usb_c1_voltage_mv;
+        *current_ma = ui_data.usb_c1_current_ma;
+    } else if (row == 1) {
+        *status = ui_data.usb_c2_status;
+        *voltage_mv = ui_data.usb_c2_voltage_mv;
+        *current_ma = ui_data.usb_c2_current_ma;
+    } else {
+        *status = ui_data.usb_a_status;
+        *voltage_mv = ui_data.usb_a_voltage_mv;
+        *current_ma = ui_data.usb_a_current_ma;
+    }
+    if (*status != 1 && *status != 2)
+        *status = 0;
+}
 
-#define NUM_40_ADDR(d)  (FLASH_ADDR_NUM_40_BASE + (uint32_t)(d) * FLASH_STRIDE_NUM_40)
+static void info_port_draw_row(uint8_t row, uint8_t status,
+                               uint16_t voltage_mv, uint16_t current_ma)
+{
+    uint8_t y = info_port_value_y[row];
+    uint16_t voltage = (uint16_t)(((uint32_t)voltage_mv + 50U) / 100U);
+    uint16_t current = (uint16_t)(((uint32_t)current_ma + 50U) / 100U);
+
+    Dispphoto_Dispaly_flash(0, info_port_icon_y[row], info_port_icon[row][status]);
+
+    if (status == 0) {
+        Dispphoto_Dispaly_flash(INFO_PORT_VALUE_X, y, FLASH_ADDR_STRIGULA_THREE_DARK);
+        Dispphoto_Dispaly_flash(INFO_PORT_VOLT_X, y, FLASH_ADDR_VOLT_DARK);
+        Dispphoto_Dispaly_flash(INFO_PORT_SLASH_X, y, FLASH_ADDR_OBLIQUE_LINE_DARK);
+        Dispphoto_Dispaly_flash(INFO_PORT_CURRENT_X, y, FLASH_ADDR_STRIGULA_TWO_DARK);
+        Dispphoto_Dispaly_flash(INFO_PORT_AMPERE_X, y, FLASH_ADDR_AMPERE_DARK);
+        return;
+    }
+
+    if (voltage > 999) voltage = 999; /* 99.9V */
+    if (current > 99) current = 99;   /* 9.9A */
+
+    Dispphoto_Dispaly_flash(INFO_PORT_VALUE_X, y,
+        (voltage >= 100) ? info_port_digit_addr((uint8_t)(voltage / 100))
+                         : FLASH_ADDR_NUM_20_1_NULL);
+    Dispphoto_Dispaly_flash(INFO_PORT_VALUE_X + 12, y,
+        info_port_digit_addr((uint8_t)((voltage / 10) % 10)));
+    Dispphoto_Dispaly_flash(INFO_PORT_VALUE_X + 24, y, FLASH_ADDR_POINT);
+    Dispphoto_Dispaly_flash(INFO_PORT_VALUE_X + 30, y,
+        info_port_digit_addr((uint8_t)(voltage % 10)));
+    Dispphoto_Dispaly_flash(INFO_PORT_VOLT_X, y, FLASH_ADDR_VOLT);
+    Dispphoto_Dispaly_flash(INFO_PORT_SLASH_X, y, FLASH_ADDR_OBLIQUE_LINE);
+    Dispphoto_Dispaly_flash(INFO_PORT_CURRENT_X, y,
+        info_port_digit_addr((uint8_t)(current / 10)));
+    Dispphoto_Dispaly_flash(INFO_PORT_CURRENT_X + 12, y, FLASH_ADDR_POINT);
+    Dispphoto_Dispaly_flash(INFO_PORT_CURRENT_X + 18, y,
+        info_port_digit_addr((uint8_t)(current % 10)));
+    Dispphoto_Dispaly_flash(INFO_PORT_AMPERE_X, y, FLASH_ADDR_AMPERE);
+}
+
+void information_page_1_init(void)
+{
+    uint8_t row;
+
+    DispBlock(0, 0, ROW - 1, COL - 1);
+    memset(info_port_last_status, 0xFF, sizeof(info_port_last_status));
+    memset(info_port_last_voltage, 0xFF, sizeof(info_port_last_voltage));
+    memset(info_port_last_current, 0xFF, sizeof(info_port_last_current));
+    information_page_1_updata();
+}
+
+void information_page_1_updata(void)
+{
+    uint8_t row;
+
+    for (row = 0; row < INFO_PORT_COUNT; row++) {
+        uint8_t status;
+        uint16_t voltage_mv, current_ma;
+        uint16_t voltage, current;
+
+        info_port_get(row, &status, &voltage_mv, &current_ma);
+        voltage = (uint16_t)(((uint32_t)voltage_mv + 50U) / 100U);
+        current = (uint16_t)(((uint32_t)current_ma + 50U) / 100U);
+        if (status == info_port_last_status[row]
+            && voltage == info_port_last_voltage[row]
+            && current == info_port_last_current[row])
+            continue;
+
+        info_port_draw_row(row, status, voltage_mv, current_ma);
+        info_port_last_status[row] = status;
+        info_port_last_voltage[row] = voltage;
+        info_port_last_current[row] = current;
+    }
+}
+
+/* Merged battery health / temperature page. */
+#define INFO1_VALUE_X          188
+#define INFO1_VALUE_H          22
+#define INFO1_HEALTH_Y         15
+#define INFO1_TEMP_Y           45
+#define INFO1_CYCLE_Y          75
+#define INFO1_NUM_W            12
+#define INFO1_NUM_ONE_W        8
+#define INFO1_MINUS_W          8
+#define INFO1_PERCENT_W        14
+#define INFO1_DEGREE_C_W       24
+#define INFO1_CI_W             18
+
+typedef struct {
+    uint8_t x;
+    uint8_t w;
+} info1_span_t;
+
+static info1_span_t info1_health_span;
+static info1_span_t info1_temp_span;
+static info1_span_t info1_cycle_span;
+static uint8_t  info1_last_health;
+static int16_t  info1_last_temp_c;
+static uint16_t info1_last_cycle;
 
 /* ============================ 温度滤波 ============================
  * 与主页电量、端口功率同一套路: 采样与绘制解耦。绘制被 ui_proc 限流到 500ms,
@@ -48,6 +170,15 @@ static void temp_filter_push(int16_t value)
 		temp_filter_full = true;
 	}
 	temp_filter_idx = i;
+}
+
+static void temp_filter_fill(int16_t value)
+{
+	uint8_t i;
+	for (i = 0; i < TEMP_FILTER_WIN; i++)
+		temp_filter_buf[i] = value;
+	temp_filter_idx = 0;
+	temp_filter_full = true;
 }
 
 static int16_t temp_filter_get(void)
@@ -85,76 +216,80 @@ static const uint8_t info3_row_y[4] = { 42, 56, 70, 84 };
  * 全变 "1" 最多左移 16px。不判断实际有几个 "1", 一律按最坏情况擦 24px */
 #define VOLT_ERASE_W   24
 
-/* 40 号数字比例宽度: 数字"1" 较窄 */
-static uint8_t num40_prop_w(int d)
+static uint8_t info1_num_w(uint8_t digit)
 {
-    return (d == 1) ? NUM_40_ONE_W : NUM_40_PROP_W;
+    return (digit == 1) ? INFO1_NUM_ONE_W : INFO1_NUM_W;
 }
 
-/* 在区域内水平居中绘制 40 号比例数值 + 单位, 顶部对齐 r.y1; neg_addr!=0 时支持负数
- * out_x/out_w 非空时回传本次绘制占用的水平跨度 (起点 x, 总宽), 供覆盖式刷新擦边角 */
-static void draw_value_prop(range_t r, int value, uint32_t unit_addr,
-                           uint8_t unit_w, uint32_t neg_addr,
-                           int *out_x, int *out_w)
+static uint8_t info1_split_u16(uint16_t value, uint8_t digits[4])
 {
-    int digits[4], n, i, cur_x, start_x, total_w = 0;
-    uint8_t neg_w = 0;
+    if (value >= 1000) {
+        digits[0] = (uint8_t)(value / 1000);
+        digits[1] = (uint8_t)((value / 100) % 10);
+        digits[2] = (uint8_t)((value / 10) % 10);
+        digits[3] = (uint8_t)(value % 10);
+        return 4;
+    }
+    if (value >= 100) {
+        digits[0] = (uint8_t)(value / 100);
+        digits[1] = (uint8_t)((value / 10) % 10);
+        digits[2] = (uint8_t)(value % 10);
+        return 3;
+    }
+    if (value >= 10) {
+        digits[0] = (uint8_t)(value / 10);
+        digits[1] = (uint8_t)(value % 10);
+        return 2;
+    }
+    digits[0] = (uint8_t)value;
+    return 1;
+}
 
-    if (value < 0)
-    {
-        value = -value;
-        if (neg_addr != 0)
-            neg_w = NUM_40_NEG_W;
-    }
-    if (value > 9999) value = 9999;
+/* Values always use the 20px font and start exactly at x=188. Draw the new
+ * value first, then erase only an old right fragment. */
+static void info1_draw_value(int value, uint8_t y, uint32_t unit_addr,
+                             uint8_t unit_w, info1_span_t *span)
+{
+    uint8_t digits[4];
+    uint8_t count, i, neg = 0;
+    uint16_t magnitude;
+    uint8_t total_w = unit_w;
+    int x, cur_x;
+    int old_r = span->x + span->w;
 
-    if (value >= 1000)
-    {
-        digits[0] = value / 1000;
-        digits[1] = (value / 100) % 10;
-        digits[2] = (value / 10) % 10;
-        digits[3] = value % 10;
-        n = 4;
+    if (value < 0) {
+        neg = 1;
+        magnitude = (uint16_t)(-value);
+        total_w += INFO1_MINUS_W;
+    } else {
+        magnitude = (uint16_t)value;
     }
-    else if (value >= 100)
-    {
-        digits[0] = value / 100;
-        digits[1] = (value / 10) % 10;
-        digits[2] = value % 10;
-        n = 3;
-    }
-    else if (value >= 10)
-    {
-        digits[0] = value / 10;
-        digits[1] = value % 10;
-        n = 2;
-    }
-    else
-    {
-        digits[0] = value;
-        n = 1;
-    }
+    if (magnitude > 9999) magnitude = 9999;
 
-    for (i = 0; i < n; i++)
-        total_w += num40_prop_w(digits[i]);
-    total_w += neg_w + unit_w;
+    count = info1_split_u16(magnitude, digits);
+    for (i = 0; i < count; i++)
+        total_w += info1_num_w(digits[i]);
 
-    start_x = r.x1 + (int)(r.x2 - r.x1 - total_w) / 2;
-    cur_x = start_x;
-    if (neg_w)
-    {
-        Dispphoto_Dispaly_flash(cur_x, r.y1, neg_addr);
-        cur_x += neg_w;
-    }
-    for (i = 0; i < n; i++)
-    {
-        Dispphoto_Dispaly_flash(cur_x, r.y1, NUM_40_ADDR(digits[i]));
-        cur_x += num40_prop_w(digits[i]);
-    }
-    Dispphoto_Dispaly_flash(cur_x, r.y1, unit_addr);
+    x = INFO1_VALUE_X;
+    cur_x = x;
 
-    if (out_x) *out_x = start_x;
-    if (out_w) *out_w = total_w;
+    if (neg) {
+        Dispphoto_Dispaly_flash(cur_x, y + 3, FLASH_ADDR_NUM_16);
+        cur_x += INFO1_MINUS_W;
+    }
+    for (i = 0; i < count; i++) {
+        Dispphoto_Dispaly_flash(cur_x, y,
+            FLASH_ADDR_NUM_20_BASE + (uint32_t)digits[i] * FLASH_STRIDE_NUM_20);
+        cur_x += info1_num_w(digits[i]);
+    }
+    Dispphoto_Dispaly_flash(cur_x, y, unit_addr);
+
+    if (span->w > 0) {
+        if (x + total_w < old_r)
+            DispBlock(x + total_w, y, old_r - 1, y + INFO1_VALUE_H - 1);
+    }
+    span->x = (uint8_t)x;
+    span->w = total_w;
 }
 
 /* 将 mV 值格式化为电压字符串 "XX<sep>XXV" (buf 至少 8 字节) */
@@ -173,107 +308,41 @@ static void fmt_voltage(char *buf, uint16_t mv, char sep)
     buf[p]   = '\0';
 }
 
-/* 温度值当前占用的水平像素跨度 (起点 x, 总宽), 供覆盖式刷新只擦左右边角 */
-static int temp_val_x;
-static int temp_val_w;
-
 /* 页3 电芯电压串当前宽度, 供先写后擦只擦右侧残留 */
 static uint8_t cell_v_w[4];
-
-void information_page_1_init(void)
-{
-    DispBlock(0, 0, ROW - 1, COL - 1);
-
-    // 电池健康 (0,20, 120x32)
-    Dispphoto_Dispaly_flash(0, INFO1_LABEL_Y, FLASH_ADDR_HEALTH);
-    // 循环次数 (120,20, 120x32)
-    Dispphoto_Dispaly_flash(120, INFO1_LABEL_Y, FLASH_ADDR_CYCLE_INDEX);
-    // 健康值 (电池健康正下方居中, 单位 %)
-    draw_value_prop(R_HEALTH_VAL, ui_data.bat_max_cap, FLASH_ADDR_NUM_40_PERCENT, UNIT_40_W, 0, NULL, NULL);
-    // 次数值 (循环次数正下方居中, 单位 次)
-    draw_value_prop(R_CYCLE_VAL, ui_data.bat_cycle_cnt, FLASH_ADDR_CI, UNIT_40_W, 0, NULL, NULL);
-}
-
-/* 版本信息 (温度页底部单行, 12px) — MCU 来自编译宏, G020(主机)版本来自主机下发 uint16 LE 整数(版本×10) */
-#define INFO2_SHOW_VERSION  1   /* 1=信息页显示版本行, 0=不显示 (出两版固件用) */
-#define INFO2_VER_Y    122
-
-/* 0~99 整数 → 1~2 位十进制 ASCII, 返回写入长度(不含\0) */
-#if INFO2_SHOW_VERSION
-static uint8_t u8_to_ver(uint8_t v, char *out)
-{
-    uint8_t n = 0;
-    if (v >= 10) out[n++] = (char)('0' + v / 10);
-    out[n++] = (char)('0' + v % 10);
-    out[n] = '\0';
-    return n;
-}
-#endif
-
-/* 温度页底部版本行: "MCU Vx.y   G020 Vx.y" (主机未收到显示 ----) */
-static void info2_draw_version(void)
-{
-#if INFO2_SHOW_VERSION
-    char seg[8];
-    uint8_t k;
-    uint16_t x, total_w;
-
-    /* MCU 版本串 (由编译宏生成) */
-    k = 0; seg[k++] = 'V';
-    k += u8_to_ver(VERSION_MAJOR, &seg[k]); seg[k++] = '.';
-    k += u8_to_ver(VERSION_MINOR, &seg[k]);
-
-    /* 先按代表串估总宽, 整行居中 */
-    total_w  = (uint16_t)digit_string_width("MCU",  DIGIT_HEIGHT_12) + 2;
-    total_w += (uint16_t)digit_string_width(seg,   DIGIT_HEIGHT_12) + 12;
-    total_w += (uint16_t)digit_string_width("G020", DIGIT_HEIGHT_12) + 2;
-    total_w += (uint16_t)digit_string_width("V3.0", DIGIT_HEIGHT_12);
-
-    x = (ROW > total_w) ? (uint16_t)((ROW - total_w) / 2) : 0;
-
-    digit_display_string("MCU", x, INFO2_VER_Y, DIGIT_HEIGHT_12);
-    x += (uint16_t)digit_string_width("MCU", DIGIT_HEIGHT_12) + 2;
-
-    digit_display_string(seg, x, INFO2_VER_Y, DIGIT_HEIGHT_12);
-    x += (uint16_t)digit_string_width(seg, DIGIT_HEIGHT_12) + 12;
-
-    digit_display_string("G020", x, INFO2_VER_Y, DIGIT_HEIGHT_12);
-    x += (uint16_t)digit_string_width("G020", DIGIT_HEIGHT_12) + 2;
-
-    if (ui_data.host_fw_ver != 0) {
-        uint16_t v   = ui_data.host_fw_ver;     /* uint16 LE 整数(版本×10): 1.9→19→0x0013 */
-        uint8_t  maj = (uint8_t)(v / 10);
-        uint8_t  min = (uint8_t)(v % 10);
-        k = 0; seg[k++] = 'V';
-        k += u8_to_ver(maj, &seg[k]); seg[k++] = '.';
-        k += u8_to_ver(min, &seg[k]);
-    } else {
-        seg[0] = '-'; seg[1] = '-'; seg[2] = '-'; seg[3] = '-'; seg[4] = '\0';
-    }
-    digit_display_string(seg, x, INFO2_VER_Y, DIGIT_HEIGHT_12);
-#endif /* INFO2_SHOW_VERSION */
-}
 
 void information_page_2_init(void)
 {
     DispBlock(0, 0, ROW - 1, COL - 1);
 
-    /* 填满温度滤波窗口, 避免冷启动被零值拉低 */
-    uint8_t fi;
-    for (fi = 0; fi < TEMP_FILTER_WIN; fi++)
-        temp_filter_push(ui_data.bat_temperature);
+    temp_filter_fill(ui_data.bat_temperature);
     temp_samp_tick = md_get_tick();
 
+    Dispphoto_Dispaly_flash(0,   20,  FLASH_ADDR_EMOJI_HEALTHY);
+    Dispphoto_Dispaly_flash(112, 11,  FLASH_ADDR_TEXT_BAT_HEALTH);
+    Dispphoto_Dispaly_flash(112, 41,  FLASH_ADDR_TEXT_BAT_TEMP);
+    Dispphoto_Dispaly_flash(112, 71,  FLASH_ADDR_TEXT_CYCLE_INDEX);
+    Dispphoto_Dispaly_flash(112, 101, FLASH_ADDR_TEXT_PRESS_5S_TO_SETTING);
 
-    // 电池温度 (0,20, 240x32)
-    Dispphoto_Dispaly_flash(0, INFO2_LABEL_Y, FLASH_ADDR_BAT_TMP);
-    //电池温度值 (整屏居中, y=75, 40 号字体, 单位 ℃, 支持负号)
-    draw_value_prop(R_BAT_TEMP, temp_filter_get() / 10,
-                    FLASH_ADDR_NUM_40_DEGREE, UNIT_40_W, FLASH_ADDR_NUM_40,
-                    &temp_val_x, &temp_val_w);
+    memset(&info1_health_span, 0, sizeof(info1_health_span));
+    memset(&info1_temp_span,   0, sizeof(info1_temp_span));
+    memset(&info1_cycle_span,  0, sizeof(info1_cycle_span));
 
-    /* 底部版本行 (MCU + HOST) */
-    info2_draw_version();
+    info1_draw_value(ui_data.bat_max_cap, INFO1_HEALTH_Y,
+                     FLASH_ADDR_PERCENT, INFO1_PERCENT_W, &info1_health_span);
+    info1_draw_value(temp_filter_get() / 10, INFO1_TEMP_Y,
+                     FLASH_ADDR_DEGREE_CENTIGRADE, INFO1_DEGREE_C_W, &info1_temp_span);
+    info1_draw_value(ui_data.bat_cycle_cnt, INFO1_CYCLE_Y,
+                     FLASH_ADDR_CI, INFO1_CI_W, &info1_cycle_span);
+
+    info1_last_health = ui_data.bat_max_cap;
+    info1_last_temp_c = temp_filter_get() / 10;
+    info1_last_cycle  = ui_data.bat_cycle_cnt;
+
+    // 电池健康 (0,20, 120x32)
+    // 循环次数 (120,20, 120x32)
+    // 健康值 (电池健康正下方居中, 单位 %)
+    // 次数值 (循环次数正下方居中, 单位 次)
 }
 
 void information_page_3_init(void)
@@ -281,7 +350,7 @@ void information_page_3_init(void)
     DispBlock(0, 0, ROW - 1, COL - 1);
 
     // 电芯电压 (0,0, 240x32)
-    Dispphoto_Dispaly_flash(0, 0, FLASH_ADDR_A_CELL_VOLTAGE);
+    Dispphoto_Dispaly_flash(0, 0, FLASH_ADDR_TITLE_CELL_VOLTAGE);
 
     /* 4 节电芯: 电压 + 型号, 12 号字体 */
     {
@@ -316,90 +385,126 @@ void information_page_3_init(void)
 
         fmt_voltage(buf, (uint16_t)total_mv, '.');
 
-        Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y, FLASH_ADDR_TOTAL_VOLTAGE);
+        Dispphoto_Dispaly_flash(VOLT_LABEL_X, VOLT_LABEL_Y, FLASH_ADDR_TEXTTOTAL_VOLTAGE);
         digit_display_string(buf, VOLT_DIGIT_X, VOLT_LABEL_Y, DIGIT_HEIGHT_16);
     }
 
     /* 电芯型号 (标签 31,119 78x16, 型号串 109,119) */
-    Dispphoto_Dispaly_flash(MODEL_LABEL_X, MODEL_LABEL_Y, FLASH_ADDR_BAT_NUM);
+    Dispphoto_Dispaly_flash(MODEL_LABEL_X, MODEL_LABEL_Y, FLASH_ADDR_CELL_MODEL);
     digit_display_string("506578AFU", MODEL_TEXT_X, MODEL_LABEL_Y, DIGIT_HEIGHT_16);
+}
+
+static uint16_t software_last_pd_version;
+
+#define SOFTWARE_VERSION_LABEL_W  54U
+#define SOFTWARE_VERSION_GAP       3U
+
+/* 拼成“MCU版本号: x.x.x”或“PD版本号: x.x”。 */
+static void software_draw_version(const char *prefix, const char *version, uint8_t y)
+{
+    uint16_t prefix_w = digit_string_width(prefix, DIGIT_HEIGHT_16);
+    uint16_t colon_w  = digit_string_width(":", DIGIT_HEIGHT_16);
+    uint16_t version_w = digit_string_width(version, DIGIT_HEIGHT_16);
+    uint16_t total_w = prefix_w + SOFTWARE_VERSION_GAP
+                     + SOFTWARE_VERSION_LABEL_W + colon_w
+                     + SOFTWARE_VERSION_GAP + version_w;
+    uint16_t x = (total_w < ROW) ? (uint16_t)((ROW - total_w) / 2) : 0;
+
+    digit_display_string(prefix, x, y, DIGIT_HEIGHT_16);
+    x += prefix_w + SOFTWARE_VERSION_GAP;
+    Dispphoto_Dispaly_flash(x, y, FLASH_ADDR_TEXT_VERSION_NUMBER);
+    x += SOFTWARE_VERSION_LABEL_W;
+    digit_display_string(":", x, y, DIGIT_HEIGHT_16);
+    x += colon_w + SOFTWARE_VERSION_GAP;
+    digit_display_string(version, x, y, DIGIT_HEIGHT_16);
+}
+
+static uint8_t software_append_bcd(uint8_t bcd, char *out)
+{
+    uint8_t n = 0;
+    uint8_t high = (uint8_t)((bcd >> 4) & 0x0F);
+    uint8_t low = (uint8_t)(bcd & 0x0F);
+
+    if (high <= 9 && low <= 9) {
+        if (high != 0)
+            out[n++] = (char)('0' + high);
+        out[n++] = (char)('0' + low);
+    } else {
+        out[n++] = '-';
+    }
+    return n;
+}
+
+static void software_pd_version_string(uint16_t value, char out[8])
+{
+    uint8_t n = 0;
+
+    out[n++] = 'V';
+
+    if (value == 0) {
+        out[n++] = '-'; out[n++] = '-'; out[n++] = '-'; out[n++] = '-'; out[n] = '\0';
+        return;
+    }
+    n += software_append_bcd((uint8_t)(value >> 8), &out[n]);
+    out[n++] = '.';
+    n += software_append_bcd((uint8_t)value, &out[n]);
+    out[n] = '\0';
+}
+
+void software_version_page_init(void)
+{
+    const char *mcu_version = VERSION;
+
+    DispBlock(0, 0, ROW - 1, COL - 1);
+    Dispphoto_Dispaly_flash(0, 0, FLASH_ADDR_TITLE_SOFTWARE_VERSION);
+    software_draw_version("MCU", mcu_version, 55);
+
+    software_last_pd_version = 0xFFFF;
+    software_version_page_updata();
+}
+
+void software_version_page_updata(void)
+{
+    char pd_version[8];
+
+    if (ui_data.host_fw_ver == software_last_pd_version)
+        return;
+
+    software_pd_version_string(ui_data.host_fw_ver, pd_version);
+    DispBlock(0, 85, ROW - 1, 85 + DIGIT_16_LINE_H - 1);
+    software_draw_version("PD", pd_version, 85);
+    software_last_pd_version = ui_data.host_fw_ver;
 }
 
 /* ============================ 数据更新 ============================ */
 
-void information_page_1_updata(void)
+void information_page_2_updata(void)
 {
-    static uint8_t  last_max_cap = 0xFF;
-    static uint16_t last_cycle   = 0xFFFF;
+    int16_t temp_c = temp_filter_get() / 10;
 
-    /* 健康值 — 变化时先擦除再重绘 (比例宽度, 居中位置随数值变化) */
-    if (ui_data.bat_max_cap != last_max_cap)
-    {
-        DispBlock(R_HEALTH_VAL.x1, R_HEALTH_VAL.y1, R_HEALTH_VAL.x2, R_HEALTH_VAL.y2);
-        draw_value_prop(R_HEALTH_VAL, ui_data.bat_max_cap, FLASH_ADDR_NUM_40_PERCENT, UNIT_40_W, 0, NULL, NULL);
-        last_max_cap = ui_data.bat_max_cap;
+    if (ui_data.bat_max_cap != info1_last_health) {
+        info1_draw_value(ui_data.bat_max_cap, INFO1_HEALTH_Y,
+                         FLASH_ADDR_PERCENT, INFO1_PERCENT_W, &info1_health_span);
+        info1_last_health = ui_data.bat_max_cap;
     }
-
-    /* 次数值 — 变化时先擦除再重绘 */
-    if (ui_data.bat_cycle_cnt != last_cycle)
-    {
-        DispBlock(R_CYCLE_VAL.x1, R_CYCLE_VAL.y1, R_CYCLE_VAL.x2, R_CYCLE_VAL.y2);
-        draw_value_prop(R_CYCLE_VAL, ui_data.bat_cycle_cnt, FLASH_ADDR_CI, UNIT_40_W, 0, NULL, NULL);
-        last_cycle = ui_data.bat_cycle_cnt;
+    if (temp_c != info1_last_temp_c) {
+        info1_draw_value(temp_c, INFO1_TEMP_Y,
+                         FLASH_ADDR_DEGREE_CENTIGRADE, INFO1_DEGREE_C_W, &info1_temp_span);
+        info1_last_temp_c = temp_c;
+    }
+    if (ui_data.bat_cycle_cnt != info1_last_cycle) {
+        info1_draw_value(ui_data.bat_cycle_cnt, INFO1_CYCLE_Y,
+                         FLASH_ADDR_CI, INFO1_CI_W, &info1_cycle_span);
+        info1_last_cycle = ui_data.bat_cycle_cnt;
     }
 }
 
-/* 温度采样 — 由 ui_proc 每轮调用(不受 500ms 绘制限流), 内部按 TEMP_SAMPLE_MS 节流 */
 void information_page_2_sample(void)
 {
     if (md_get_tick() - temp_samp_tick < TEMP_SAMPLE_MS)
         return;
     temp_samp_tick = md_get_tick();
-
     temp_filter_push(ui_data.bat_temperature);
-}
-
-void information_page_2_updata(void)
-{
-    static int16_t last_temp_c = 0x7FFF;
-
-    /* 电池温度 — 滤波后个位(℃)变化才刷新 */
-    {
-        int16_t filtered = temp_filter_get();
-        int16_t temp_c   = filtered / 10;
-        if (temp_c != last_temp_c)
-        {
-            /* 覆盖式刷新: 先画新值 (不透明, 盖住重叠区), 再只擦旧值比新值多出的左右边角,
-             * 避免整区先黑后写造成的闪烁 */
-            int old_l = temp_val_x;
-            int old_r = temp_val_x + temp_val_w;
-            int nx, nw;
-            draw_value_prop(R_BAT_TEMP, temp_c,
-                            FLASH_ADDR_NUM_40_DEGREE, UNIT_40_W, FLASH_ADDR_NUM_40,
-                            &nx, &nw);
-            if (temp_val_w > 0)
-            {
-                if (old_l < nx)                 /* 左边角: 旧值左端露出部分 */
-                    DispBlock(old_l, R_BAT_TEMP.y1, nx - 1, R_BAT_TEMP.y2);
-                if (nx + nw < old_r)            /* 右边角: 旧值右端露出部分 */
-                    DispBlock(nx + nw, R_BAT_TEMP.y1, old_r - 1, R_BAT_TEMP.y2);
-            }
-            temp_val_x = nx;
-            temp_val_w = nw;
-            last_temp_c = temp_c;
-        }
-    }
-
-    /* 主机版本变化时刷新底部版本行 (MCU 部分恒定) */
-    {
-        static uint16_t last_host_ver = 0xFFFF;
-        if (ui_data.host_fw_ver != last_host_ver)
-        {
-            DispBlock(0, INFO2_VER_Y, ROW - 1, INFO2_VER_Y + 9);
-            info2_draw_version();
-            last_host_ver = ui_data.host_fw_ver;
-        }
-    }
 }
 
 void information_page_3_updata(void)

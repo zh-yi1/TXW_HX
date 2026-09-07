@@ -3,10 +3,12 @@
 #include "global_define.h"
 
 void information_page_1_init(void);
+void information_page_1_updata(void);
 void information_page_2_init(void);
 void information_page_3_init(void);
+void software_version_page_init(void);
+void software_version_page_updata(void);
 void information_page_2_sample(void);
-void information_page_1_updata(void);
 void information_page_2_updata(void);
 void information_page_3_updata(void);
 

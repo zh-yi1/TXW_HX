@@ -61,7 +61,7 @@ void ui_init(void)
 	DispColor(BLACK);
 	ui_data.last_page = PAGE_MAX;
 	ui_data.cur_page = PAGE_HOME;
-	// information_page_1_init();
+	// information_page_2_init();
 	// over_temp_hint_page();
 	//获取FLASH芯片 ID
 //	ui_ctrl.flash_id = flash_read_id();
@@ -137,9 +137,6 @@ void ui_proc(void)
 		case PAGE_HOME:
 			home_page_init();
 			break;
-		case PAGE_POWER:
-			power_page_init();
-			break;
 		case PAGE_INFO_1:
 			information_page_1_init();
 			break;
@@ -151,6 +148,9 @@ void ui_proc(void)
 			break;
 		case PAGE_OFF_TIME:
 			off_time_page_init();
+			break;
+		case PAGE_SOFTWARE_VERSION:
+			software_version_page_init();
 			break;
 		case PAGE_OVER_TEMP:
 			high_temp_pro(battery_mgr_get_warning_chg_state());
@@ -207,11 +207,6 @@ void ui_proc(void)
 		power_mgr_notify_frame_drawn();
 	}
 
-	/* 端口功率采样: 必须放在 500ms 限流之外, 否则滤波窗口跟着绘制节奏走,
-	   5 点窗口要跨 2.5s 才填满 */
-	if (ui_data.cur_page == PAGE_POWER)
-		power_page_sample();
-
 	/* 主页电量采样 + 充放电动画: 两者节奏都远快于 500ms, 同样不能受限流 */
 	if (ui_data.cur_page == PAGE_HOME)
 	{
@@ -239,9 +234,6 @@ void ui_proc(void)
 	case PAGE_HOME:
 		home_page_updata();
 		break;
-	case PAGE_POWER:
-		power_page_updata();
-		break;
 	case PAGE_INFO_1:
 		information_page_1_updata();
 		break;
@@ -250,6 +242,9 @@ void ui_proc(void)
 		break;
 	case PAGE_INFO_3:
 		information_page_3_updata();
+		break;
+	case PAGE_SOFTWARE_VERSION:
+		software_version_page_updata();
 		break;
 	case PAGE_OVER_TEMP:
 	case PAGE_SHORT_CIRCUIT:
@@ -295,10 +290,6 @@ void key_single_click_ui_proc(void)
 	{
 	case PAGE_HOME:
 		ui_data.last_page = PAGE_HOME;
-		ui_data.cur_page = PAGE_POWER;
-		break;
-	case PAGE_POWER:
-		ui_data.last_page = PAGE_POWER;
 		ui_data.cur_page = PAGE_INFO_1;
 		break;
 	case PAGE_INFO_1:
@@ -310,13 +301,18 @@ void key_single_click_ui_proc(void)
 		ui_data.cur_page = PAGE_HOME;
 		break;
 	case PAGE_INFO_3:
-		/* 电压界面单击 -> 息屏时长设置界面 */
+		/* 更多信息循环: 电芯电压 -> 软件版本 */
 		ui_data.last_page = PAGE_INFO_3;
-		ui_data.cur_page = PAGE_OFF_TIME;
+		ui_data.cur_page = PAGE_SOFTWARE_VERSION;
 		break;
 	case PAGE_OFF_TIME:
-		/* 息屏时长界面单击 -> 温度异常界面 (原来电压界面的下一站) */
+		/* 更多信息循环: 息屏时长 -> 电芯电压 */
 		ui_data.last_page = PAGE_OFF_TIME;
+		ui_data.cur_page = PAGE_INFO_3;
+		break;
+	case PAGE_SOFTWARE_VERSION:
+		/* 软件版本界面单击 -> 温度异常界面 */
+		ui_data.last_page = PAGE_SOFTWARE_VERSION;
 		ui_data.cur_page = PAGE_TEMP_ABNORMAL;
 		break;
 	case PAGE_DISABLED:
@@ -329,9 +325,9 @@ void key_single_click_ui_proc(void)
 		ui_data.cur_page = PAGE_VOLTAGE_ABNORMAL;
 		break;
 	case PAGE_VOLTAGE_ABNORMAL:
-		/* 电压异常界面单击 -> 电压界面 */
+		/* 更多信息循环: 电压异常 -> 息屏时长 */
 		ui_data.last_page = PAGE_VOLTAGE_ABNORMAL;
-		ui_data.cur_page = PAGE_INFO_3;
+		ui_data.cur_page = PAGE_OFF_TIME;
 		break;
 	default:
 		break;
@@ -387,18 +383,22 @@ bool key_long_press_ui_proc(void)
 			ret = true;
 			break;
 		case PAGE_INFO_2:
-			/* 温度界面长按 -> 电压界面 */
+			/* 仅电池状态页可长按进入更多信息模块 */
 			ui_data.last_page = PAGE_INFO_2;
-			ui_data.cur_page = PAGE_INFO_3;
+			ui_data.cur_page = PAGE_OFF_TIME;
 			break;
 		case PAGE_INFO_3:
-			/* 电压界面长按 -> 温度界面 */
+			/* 更多信息模块任一页面长按 -> 电池状态页 */
 			ui_data.last_page = PAGE_INFO_3;
 			ui_data.cur_page = PAGE_INFO_2;
 			break;
 		case PAGE_OFF_TIME:
-			/* 息屏时长界面长按 -> 温度界面 */
+			/* 更多信息模块任一页面长按 -> 电池状态页 */
 			ui_data.last_page = PAGE_OFF_TIME;
+			ui_data.cur_page = PAGE_INFO_2;
+			break;
+		case PAGE_SOFTWARE_VERSION:
+			ui_data.last_page = PAGE_SOFTWARE_VERSION;
 			ui_data.cur_page = PAGE_INFO_2;
 			break;
 		case PAGE_TEMP_ABNORMAL:

@@ -29,7 +29,6 @@
 
 #include "ui.h"
 #include "flash_image_addr.h"
-#include "power_page.h"
 #include "home_page.h"
 #include "hint_page.h"
 #include "information_page.h"
