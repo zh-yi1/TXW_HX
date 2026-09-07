@@ -146,7 +146,7 @@ typedef struct
 	uint16_t res_vbat;		/* 采样电阻 Vbat (mV) (协议 0x1C-0x1D) */
 
 	/* ---- 主机版本 (协议 0x00/0x01, 主机 W → ui_data) ---- */
-	uint16_t host_fw_ver;		/* 主机固件版本, 2字节LE BCD (V3.0→0x0300) */
+	uint16_t host_fw_ver;		/* 主机固件版本x10, uint16 LE (V2.1→21/0x0015) */
 
 	/* ---- 3C 新国标新增字段 ---- */
 	uint16_t cell_voltage_mv[4];	/* 每节电芯电压 (mV) */

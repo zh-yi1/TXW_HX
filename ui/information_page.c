@@ -417,19 +417,20 @@ static void software_draw_version(const char *prefix, const char *version, uint8
     digit_display_string(version, x, y, DIGIT_HEIGHT_16);
 }
 
-static uint8_t software_append_bcd(uint8_t bcd, char *out)
+static uint8_t software_append_uint16(uint16_t value, char *out)
 {
+    char reverse[5];
     uint8_t n = 0;
-    uint8_t high = (uint8_t)((bcd >> 4) & 0x0F);
-    uint8_t low = (uint8_t)(bcd & 0x0F);
+    uint8_t digits = 0;
 
-    if (high <= 9 && low <= 9) {
-        if (high != 0)
-            out[n++] = (char)('0' + high);
-        out[n++] = (char)('0' + low);
-    } else {
-        out[n++] = '-';
-    }
+    do {
+        reverse[digits++] = (char)('0' + value % 10U);
+        value /= 10U;
+    } while (value != 0U && digits < sizeof(reverse));
+
+    while (digits != 0U)
+        out[n++] = reverse[--digits];
+
     return n;
 }
 
@@ -443,9 +444,10 @@ static void software_pd_version_string(uint16_t value, char out[8])
         out[n++] = '-'; out[n++] = '-'; out[n++] = '-'; out[n++] = '-'; out[n] = '\0';
         return;
     }
-    n += software_append_bcd((uint8_t)(value >> 8), &out[n]);
+    /* 主机发送“版本号 x 10”的 uint16 小端值，例如 21(0x0015) 表示 V2.1。 */
+    n += software_append_uint16((uint16_t)(value / 10U), &out[n]);
     out[n++] = '.';
-    n += software_append_bcd((uint8_t)value, &out[n]);
+    out[n++] = (char)('0' + value % 10U);
     out[n] = '\0';
 }
 
