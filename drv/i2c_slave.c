@@ -440,17 +440,22 @@ typedef struct {
     uint16_t status_reg, voltage_reg, current_reg;   /* 寄存器 */
     uint8_t *status;                                /* 端口状态(输出) */
     uint8_t *power;                                 /* 功率显示(输出) */
+    uint16_t *voltage_mv;                           /* 实时电压(输出) */
+    uint16_t *current_ma;                           /* 实时电流(输出) */
     uint8_t loaded;                                /* 放电有载状态 */
     uint32_t light_tick;                            /* 轻载计时 */
     uint32_t raw_power_mw;                          /* 原始功率(mW), 供双C互斥功率兜底 */
 } port_ctx_t;
 
 static port_ctx_t port_c1 = {REG_C1_STATUS,  REG_C1_VOLTAGE_L,  REG_C1_CURRENT_L,
-                             &ui_data.usb_c1_status, &ui_data.usb_c1_power};
+                             &ui_data.usb_c1_status, &ui_data.usb_c1_power,
+                             &ui_data.usb_c1_voltage_mv, &ui_data.usb_c1_current_ma};
 static port_ctx_t port_c2 = {REG_C2_STATUS,  REG_C2_VOLTAGE_L,  REG_C2_CURRENT_L,
-                             &ui_data.usb_c2_status, &ui_data.usb_c2_power};
+                             &ui_data.usb_c2_status, &ui_data.usb_c2_power,
+                             &ui_data.usb_c2_voltage_mv, &ui_data.usb_c2_current_ma};
 static port_ctx_t port_a  = {REG_USBA_STATUS, REG_USBA_VOLTAGE_L, REG_USBA_CURRENT_L,
-                             &ui_data.usb_a_status, &ui_data.usb_a_power};
+                             &ui_data.usb_a_status, &ui_data.usb_a_power,
+                             &ui_data.usb_a_voltage_mv, &ui_data.usb_a_current_ma};
 
 /* 端口数据处理: 取状态 -> 算功率显示 -> 轻载判拔(仅放电)
    放电时功率<0.1W 判轻载(1s 防抖), 0.1~0.2W 滞回; 轻载则清状态 */
@@ -460,12 +465,16 @@ static void port_data_update(port_ctx_t *ctx)
 
     if (!*ctx->status) {                                  /* 未连接: 功率 0, 复位 */
         *ctx->power = 0;
+        *ctx->voltage_mv = 0;
+        *ctx->current_ma = 0;
         ctx->loaded = 0;
         ctx->light_tick = 0;
         return;
     }
     uint16_t voltage_mv = reg_read_u16(ctx->voltage_reg);
     uint16_t current_ma = reg_read_u16(ctx->current_reg);
+    *ctx->voltage_mv = voltage_mv;
+    *ctx->current_ma = current_ma;
     uint32_t power_mw = (uint32_t)voltage_mv * current_ma / 1000;
     uint32_t power_w  = power_mw / 1000;                  /* 提取复用 */
     ctx->raw_power_mw = power_mw;                   /* 存原始功率, 供双C互斥判断 */
