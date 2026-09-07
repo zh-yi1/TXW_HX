@@ -88,8 +88,6 @@ static void info_port_draw_row(uint8_t row, uint8_t status,
 
 void information_page_1_init(void)
 {
-    uint8_t row;
-
     DispBlock(0, 0, ROW - 1, COL - 1);
     memset(info_port_last_status, 0xFF, sizeof(info_port_last_status));
     memset(info_port_last_voltage, 0xFF, sizeof(info_port_last_voltage));
