@@ -12,19 +12,19 @@ typedef enum
 } hint_img_e;
 
 pos_and_addr_t hint_img_pos[] = {
-	{80, 0, FLASH_ADDR_TEMP_ORANGE},       /* HINT_OVER_TEMP_IDLE */
-	{80, 0, FLASH_ADDR_TEMP_ORANGE},       /* HINT_OVER_TEMP_CHG */
-	{80, 0, FLASH_ADDR_TEMP_ORANGE},       /* HINT_OVER_TEMP_DSG */
-	{80, 0, FLASH_ADDR_CIRCUIT_PROTECTION},/* HINT_SHORT_CIRCUIT */
-	{80, 0, FLASH_ADDR_SAFE},			   /* HINT_SAFEGUARD */
+	{80, 0, FLASH_ADDR_ICON_TEMP_HIGH},  /* HINT_OVER_TEMP_IDLE */
+	{80, 0, FLASH_ADDR_ICON_TEMP_HIGH},  /* HINT_OVER_TEMP_CHG */
+	{80, 0, FLASH_ADDR_ICON_TEMP_HIGH},  /* HINT_OVER_TEMP_DSG */
+	{80, 0, FLASH_ADDR_ICON_PROTECTION}, /* HINT_SHORT_CIRCUIT */
+	{80, 0, FLASH_ADDR_ICON_SAFE},       /* HINT_SAFEGUARD */
 };
 
 pos_and_addr_t hint_text_img_pos[] = {
-	{0, 80, FLASH_ADDR_NOAMAL_HIGH_TEMP_PRO},       /* HINT_OVER_TEMP_IDLE */
-	{0, 80, FLASH_ADDR_CHARGE_HIGH_TEMP_PRO},       /* HINT_OVER_TEMP_CHG */
-	{0, 80, FLASH_ADDR_DISCHARGE_HIGH_TEMP_PRO},    /* HINT_OVER_TEMP_DSG */
-	{0, 80, FLASH_ADDR_CIRCUIT_PROTECTION_TEXT}, 	/* HINT_SHORT_CIRCUIT */
-	{0, 80, FLASH_ADDR_SAFEGUARD}, 					/* HINT_SHORT_CIRCUIT */
+	{0, 80, FLASH_ADDR_TEXT_STANDING_HIGH_TEMP},    /* HINT_OVER_TEMP_IDLE */
+	{0, 80, FLASH_ADDR_TEXT_CHARGING_HIGH_TEMP},    /* HINT_OVER_TEMP_CHG */
+	{0, 80, FLASH_ADDR_TEXT_DISCHARGING_HIGH_TEMP}, /* HINT_OVER_TEMP_DSG */
+	{0, 80, FLASH_ADDR_TEXT_PROTECTION_1},          /* HINT_SHORT_CIRCUIT */
+	{0, 80, FLASH_ADDR_TEXT_SAFEGUARD},             /* HINT_SAFEGUARD */
 };
 
 /*
@@ -37,7 +37,7 @@ void high_temp_pro(uint8_t type)
 	DispBlock(0, 0, ROW - 1, COL - 1);
 	Dispphoto_Dispaly_flash(hint_img_pos[type].x, hint_img_pos[type].y, hint_img_pos[type].img_addr);
 	Dispphoto_Dispaly_flash(hint_text_img_pos[type].x, hint_text_img_pos[type].y, hint_text_img_pos[type].img_addr);
-	Dispphoto_Dispaly_flash(0, 116, FLASH_ADDR_TEMPERATURE_RECOVERY);
+	Dispphoto_Dispaly_flash(0, 116, FLASH_ADDR_TEMP_DROPS_TO_NORMAL);
 }
 
 /* 禁用提示页 — 全红 */
@@ -53,7 +53,7 @@ void short_circuit_hint_page(void)
 	DispBlock(0, 0, ROW - 1, COL - 1);
 	Dispphoto_Dispaly_flash(hint_img_pos[HINT_SHORT_CIRCUIT].x, hint_img_pos[HINT_SHORT_CIRCUIT].y, hint_img_pos[HINT_SHORT_CIRCUIT].img_addr);
 	Dispphoto_Dispaly_flash(hint_text_img_pos[HINT_SHORT_CIRCUIT].x, hint_text_img_pos[HINT_SHORT_CIRCUIT].y, hint_text_img_pos[HINT_SHORT_CIRCUIT].img_addr);
-	Dispphoto_Dispaly_flash(0, 116, FLASH_ADDR_CIRCUIT_RECOVERY);
+	Dispphoto_Dispaly_flash(0, 116, FLASH_ADDR_TEXT_PROTECTION_2);
 }
 
 /* ================================================================
@@ -115,11 +115,11 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 
 	/* 标题 (0,0) 240x32 */
 	Dispphoto_Dispaly_flash(0, 0,
-		(type == 0) ? FLASH_ADDR_VOLTAGE_ABNORMAL : FLASH_ADDR_TEMP_ABNORMAL);
+		(type == 0) ? FLASH_ADDR_TITLE_ABNORMAL_VOLTAGE : FLASH_ADDR_TITLE_ABNORMAL_TEMP);
 
 	/* 无记录: 标题下方只显示"无异常记录" (124x20, 58 即整屏居中) */
 	if (total == 0) {
-		Dispphoto_Dispaly_flash(ABN_NONE_X, ABN_NONE_Y, FLASH_ADDR_NO_ABNORMAL);
+		Dispphoto_Dispaly_flash(ABN_NONE_X, ABN_NONE_Y, FLASH_ADDR_TEXT_NO_ABNORMAL_RECORDS);
 		return;
 	}
 
@@ -176,7 +176,7 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 	w = (uint16_t)ABN_LABEL_W + string_width_16(buf) + ABN_TIME_GAP + string_width_16(buf2);
 	x = (w < ROW) ? (uint16_t)((ROW - w) / 2) : 0;
 
-	Dispphoto_Dispaly_flash(x, ABN_TIME_Y, FLASH_ADDR_ABNORMAL_TIME);
+	Dispphoto_Dispaly_flash(x, ABN_TIME_Y, FLASH_ADDR_TEXT_TIME);
 	x += ABN_LABEL_W;
 	display_string_16(buf, x, ABN_TIME_Y);
 	x += string_width_16(buf) + ABN_TIME_GAP;
@@ -188,7 +188,7 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 		uint8_t  k;
 
 		/* "电压：" (31,101), 电压值 (75,101) */
-		Dispphoto_Dispaly_flash(ABN_VOLT_LBL_X, ABN_ROW3_Y, FLASH_ADDR_ABNORMAL_V);
+		Dispphoto_Dispaly_flash(ABN_VOLT_LBL_X, ABN_ROW3_Y, FLASH_ADDR_TEXT_VOLTAGE);
 
 		p = 0;
 		if (v >= 100) { buf[p++] = '0' + v/100; v %= 100; }
@@ -222,11 +222,11 @@ void abnormal_hint_page(uint8_t  type,        /* 0=电压 1=温度              
 		uint32_t lbl;
 
 		if (chg_state == CHG_STATE_CHARGING)
-			lbl = FLASH_ADDR_CHARGE_TEMP;
+			lbl = FLASH_ADDR_TEXT_CHARGING_TEMP;
 		else if (chg_state == CHG_STATE_DISCHARGING)
-			lbl = FLASH_ADDR_DISCHARGE_TEMP;
+			lbl = FLASH_ADDR_TEXT_DISCHARGING_TEMP;
 		else
-			lbl = FLASH_ADDR_NOAMAL_TEMP;
+			lbl = FLASH_ADDR_TEXT_STANDING_TEMP;
 
 		p = 0;
 		if (t >= 100) { buf[p++] = '0' + t/100; t %= 100; }
