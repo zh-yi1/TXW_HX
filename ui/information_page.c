@@ -397,14 +397,13 @@ static uint16_t software_last_pd_version;
 #define SOFTWARE_VERSION_LABEL_W  54U
 #define SOFTWARE_VERSION_GAP       3U
 
-/* 拼成“MCU版本号: x.x.x”或“PD版本号: x.x”。 */
+/* 拼成“MCU版本号:x.x.x”或“PD版本号:x.x”；版本号图片已包含冒号。 */
 static void software_draw_version(const char *prefix, const char *version, uint8_t y)
 {
     uint16_t prefix_w = digit_string_width(prefix, DIGIT_HEIGHT_16);
-    uint16_t colon_w  = digit_string_width(":", DIGIT_HEIGHT_16);
     uint16_t version_w = digit_string_width(version, DIGIT_HEIGHT_16);
     uint16_t total_w = prefix_w + SOFTWARE_VERSION_GAP
-                     + SOFTWARE_VERSION_LABEL_W + colon_w
+                     + SOFTWARE_VERSION_LABEL_W
                      + SOFTWARE_VERSION_GAP + version_w;
     uint16_t x = (total_w < ROW) ? (uint16_t)((ROW - total_w) / 2) : 0;
 
@@ -412,8 +411,7 @@ static void software_draw_version(const char *prefix, const char *version, uint8
     x += prefix_w + SOFTWARE_VERSION_GAP;
     Dispphoto_Dispaly_flash(x, y, FLASH_ADDR_TEXT_VERSION_NUMBER);
     x += SOFTWARE_VERSION_LABEL_W;
-    digit_display_string(":", x, y, DIGIT_HEIGHT_16);
-    x += colon_w + SOFTWARE_VERSION_GAP;
+    x += SOFTWARE_VERSION_GAP;
     digit_display_string(version, x, y, DIGIT_HEIGHT_16);
 }
 
