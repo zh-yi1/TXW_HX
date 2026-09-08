@@ -4,9 +4,9 @@
 #include "global_define.h"
 
 /* 屏幕显示软件版本 (信息页 "MCU Vx.y" / 开机 LOG / 产测): 改这里即可 */
-#define VERSION        "V1.8"
+#define VERSION        "V1.9"
 #define VERSION_MAJOR  1
-#define VERSION_MINOR  8
+#define VERSION_MINOR  9
 
 #endif /*__MAIN_H__*/
 
