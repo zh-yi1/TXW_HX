@@ -207,7 +207,7 @@ void ui_proc(void)
 		power_mgr_notify_frame_drawn();
 	}
 
-	/* 主页电量采样 + 充放电动画: 两者节奏都远快于 500ms, 同样不能受限流 */
+	/* 主页电量采样 + 充电动画不受 500ms 页面刷新限流。 */
 	if (ui_data.cur_page == PAGE_HOME)
 	{
 		home_page_sample();

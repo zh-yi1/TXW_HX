@@ -34,6 +34,8 @@
 #define HM_SAMPLE_MS        100U
 #define HM_BAT_SNAP         5
 #define HM_POWER_SNAP       10
+#define HM_ANIM_FRAME_COUNT 12U
+#define HM_ANIM_CYCLE_MS    2000U
 
 typedef struct {
 	uint8_t id;       /* 0=C1, 1=C2, 2=A */
@@ -60,6 +62,37 @@ static const uint32_t hm_bat_digit[10][2] = {
 static const uint32_t hm_bat_percent[2] = {
 	FLASH_ADDR_NUM_48_PERCENT_WHITE, FLASH_ADDR_NUM_48_PERCENT_ORANGE
 };
+/* 资源生成器按文件名字典序排地址，必须显式按 0~11 组织播放顺序。 */
+static const uint32_t hm_charge_anim[2][HM_ANIM_FRAME_COUNT] = {
+	{
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_0,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_1,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_2,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_3,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_4,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_5,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_6,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_7,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_8,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_9,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_10,
+		FLASH_ADDR_HIGH_POWER_CHARGING_ANIMA_11,
+	},
+	{
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_0,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_1,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_2,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_3,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_4,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_5,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_6,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_7,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_8,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_9,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_10,
+		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_11,
+	},
+};
 static const uint32_t hm_port_icon[HM_PORT_COUNT][2] = {
 	{FLASH_ADDR_ICON_IN_1_LITTLE, FLASH_ADDR_ICON_OUT_1_LITTLE},
 	{FLASH_ADDR_ICON_IN_2_LITTLE, FLASH_ADDR_ICON_OUT_2_LITTLE},
@@ -77,6 +110,9 @@ static uint8_t hm_bat_buf[HM_FILTER_WIN], hm_bat_idx, hm_bat_out;
 static uint8_t hm_power_buf[HM_PORT_COUNT][HM_FILTER_WIN];
 static uint8_t hm_power_idx[HM_PORT_COUNT], hm_sample_status[HM_PORT_COUNT];
 static uint32_t hm_sample_tick;
+static uint32_t hm_anim_start_tick;
+static uint8_t hm_anim_frame, hm_anim_low;
+static bool hm_anim_running;
 
 static uint8_t hm_abs_diff(uint8_t a, uint8_t b)
 {
@@ -214,8 +250,10 @@ static uint8_t hm_draw_power(uint8_t power, uint8_t y)
 
 static uint32_t hm_emoji_addr(uint8_t count, uint8_t power)
 {
+	if (power <= HM_LOW_SOC)
+		return FLASH_ADDR_EMOJI_LOW_POWER;
 	if (count == 0)
-		return power <= HM_LOW_SOC ? FLASH_ADDR_EMOJI_LOW_POWER : FLASH_ADDR_EMOJI_NORMAL;
+		return FLASH_ADDR_EMOJI_NORMAL;
 	return hm_any_charge() ? FLASH_ADDR_EMOJI_CHARGING : FLASH_ADDR_EMOJI_NORMAL;
 }
 
@@ -304,7 +342,7 @@ static void hm_render(bool first)
 	uint8_t count = hm_collect_ports(ports);
 	uint8_t power = hm_bat_get();
 	uint8_t bat_y = count >= 2 ? HM_BAT_Y_MULTI : HM_BAT_Y_SINGLE;
-	uint8_t color = count == 0 && power <= HM_LOW_SOC ? HM_ORANGE : HM_WHITE;
+	uint8_t color = power <= HM_LOW_SOC ? HM_ORANGE : HM_WHITE;
 	bool layout_changed = first || count != hm_last_count;
 	bool low_text = count == 0 && power <= HM_LOW_SOC;
 	bool old_low_text = hm_last_count == 0 && hm_last_bat <= HM_LOW_SOC;
@@ -329,7 +367,9 @@ static void hm_render(bool first)
 	if (low_text && (layout_changed || !old_low_text))
 		Dispphoto_Dispaly_flash(0, HM_LOW_TEXT_Y, FLASH_ADDR_TEXT_LOW_POWER);
 	hm_draw_ports(ports, count, layout_changed);
-	hm_draw_emoji(hm_emoji_addr(count, power));
+	/* 充电时表情区域由 home_page_anim_proc() 独占，避免 500ms 刷新覆盖动画帧。 */
+	if (!hm_any_charge())
+		hm_draw_emoji(hm_emoji_addr(count, power));
 	hm_update_top();
 
 	hm_last_bat = power; hm_last_color = color; hm_last_bat_y = bat_y;
@@ -355,7 +395,46 @@ void home_page_sample(void)
 
 void home_page_anim_proc(void)
 {
-	/* Stable hook retained; the redesigned page has no animation. */
+	uint32_t now = md_get_tick();
+	uint32_t elapsed;
+	uint8_t frame;
+	uint8_t low;
+
+	if (!hm_any_charge()) {
+		if (hm_anim_running) {
+			hm_anim_running = false;
+			hm_anim_frame = 0xFFU;
+			hm_last_emoji = 0;
+			/* 动画结束：立即同步端口、电量和静态表情，之后恢复 500ms 节拍。 */
+			hm_render(false);
+		}
+		return;
+	}
+
+	low = (hm_bat_out <= HM_LOW_SOC) ? 1U : 0U;
+	if (!hm_anim_running || low != hm_anim_low) {
+		/* 动画开始或高/低电切换：先同步端口、电量，再显示第 0 帧。 */
+		hm_render(false);
+		hm_anim_running = true;
+		hm_anim_low = low;
+		hm_anim_frame = 0U;
+		hm_anim_start_tick = now;
+		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y, hm_charge_anim[low][0]);
+		hm_last_emoji = hm_charge_anim[low][0];
+		return;
+	}
+
+	elapsed = now - hm_anim_start_tick;
+	if (elapsed >= HM_ANIM_CYCLE_MS) {
+		hm_anim_start_tick += (elapsed / HM_ANIM_CYCLE_MS) * HM_ANIM_CYCLE_MS;
+		elapsed %= HM_ANIM_CYCLE_MS;
+	}
+	frame = (uint8_t)((elapsed * HM_ANIM_FRAME_COUNT) / HM_ANIM_CYCLE_MS);
+	if (frame != hm_anim_frame) {
+		hm_anim_frame = frame;
+		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y, hm_charge_anim[low][frame]);
+		hm_last_emoji = hm_charge_anim[low][frame];
+	}
 }
 
 void home_page_init(void)
@@ -369,6 +448,10 @@ void home_page_init(void)
 		hm_power_fill(id, power); hm_sample_status[id] = status;
 	}
 	hm_sample_tick = md_get_tick();
+	hm_anim_start_tick = hm_sample_tick;
+	hm_anim_frame = 0xFFU;
+	hm_anim_low = 0U;
+	hm_anim_running = false;
 	hm_last_bat = hm_last_color = hm_last_bat_y = hm_last_count = 0xFF;
 	hm_last_bat_w = 0; hm_last_emoji = 0; hm_last_minute = -2;
 	hm_last_mini = !ui_data.low_current_flag;
