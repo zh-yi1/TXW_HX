@@ -207,7 +207,7 @@ void ui_proc(void)
 		power_mgr_notify_frame_drawn();
 	}
 
-	/* 主页电量采样 + 充电动画不受 500ms 页面刷新限流。 */
+	/* 主页电量采样 + 充电/待机动画不受 500ms 页面刷新限流。 */
 	if (ui_data.cur_page == PAGE_HOME)
 	{
 		home_page_sample();

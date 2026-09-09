@@ -93,6 +93,36 @@ static const uint32_t hm_charge_anim[2][HM_ANIM_FRAME_COUNT] = {
 		FLASH_ADDR_LOW_POWER_CHARGING_ANIMA_11,
 	},
 };
+static const uint32_t hm_standby_anim[2][HM_ANIM_FRAME_COUNT] = {
+	{
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_0,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_1,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_2,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_3,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_4,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_5,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_6,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_7,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_8,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_9,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_10,
+		FLASH_ADDR_HIGH_POWER_STANDBY_ANIMA_11,
+	},
+	{
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_0,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_1,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_2,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_3,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_4,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_5,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_6,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_7,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_8,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_9,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_10,
+		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_11,
+	},
+};
 static const uint32_t hm_port_icon[HM_PORT_COUNT][2] = {
 	{FLASH_ADDR_ICON_IN_1_LITTLE, FLASH_ADDR_ICON_OUT_1_LITTLE},
 	{FLASH_ADDR_ICON_IN_2_LITTLE, FLASH_ADDR_ICON_OUT_2_LITTLE},
@@ -102,7 +132,6 @@ static const uint32_t hm_port_icon[HM_PORT_COUNT][2] = {
 static uint8_t hm_last_bat, hm_last_color, hm_last_bat_y, hm_last_bat_w;
 static uint8_t hm_last_count, hm_last_power_w[HM_PORT_COUNT];
 static hm_port_t hm_last_ports[HM_PORT_COUNT];
-static uint32_t hm_last_emoji;
 static int16_t hm_last_minute;
 static bool hm_last_mini;
 
@@ -111,7 +140,7 @@ static uint8_t hm_power_buf[HM_PORT_COUNT][HM_FILTER_WIN];
 static uint8_t hm_power_idx[HM_PORT_COUNT], hm_sample_status[HM_PORT_COUNT];
 static uint32_t hm_sample_tick;
 static uint32_t hm_anim_start_tick;
-static uint8_t hm_anim_frame, hm_anim_low;
+static uint8_t hm_anim_frame, hm_anim_low, hm_anim_charging;
 static bool hm_anim_running;
 
 static uint8_t hm_abs_diff(uint8_t a, uint8_t b)
@@ -248,21 +277,9 @@ static uint8_t hm_draw_power(uint8_t power, uint8_t y)
 	return (uint8_t)(x - HM_POWER_X);
 }
 
-static uint32_t hm_emoji_addr(uint8_t count, uint8_t power)
+static uint32_t hm_anim_addr(uint8_t charging, uint8_t low, uint8_t frame)
 {
-	if (power <= HM_LOW_SOC)
-		return FLASH_ADDR_EMOJI_LOW_POWER;
-	if (count == 0)
-		return FLASH_ADDR_EMOJI_NORMAL;
-	return hm_any_charge() ? FLASH_ADDR_EMOJI_CHARGING : FLASH_ADDR_EMOJI_NORMAL;
-}
-
-static void hm_draw_emoji(uint32_t addr)
-{
-	if (addr != hm_last_emoji) {
-		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y, addr);
-		hm_last_emoji = addr;
-	}
+	return charging ? hm_charge_anim[low][frame] : hm_standby_anim[low][frame];
 }
 
 static int hm_draw_num18(int x, uint8_t value)
@@ -367,9 +384,7 @@ static void hm_render(bool first)
 	if (low_text && (layout_changed || !old_low_text))
 		Dispphoto_Dispaly_flash(0, HM_LOW_TEXT_Y, FLASH_ADDR_TEXT_LOW_POWER);
 	hm_draw_ports(ports, count, layout_changed);
-	/* 充电时表情区域由 home_page_anim_proc() 独占，避免 500ms 刷新覆盖动画帧。 */
-	if (!hm_any_charge())
-		hm_draw_emoji(hm_emoji_addr(count, power));
+	/* 表情区域由 home_page_anim_proc() 独占，避免 500ms 刷新覆盖动画帧。 */
 	hm_update_top();
 
 	hm_last_bat = power; hm_last_color = color; hm_last_bat_y = bat_y;
@@ -397,30 +412,22 @@ void home_page_anim_proc(void)
 {
 	uint32_t now = md_get_tick();
 	uint32_t elapsed;
+	uint32_t addr;
 	uint8_t frame;
 	uint8_t low;
-
-	if (!hm_any_charge()) {
-		if (hm_anim_running) {
-			hm_anim_running = false;
-			hm_anim_frame = 0xFFU;
-			hm_last_emoji = 0;
-			/* 动画结束：立即同步端口、电量和静态表情，之后恢复 500ms 节拍。 */
-			hm_render(false);
-		}
-		return;
-	}
+	uint8_t charging = hm_any_charge() ? 1U : 0U;
 
 	low = (hm_bat_out <= HM_LOW_SOC) ? 1U : 0U;
-	if (!hm_anim_running || low != hm_anim_low) {
-		/* 动画开始或高/低电切换：先同步端口、电量，再显示第 0 帧。 */
+	if (!hm_anim_running || low != hm_anim_low || charging != hm_anim_charging) {
+		/* 充电/待机或高/低电切换：先同步端口、电量，再显示第0帧。 */
 		hm_render(false);
 		hm_anim_running = true;
 		hm_anim_low = low;
+		hm_anim_charging = charging;
 		hm_anim_frame = 0U;
 		hm_anim_start_tick = now;
-		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y, hm_charge_anim[low][0]);
-		hm_last_emoji = hm_charge_anim[low][0];
+		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y,
+		                         hm_anim_addr(charging, low, 0U));
 		return;
 	}
 
@@ -432,8 +439,8 @@ void home_page_anim_proc(void)
 	frame = (uint8_t)((elapsed * HM_ANIM_FRAME_COUNT) / HM_ANIM_CYCLE_MS);
 	if (frame != hm_anim_frame) {
 		hm_anim_frame = frame;
-		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y, hm_charge_anim[low][frame]);
-		hm_last_emoji = hm_charge_anim[low][frame];
+		addr = hm_anim_addr(charging, low, frame);
+		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y, addr);
 	}
 }
 
@@ -451,9 +458,10 @@ void home_page_init(void)
 	hm_anim_start_tick = hm_sample_tick;
 	hm_anim_frame = 0xFFU;
 	hm_anim_low = 0U;
+	hm_anim_charging = 0U;
 	hm_anim_running = false;
 	hm_last_bat = hm_last_color = hm_last_bat_y = hm_last_count = 0xFF;
-	hm_last_bat_w = 0; hm_last_emoji = 0; hm_last_minute = -2;
+	hm_last_bat_w = 0; hm_last_minute = -2;
 	hm_last_mini = !ui_data.low_current_flag;
 	memset(hm_last_ports, 0xFF, sizeof(hm_last_ports));
 	memset(hm_last_power_w, 0, sizeof(hm_last_power_w));
