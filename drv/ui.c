@@ -25,7 +25,7 @@ ui_data_t ui_data = {
 	.bat_current = 0,
 
 	.warning = WARNING_NONE,
-	.cur_page = PAGE_HOME,
+	.cur_page = PAGE_POWER_ON,
 	.last_page = PAGE_MAX,
 	.bat_model_1 = "1234567890_A",
 	.bat_model_2 = "BCDEFGHIJKLM",
@@ -60,7 +60,7 @@ void ui_init(void)
 	//刷黑屏幕
 	DispColor(BLACK);
 	ui_data.last_page = PAGE_MAX;
-	ui_data.cur_page = PAGE_HOME;
+	ui_data.cur_page = PAGE_POWER_ON;
 	// information_page_2_init();
 	// over_temp_hint_page();
 	//获取FLASH芯片 ID
@@ -95,7 +95,8 @@ static void check_port_plug_in(void)
 	last_c2 = ui_data.usb_c2_status;
 	last_a  = ui_data.usb_a_status;
 
-	if ((plug_in || plug_out) && ui_data.cur_page != PAGE_HOME)
+	if ((plug_in || plug_out) && ui_data.cur_page != PAGE_HOME
+	    && ui_data.cur_page != PAGE_POWER_ON)
 	{
 		LOGI("[UI] port plug in/out -> PAGE_HOME\r\n");
 		ui_data.last_page = ui_data.cur_page;
@@ -136,6 +137,9 @@ void ui_proc(void)
 		{
 		case PAGE_HOME:
 			home_page_init();
+			break;
+		case PAGE_POWER_ON:
+			power_on_page_init();
 			break;
 		case PAGE_INFO_1:
 			information_page_1_init();
@@ -208,6 +212,11 @@ void ui_proc(void)
 	}
 
 	/* 主页电量采样 + 充电/放电/待机动画不受 500ms 页面刷新限流。 */
+	if (ui_data.cur_page == PAGE_POWER_ON) {
+		power_on_page_anim_proc();
+		return;
+	}
+
 	if (ui_data.cur_page == PAGE_HOME)
 	{
 		home_page_sample();
@@ -345,6 +354,8 @@ bool key_double_click_ui_proc(void)
 {
 	switch (ui_data.cur_page)
 	{
+	case PAGE_POWER_ON:
+		return false;
 	case PAGE_OFF_TIME:
 		/* 设置页双击是换选项, 不灭屏 */
 		off_time_page_next();

@@ -57,7 +57,7 @@ static void wake_screen(void)
     s_just_woke_up = 1; /* 通知 power_mgr_proc 刷新活动时间 */
     s_blk_pending = 1;
     ui_data.dev_state = DEV_STATE_NORMAL;
-    ui_data.cur_page = PAGE_HOME;
+    ui_data.cur_page = PAGE_POWER_ON;
     ui_data.last_page = PAGE_MAX; /* 强制刷新 */
 }
 
@@ -234,7 +234,7 @@ static void power_mgr_exit_stop_full(void)
 
     /* 恢复 UI 状态 */
     ui_data.dev_state = DEV_STATE_NORMAL;
-    ui_data.cur_page = PAGE_HOME;
+    ui_data.cur_page = PAGE_POWER_ON;
     ui_data.last_page = PAGE_MAX; /* 强制刷新 */
 }
 
@@ -363,7 +363,7 @@ void power_mgr_enter_stop(void)
                 LOGI("[PWR] high temp! -> full restore\r\n");
                 /* 高温: 全恢复 + 告警页 -> 退出 */
                 power_mgr_exit_stop_full();
-                ui_data.cur_page = PAGE_HOME;
+                ui_data.cur_page = PAGE_POWER_ON;
                 ui_data.dev_state = DEV_STATE_NORMAL;
                 g_in_stop = 0;
             }

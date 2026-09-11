@@ -82,6 +82,7 @@ typedef enum
 	PAGE_DISABLED           ,  /* 禁用提示页 (全红) */
 	PAGE_VOLTAGE_ABNORMAL   ,  /* 电压异常提示页 */
 	PAGE_TEMP_ABNORMAL      ,  /* 温度异常提示页 */
+	PAGE_POWER_ON           ,  /* 开机/亮屏动画页 */
 	PAGE_ABNORMAL_UPDATA    ,  /* 不是真的界面，异常界面切换的过度态 */
 
 	PAGE_MAX,

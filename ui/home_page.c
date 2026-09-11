@@ -8,6 +8,8 @@
 #define HM_LEFT_W           128
 #define HM_EMOJI_X          128
 #define HM_EMOJI_Y          20
+#define HM_POWER_ON_X       64
+#define HM_POWER_ON_Y       10
 #define HM_BAT_Y_MULTI      21
 #define HM_BAT_Y_SINGLE     40
 #define HM_BAT_H            48
@@ -34,6 +36,14 @@
 #define HM_POWER_SNAP       10
 #define HM_ANIM_FRAME_COUNT 12U
 #define HM_ANIM_CYCLE_MS    2000U
+#define HM_POWER_ON_FRAME_COUNT 36U
+#define HM_POWER_ON_CYCLE_MS    2500U
+#define HM_POWER_ON_HOLD_MS 0U
+
+#if FLASH_COUNT_POWER_ON_ANIMA != HM_POWER_ON_FRAME_COUNT
+#error "Power-on animation resource count does not match HM_POWER_ON_FRAME_COUNT"
+#endif
+
 #define HM_ANIM_STANDBY     0U
 #define HM_ANIM_CHARGING    1U
 #define HM_ANIM_DISCHARGING 2U
@@ -135,6 +145,26 @@ static const uint32_t hm_discharge_anim[2][HM_ANIM_FRAME_COUNT] = {
 		FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_10, FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_11,
 	},
 };
+static const uint32_t hm_power_on_anim[HM_POWER_ON_FRAME_COUNT] = {
+	FLASH_ADDR_POWER_ON_ANIMA_0, FLASH_ADDR_POWER_ON_ANIMA_1,
+	FLASH_ADDR_POWER_ON_ANIMA_2, FLASH_ADDR_POWER_ON_ANIMA_3,
+	FLASH_ADDR_POWER_ON_ANIMA_4, FLASH_ADDR_POWER_ON_ANIMA_5,
+	FLASH_ADDR_POWER_ON_ANIMA_6, FLASH_ADDR_POWER_ON_ANIMA_7,
+	FLASH_ADDR_POWER_ON_ANIMA_8, FLASH_ADDR_POWER_ON_ANIMA_9,
+	FLASH_ADDR_POWER_ON_ANIMA_10, FLASH_ADDR_POWER_ON_ANIMA_11,
+	FLASH_ADDR_POWER_ON_ANIMA_12, FLASH_ADDR_POWER_ON_ANIMA_13,
+	FLASH_ADDR_POWER_ON_ANIMA_14, FLASH_ADDR_POWER_ON_ANIMA_15,
+	FLASH_ADDR_POWER_ON_ANIMA_16, FLASH_ADDR_POWER_ON_ANIMA_17,
+	FLASH_ADDR_POWER_ON_ANIMA_18, FLASH_ADDR_POWER_ON_ANIMA_19,
+	FLASH_ADDR_POWER_ON_ANIMA_20, FLASH_ADDR_POWER_ON_ANIMA_21,
+	FLASH_ADDR_POWER_ON_ANIMA_22, FLASH_ADDR_POWER_ON_ANIMA_23,
+	FLASH_ADDR_POWER_ON_ANIMA_24, FLASH_ADDR_POWER_ON_ANIMA_25,
+	FLASH_ADDR_POWER_ON_ANIMA_26, FLASH_ADDR_POWER_ON_ANIMA_27,
+	FLASH_ADDR_POWER_ON_ANIMA_28, FLASH_ADDR_POWER_ON_ANIMA_29,
+	FLASH_ADDR_POWER_ON_ANIMA_30, FLASH_ADDR_POWER_ON_ANIMA_31,
+	FLASH_ADDR_POWER_ON_ANIMA_32, FLASH_ADDR_POWER_ON_ANIMA_33,
+	FLASH_ADDR_POWER_ON_ANIMA_34, FLASH_ADDR_POWER_ON_ANIMA_35,
+};
 static const uint32_t hm_port_icon[HM_PORT_COUNT][2] = {
 	{FLASH_ADDR_ICON_IN_1_LITTLE, FLASH_ADDR_ICON_OUT_1_LITTLE},
 	{FLASH_ADDR_ICON_IN_2_LITTLE, FLASH_ADDR_ICON_OUT_2_LITTLE},
@@ -154,6 +184,8 @@ static uint32_t hm_sample_tick;
 static uint32_t hm_anim_start_tick;
 static uint8_t hm_anim_frame, hm_anim_low, hm_anim_mode;
 static bool hm_anim_running;
+static uint32_t hm_power_on_start_tick;
+static uint8_t hm_power_on_frame;
 
 static uint8_t hm_abs_diff(uint8_t a, uint8_t b)
 {
@@ -498,4 +530,32 @@ void home_page_init(void)
 void home_page_updata(void)
 {
 	hm_render(false);
+}
+
+void power_on_page_init(void)
+{
+	DispBlock(0, 0, ROW - 1, COL - 1);
+	hm_power_on_start_tick = md_get_tick();
+	hm_power_on_frame = 0U;
+	Dispphoto_Dispaly_flash(HM_POWER_ON_X, HM_POWER_ON_Y, hm_power_on_anim[0]);
+}
+
+void power_on_page_anim_proc(void)
+{
+	uint32_t elapsed = md_get_tick() - hm_power_on_start_tick;
+	uint8_t frame;
+
+	if (elapsed >= HM_POWER_ON_CYCLE_MS + HM_POWER_ON_HOLD_MS) {
+		ui_data.last_page = PAGE_POWER_ON;
+		ui_data.cur_page = PAGE_HOME;
+		return;
+	}
+	if (elapsed >= HM_POWER_ON_CYCLE_MS)
+		frame = HM_POWER_ON_FRAME_COUNT - 1U;
+	else
+		frame = (uint8_t)((elapsed * HM_POWER_ON_FRAME_COUNT) / HM_POWER_ON_CYCLE_MS);
+	if (frame != hm_power_on_frame) {
+		hm_power_on_frame = frame;
+		Dispphoto_Dispaly_flash(HM_POWER_ON_X, HM_POWER_ON_Y, hm_power_on_anim[frame]);
+	}
 }
