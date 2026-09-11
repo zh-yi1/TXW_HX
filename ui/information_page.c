@@ -152,11 +152,24 @@ static uint16_t info1_last_cycle;
 
 #define TEMP_FILTER_WIN 5
 #define TEMP_SAMPLE_MS  100
+#define HEALTH_ANIM_FRAME_COUNT 12U
+#define HEALTH_ANIM_CYCLE_MS    2000U
+
+static const uint32_t health_anim[HEALTH_ANIM_FRAME_COUNT] = {
+    FLASH_ADDR_HEALTHY_ANIMA_0, FLASH_ADDR_HEALTHY_ANIMA_1,
+    FLASH_ADDR_HEALTHY_ANIMA_2, FLASH_ADDR_HEALTHY_ANIMA_3,
+    FLASH_ADDR_HEALTHY_ANIMA_4, FLASH_ADDR_HEALTHY_ANIMA_5,
+    FLASH_ADDR_HEALTHY_ANIMA_6, FLASH_ADDR_HEALTHY_ANIMA_7,
+    FLASH_ADDR_HEALTHY_ANIMA_8, FLASH_ADDR_HEALTHY_ANIMA_9,
+    FLASH_ADDR_HEALTHY_ANIMA_10, FLASH_ADDR_HEALTHY_ANIMA_11,
+};
 
 static int16_t  temp_filter_buf[TEMP_FILTER_WIN];
 static uint8_t  temp_filter_idx;
 static bool     temp_filter_full;
 static uint32_t temp_samp_tick;
+static uint32_t health_anim_start_tick;
+static uint8_t health_anim_frame;
 
 static void temp_filter_push(int16_t value)
 {
@@ -316,7 +329,9 @@ void information_page_2_init(void)
     temp_filter_fill(ui_data.bat_temperature);
     temp_samp_tick = md_get_tick();
 
-    Dispphoto_Dispaly_flash(0,   20,  FLASH_ADDR_EMOJI_HEALTHY);
+    health_anim_start_tick = md_get_tick();
+    health_anim_frame = 0U;
+    Dispphoto_Dispaly_flash(0,   20,  health_anim[0]);
     Dispphoto_Dispaly_flash(112, 11,  FLASH_ADDR_TEXT_BAT_HEALTH);
     Dispphoto_Dispaly_flash(112, 41,  FLASH_ADDR_TEXT_BAT_TEMP);
     Dispphoto_Dispaly_flash(112, 71,  FLASH_ADDR_TEXT_CYCLE_INDEX);
@@ -413,6 +428,22 @@ static void software_draw_version(const char *prefix, const char *version, uint8
     x += SOFTWARE_VERSION_LABEL_W;
     x += SOFTWARE_VERSION_GAP;
     digit_display_string(version, x, y, DIGIT_HEIGHT_16);
+}
+
+void information_page_2_anim_proc(void)
+{
+    uint32_t elapsed = md_get_tick() - health_anim_start_tick;
+    uint8_t frame;
+
+    if (elapsed >= HEALTH_ANIM_CYCLE_MS) {
+        health_anim_start_tick += (elapsed / HEALTH_ANIM_CYCLE_MS) * HEALTH_ANIM_CYCLE_MS;
+        elapsed %= HEALTH_ANIM_CYCLE_MS;
+    }
+    frame = (uint8_t)((elapsed * HEALTH_ANIM_FRAME_COUNT) / HEALTH_ANIM_CYCLE_MS);
+    if (frame != health_anim_frame) {
+        health_anim_frame = frame;
+        Dispphoto_Dispaly_flash(0, 20, health_anim[frame]);
+    }
 }
 
 static uint8_t software_append_uint16(uint16_t value, char *out)

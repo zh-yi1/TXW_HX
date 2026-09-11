@@ -207,7 +207,7 @@ void ui_proc(void)
 		power_mgr_notify_frame_drawn();
 	}
 
-	/* 主页电量采样 + 充电/待机动画不受 500ms 页面刷新限流。 */
+	/* 主页电量采样 + 充电/放电/待机动画不受 500ms 页面刷新限流。 */
 	if (ui_data.cur_page == PAGE_HOME)
 	{
 		home_page_sample();
@@ -215,8 +215,10 @@ void ui_proc(void)
 	}
 
 	/* 温度页: 同理, 采样不能受 500ms 限流, 否则 5 点窗口要跨 2.5s */
-	if (ui_data.cur_page == PAGE_INFO_2)
+	if (ui_data.cur_page == PAGE_INFO_2) {
 		information_page_2_sample();
+		information_page_2_anim_proc();
+	}
 
 	/* 息屏时长页: 双击换选项要立刻看到反馈, 等 500ms 太迟钝。没变化时它直接返回 */
 	if (ui_data.cur_page == PAGE_OFF_TIME)

@@ -27,8 +27,6 @@
 #define HM_POWER_UNIT_W     19
 #define HM_HOUR_W           14
 #define HM_MINUTE_W         30
-#define HM_WHITE            0
-#define HM_ORANGE           1
 #define HM_LOW_SOC          10
 #define HM_FILTER_WIN       5
 #define HM_SAMPLE_MS        100U
@@ -36,6 +34,9 @@
 #define HM_POWER_SNAP       10
 #define HM_ANIM_FRAME_COUNT 12U
 #define HM_ANIM_CYCLE_MS    2000U
+#define HM_ANIM_STANDBY     0U
+#define HM_ANIM_CHARGING    1U
+#define HM_ANIM_DISCHARGING 2U
 
 typedef struct {
 	uint8_t id;       /* 0=C1, 1=C2, 2=A */
@@ -47,21 +48,14 @@ static const uint8_t hm_row_y[3][3] = {
 	{88, 0, 0}, {69, 91, 0}, {69, 91, 113}
 };
 
-static const uint32_t hm_bat_digit[10][2] = {
-	{FLASH_ADDR_NUM_48_0_WHITE, FLASH_ADDR_NUM_48_0_ORANGE},
-	{FLASH_ADDR_NUM_48_1_WHITE, FLASH_ADDR_NUM_48_1_ORANGE},
-	{FLASH_ADDR_NUM_48_2_WHITE, FLASH_ADDR_NUM_48_2_ORANGE},
-	{FLASH_ADDR_NUM_48_3_WHITE, FLASH_ADDR_NUM_48_3_ORANGE},
-	{FLASH_ADDR_NUM_48_4_WHITE, FLASH_ADDR_NUM_48_4_ORANGE},
-	{FLASH_ADDR_NUM_48_5_WHITE, FLASH_ADDR_NUM_48_5_ORANGE},
-	{FLASH_ADDR_NUM_48_6_WHITE, FLASH_ADDR_NUM_48_6_ORANGE},
-	{FLASH_ADDR_NUM_48_7_WHITE, FLASH_ADDR_NUM_48_7_ORANGE},
-	{FLASH_ADDR_NUM_48_8_WHITE, FLASH_ADDR_NUM_48_8_ORANGE},
-	{FLASH_ADDR_NUM_48_9_WHITE, FLASH_ADDR_NUM_48_9_ORANGE},
+static const uint32_t hm_bat_digit[10] = {
+	FLASH_ADDR_NUM_48_0_WHITE, FLASH_ADDR_NUM_48_1_WHITE,
+	FLASH_ADDR_NUM_48_2_WHITE, FLASH_ADDR_NUM_48_3_WHITE,
+	FLASH_ADDR_NUM_48_4_WHITE, FLASH_ADDR_NUM_48_5_WHITE,
+	FLASH_ADDR_NUM_48_6_WHITE, FLASH_ADDR_NUM_48_7_WHITE,
+	FLASH_ADDR_NUM_48_8_WHITE, FLASH_ADDR_NUM_48_9_WHITE,
 };
-static const uint32_t hm_bat_percent[2] = {
-	FLASH_ADDR_NUM_48_PERCENT_WHITE, FLASH_ADDR_NUM_48_PERCENT_ORANGE
-};
+static const uint32_t hm_bat_percent = FLASH_ADDR_NUM_48_PERCENT_WHITE;
 /* 资源生成器按文件名字典序排地址，必须显式按 0~11 组织播放顺序。 */
 static const uint32_t hm_charge_anim[2][HM_ANIM_FRAME_COUNT] = {
 	{
@@ -123,13 +117,31 @@ static const uint32_t hm_standby_anim[2][HM_ANIM_FRAME_COUNT] = {
 		FLASH_ADDR_LOW_POWER_STANDBY_ANIMA_11,
 	},
 };
+static const uint32_t hm_discharge_anim[2][HM_ANIM_FRAME_COUNT] = {
+	{
+		FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_0, FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_1,
+		FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_2, FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_3,
+		FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_4, FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_5,
+		FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_6, FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_7,
+		FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_8, FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_9,
+		FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_10, FLASH_ADDR_HIGH_POWER_DISCHARGING_ANIMA_11,
+	},
+	{
+		FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_0, FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_1,
+		FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_2, FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_3,
+		FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_4, FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_5,
+		FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_6, FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_7,
+		FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_8, FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_9,
+		FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_10, FLASH_ADDR_LOW_POWER_DISCHARGING_ANIMA_11,
+	},
+};
 static const uint32_t hm_port_icon[HM_PORT_COUNT][2] = {
 	{FLASH_ADDR_ICON_IN_1_LITTLE, FLASH_ADDR_ICON_OUT_1_LITTLE},
 	{FLASH_ADDR_ICON_IN_2_LITTLE, FLASH_ADDR_ICON_OUT_2_LITTLE},
 	{FLASH_ADDR_ICON_IN_3_LITTLE, FLASH_ADDR_ICON_OUT_3_LITTLE},
 };
 
-static uint8_t hm_last_bat, hm_last_color, hm_last_bat_y, hm_last_bat_w;
+static uint8_t hm_last_bat, hm_last_bat_y, hm_last_bat_w;
 static uint8_t hm_last_count, hm_last_power_w[HM_PORT_COUNT];
 static hm_port_t hm_last_ports[HM_PORT_COUNT];
 static int16_t hm_last_minute;
@@ -140,7 +152,7 @@ static uint8_t hm_power_buf[HM_PORT_COUNT][HM_FILTER_WIN];
 static uint8_t hm_power_idx[HM_PORT_COUNT], hm_sample_status[HM_PORT_COUNT];
 static uint32_t hm_sample_tick;
 static uint32_t hm_anim_start_tick;
-static uint8_t hm_anim_frame, hm_anim_low, hm_anim_charging;
+static uint8_t hm_anim_frame, hm_anim_low, hm_anim_mode;
 static bool hm_anim_running;
 
 static uint8_t hm_abs_diff(uint8_t a, uint8_t b)
@@ -173,6 +185,20 @@ static bool hm_any_charge(void)
 	return ui_data.usb_c1_status == HM_IN
 	    || ui_data.usb_c2_status == HM_IN
 	    || ui_data.usb_a_status == HM_IN;
+}
+
+static bool hm_any_discharge(void)
+{
+	return ui_data.usb_c1_status == HM_OUT
+	    || ui_data.usb_c2_status == HM_OUT
+	    || ui_data.usb_a_status == HM_OUT;
+}
+
+static uint8_t hm_get_anim_mode(void)
+{
+	if (hm_any_charge()) return HM_ANIM_CHARGING;
+	if (hm_any_discharge()) return HM_ANIM_DISCHARGING;
+	return HM_ANIM_STANDBY;
 }
 
 static void hm_bat_fill(uint8_t v)
@@ -250,15 +276,15 @@ static uint8_t hm_split(uint8_t v, uint8_t d[3])
 	d[0] = v; return 1;
 }
 
-static uint8_t hm_draw_battery(uint8_t power, uint8_t color, uint8_t y)
+static uint8_t hm_draw_battery(uint8_t power, uint8_t y)
 {
 	uint8_t d[3], n = hm_split(power, d), i;
 	int x = 0;
 	for (i = 0; i < n; i++) {
-		Dispphoto_Dispaly_flash(x, y, hm_bat_digit[d[i]][color]);
+		Dispphoto_Dispaly_flash(x, y, hm_bat_digit[d[i]]);
 		x += hm_bat_digit_w(d[i]);
 	}
-	Dispphoto_Dispaly_flash(x, y, hm_bat_percent[color]);
+	Dispphoto_Dispaly_flash(x, y, hm_bat_percent);
 	return (uint8_t)(x + HM_BAT_W);
 }
 
@@ -277,9 +303,11 @@ static uint8_t hm_draw_power(uint8_t power, uint8_t y)
 	return (uint8_t)(x - HM_POWER_X);
 }
 
-static uint32_t hm_anim_addr(uint8_t charging, uint8_t low, uint8_t frame)
+static uint32_t hm_anim_addr(uint8_t mode, uint8_t low, uint8_t frame)
 {
-	return charging ? hm_charge_anim[low][frame] : hm_standby_anim[low][frame];
+	if (mode == HM_ANIM_CHARGING) return hm_charge_anim[low][frame];
+	if (mode == HM_ANIM_DISCHARGING) return hm_discharge_anim[low][frame];
+	return hm_standby_anim[low][frame];
 }
 
 static int hm_draw_num18(int x, uint8_t value)
@@ -359,7 +387,6 @@ static void hm_render(bool first)
 	uint8_t count = hm_collect_ports(ports);
 	uint8_t power = hm_bat_get();
 	uint8_t bat_y = count >= 2 ? HM_BAT_Y_MULTI : HM_BAT_Y_SINGLE;
-	uint8_t color = power <= HM_LOW_SOC ? HM_ORANGE : HM_WHITE;
 	bool layout_changed = first || count != hm_last_count;
 	bool low_text = count == 0 && power <= HM_LOW_SOC;
 	bool old_low_text = hm_last_count == 0 && hm_last_bat <= HM_LOW_SOC;
@@ -373,8 +400,8 @@ static void hm_render(bool first)
 		          HM_LOW_TEXT_Y + HM_LOW_TEXT_H - 1);
 	}
 
-	if (layout_changed || power != hm_last_bat || color != hm_last_color || bat_y != hm_last_bat_y) {
-		uint8_t new_w = hm_draw_battery(power, color, bat_y);
+	if (layout_changed || power != hm_last_bat || bat_y != hm_last_bat_y) {
+		uint8_t new_w = hm_draw_battery(power, bat_y);
 		/* Same origin: overwrite first, erase only a right tail when narrower. */
 		if (!layout_changed && bat_y == hm_last_bat_y && hm_last_bat_w > new_w)
 			DispBlock(new_w, bat_y, hm_last_bat_w - 1, bat_y + HM_BAT_H - 1);
@@ -387,7 +414,7 @@ static void hm_render(bool first)
 	/* 表情区域由 home_page_anim_proc() 独占，避免 500ms 刷新覆盖动画帧。 */
 	hm_update_top();
 
-	hm_last_bat = power; hm_last_color = color; hm_last_bat_y = bat_y;
+	hm_last_bat = power; hm_last_bat_y = bat_y;
 	hm_last_count = count;
 }
 
@@ -415,19 +442,19 @@ void home_page_anim_proc(void)
 	uint32_t addr;
 	uint8_t frame;
 	uint8_t low;
-	uint8_t charging = hm_any_charge() ? 1U : 0U;
+	uint8_t mode = hm_get_anim_mode();
 
 	low = (hm_bat_out <= HM_LOW_SOC) ? 1U : 0U;
-	if (!hm_anim_running || low != hm_anim_low || charging != hm_anim_charging) {
-		/* 充电/待机或高/低电切换：先同步端口、电量，再显示第0帧。 */
+	if (!hm_anim_running || low != hm_anim_low || mode != hm_anim_mode) {
+		/* 充电/放电/待机或高/低电切换：先同步端口、电量，再显示第0帧。 */
 		hm_render(false);
 		hm_anim_running = true;
 		hm_anim_low = low;
-		hm_anim_charging = charging;
+		hm_anim_mode = mode;
 		hm_anim_frame = 0U;
 		hm_anim_start_tick = now;
 		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y,
-		                         hm_anim_addr(charging, low, 0U));
+		                         hm_anim_addr(mode, low, 0U));
 		return;
 	}
 
@@ -439,7 +466,7 @@ void home_page_anim_proc(void)
 	frame = (uint8_t)((elapsed * HM_ANIM_FRAME_COUNT) / HM_ANIM_CYCLE_MS);
 	if (frame != hm_anim_frame) {
 		hm_anim_frame = frame;
-		addr = hm_anim_addr(charging, low, frame);
+		addr = hm_anim_addr(mode, low, frame);
 		Dispphoto_Dispaly_flash(HM_EMOJI_X, HM_EMOJI_Y, addr);
 	}
 }
@@ -458,9 +485,9 @@ void home_page_init(void)
 	hm_anim_start_tick = hm_sample_tick;
 	hm_anim_frame = 0xFFU;
 	hm_anim_low = 0U;
-	hm_anim_charging = 0U;
+	hm_anim_mode = HM_ANIM_STANDBY;
 	hm_anim_running = false;
-	hm_last_bat = hm_last_color = hm_last_bat_y = hm_last_count = 0xFF;
+	hm_last_bat = hm_last_bat_y = hm_last_count = 0xFF;
 	hm_last_bat_w = 0; hm_last_minute = -2;
 	hm_last_mini = !ui_data.low_current_flag;
 	memset(hm_last_ports, 0xFF, sizeof(hm_last_ports));
